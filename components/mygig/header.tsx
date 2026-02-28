@@ -56,7 +56,7 @@ export function Header({ coinBalance, userName, userLevel, avatarUrl }: HeaderPr
           </motion.div>
           <button
             className="relative p-2 rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Notifications"
+            aria-label="Уведомления"
           >
             <Bell size={18} />
             <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary" />

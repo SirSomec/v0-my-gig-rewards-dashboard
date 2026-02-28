@@ -12,9 +12,9 @@ import { LevelsView } from "@/components/mygig/levels-view"
 
 // --- Mock data ---
 const USER = {
-  name: "Alex Johnson",
-  level: "Silver Partner",
-  nextLevel: "Gold Partner",
+  name: "Алексей Иванов",
+  level: "Серебряный партнёр",
+  nextLevel: "Золотой партнёр",
   balance: 1_240,
   shiftsCompleted: 22,
   shiftsRequired: 25,
@@ -22,25 +22,25 @@ const USER = {
 }
 
 const EARNINGS: EarningEntry[] = [
-  { id: "1", title: "Warehouse Shift - Amazon FC", location: "Romford, London", date: "Today", coins: 50, type: "shift" },
-  { id: "2", title: "Event Staffing - O2 Arena", location: "Greenwich, London", date: "Yesterday", coins: 75, type: "shift" },
-  { id: "3", title: "Delivery Driver - DPD", location: "Croydon, London", date: "Feb 25", coins: 60, type: "shift" },
-  { id: "4", title: "Retail Assistant - Tesco", location: "Brixton, London", date: "Feb 24", coins: 45, type: "shift" },
-  { id: "5", title: "Weekend Bonus", location: "System Reward", date: "Feb 23", coins: 100, type: "bonus" },
+  { id: "1", title: "Смена на складе - Amazon FC", location: "Ромфорд, Лондон", date: "Сегодня", coins: 50, type: "shift" },
+  { id: "2", title: "Обслуживание мероприятия - O2 Arena", location: "Гринвич, Лондон", date: "Вчера", coins: 75, type: "shift" },
+  { id: "3", title: "Водитель доставки - DPD", location: "Кройдон, Лондон", date: "25 фев", coins: 60, type: "shift" },
+  { id: "4", title: "Помощник в магазине - Tesco", location: "Брикстон, Лондон", date: "24 фев", coins: 45, type: "shift" },
+  { id: "5", title: "Бонус за выходные", location: "Системная награда", date: "23 фев", coins: 100, type: "bonus" },
 ]
 
 const QUESTS: Quest[] = [
-  { id: "q1", title: "Shift Streak", description: "Complete 3 shifts in a row", progress: 2, total: 3, reward: 100, icon: "streak", completed: false },
-  { id: "q2", title: "Early Bird", description: "Accept a shift before 8am", progress: 1, total: 1, reward: 30, icon: "calendar", completed: true },
-  { id: "q3", title: "Top Performer", description: "Get 5-star rating on 2 shifts", progress: 1, total: 2, reward: 75, icon: "trophy", completed: false },
-  { id: "q4", title: "Weekly Target", description: "Complete 5 shifts this week", progress: 3, total: 5, reward: 150, icon: "target", completed: false },
+  { id: "q1", title: "Серия смен", description: "Завершите 3 смены подряд", progress: 2, total: 3, reward: 100, icon: "streak", completed: false },
+  { id: "q2", title: "Ранняя пташка", description: "Примите смену до 8 утра", progress: 1, total: 1, reward: 30, icon: "calendar", completed: true },
+  { id: "q3", title: "Лучший работник", description: "Получите рейтинг 5 звёзд на 2 сменах", progress: 1, total: 2, reward: 75, icon: "trophy", completed: false },
+  { id: "q4", title: "Цель недели", description: "Завершите 5 смен за неделю", progress: 3, total: 5, reward: 150, icon: "target", completed: false },
 ]
 
 const STORE_ITEMS: StoreItem[] = [
-  { id: "s1", name: "10% Partner Discount", description: "Save on partner stores for 30 days", cost: 200, icon: "discount", category: "Discount" },
-  { id: "s2", name: "Payout Booster", description: "+5% on your next 3 shift payouts", cost: 500, icon: "booster", category: "Booster" },
-  { id: "s3", name: "MyGig Hoodie", description: "Premium branded merch shipped free", cost: 1500, icon: "merch", category: "Merch" },
-  { id: "s4", name: "Gift Card - GBP 10", description: "Amazon, Uber Eats, or Deliveroo", cost: 800, icon: "gift", category: "Gift" },
+  { id: "s1", name: "Скидка 10% у партнёров", description: "Экономия в магазинах-партнёрах 30 дней", cost: 200, icon: "discount", category: "Скидка" },
+  { id: "s2", name: "Ускоритель выплат", description: "+5% к следующим 3 выплатам за смены", cost: 500, icon: "booster", category: "Бустер" },
+  { id: "s3", name: "Худи MyGig", description: "Фирменный мерч с бесплатной доставкой", cost: 1500, icon: "merch", category: "Мерч" },
+  { id: "s4", name: "Подарочная карта - 10 GBP", description: "Amazon, Uber Eats или Deliveroo", cost: 800, icon: "gift", category: "Подарок" },
 ]
 
 const pageVariants = {

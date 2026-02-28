@@ -23,9 +23,9 @@ export function EarningHistory({ entries }: EarningHistoryProps) {
     <Card className="bg-card border-border">
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-foreground">Recent Activity</h2>
+          <h2 className="text-sm font-semibold text-foreground">Последняя активность</h2>
           <button className="text-xs text-accent hover:text-accent/80 font-medium transition-colors">
-            See All
+            Все
           </button>
         </div>
 

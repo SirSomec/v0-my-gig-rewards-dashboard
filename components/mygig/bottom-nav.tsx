@@ -11,15 +11,15 @@ interface BottomNavProps {
 }
 
 const tabs: { id: NavTab; label: string; icon: typeof Home }[] = [
-  { id: "home", label: "Home", icon: Home },
-  { id: "history", label: "History", icon: Clock },
-  { id: "store", label: "Store", icon: ShoppingBag },
-  { id: "levels", label: "Levels", icon: Award },
+  { id: "home", label: "Главная", icon: Home },
+  { id: "history", label: "История", icon: Clock },
+  { id: "store", label: "Магазин", icon: ShoppingBag },
+  { id: "levels", label: "Уровни", icon: Award },
 ]
 
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border" role="navigation" aria-label="Main navigation">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border" role="navigation" aria-label="Основная навигация">
       <div className="max-w-md mx-auto flex items-center justify-around px-2 py-1 pb-[env(safe-area-inset-bottom)]">
         {tabs.map((tab) => {
           const Icon = tab.icon

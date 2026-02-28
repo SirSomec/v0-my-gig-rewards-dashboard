@@ -7,8 +7,8 @@ const _inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const _geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
-  title: 'MyGig Rewards',
-  description: 'Earn Gig-coins, level up, and unlock exclusive rewards on the MyGig platform.',
+  title: 'MyGig Награды',
+  description: 'Зарабатывайте Gig-монеты, повышайте уровень и получайте эксклюзивные награды на платформе MyGig.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -43,7 +43,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="ru">
       <body className={`${_inter.variable} ${_geistMono.variable} font-sans antialiased`}>
         {children}
       </body>

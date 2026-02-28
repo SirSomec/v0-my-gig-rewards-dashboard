@@ -15,16 +15,16 @@ interface LevelProgressProps {
 }
 
 const benefits: Record<string, { icon: React.ReactNode; label: string; description: string }[]> = {
-  "Silver Partner": [
-    { icon: <TrendingUp size={16} />, label: "+5% Bonus", description: "On every completed shift" },
-    { icon: <GigCoinIcon size={16} />, label: "2x Coins", description: "On weekend shifts" },
-    { icon: <Star size={16} />, label: "Priority Picks", description: "Early access to shifts" },
+  "Серебряный партнёр": [
+    { icon: <TrendingUp size={16} />, label: "+5% бонус", description: "За каждую завершённую смену" },
+    { icon: <GigCoinIcon size={16} />, label: "2x монеты", description: "За смены в выходные" },
+    { icon: <Star size={16} />, label: "Приоритет выбора", description: "Ранний доступ к сменам" },
   ],
-  "Gold Partner": [
-    { icon: <TrendingUp size={16} />, label: "+10% Bonus", description: "On every completed shift" },
-    { icon: <Zap size={16} />, label: "Instant Payouts", description: "No waiting period" },
-    { icon: <GigCoinIcon size={16} />, label: "3x Coins", description: "On weekend shifts" },
-    { icon: <Clock size={16} />, label: "Flex Schedule", description: "Custom shift planning" },
+  "Золотой партнёр": [
+    { icon: <TrendingUp size={16} />, label: "+10% бонус", description: "За каждую завершённую смену" },
+    { icon: <Zap size={16} />, label: "Мгновенные выплаты", description: "Без периода ожидания" },
+    { icon: <GigCoinIcon size={16} />, label: "3x монеты", description: "За смены в выходные" },
+    { icon: <Clock size={16} />, label: "Гибкий график", description: "Индивидуальное планирование смен" },
   ],
 }
 
@@ -38,13 +38,13 @@ export function LevelProgress({
   const [showBenefits, setShowBenefits] = useState(false)
   const progress = (shiftsCompleted / shiftsRequired) * 100
 
-  const currentBenefits = benefits[currentLevel] || benefits["Silver Partner"]
+  const currentBenefits = benefits[currentLevel] || benefits["Серебряный партнёр"]
 
   return (
     <Card className="bg-card border-border overflow-hidden">
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-foreground">Level Progress</h2>
+          <h2 className="text-sm font-semibold text-foreground">Прогресс уровня</h2>
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground">{currentLevel}</span>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-primary" aria-hidden="true">
@@ -78,10 +78,10 @@ export function LevelProgress({
 
         <div className="flex items-center justify-between mb-4">
           <span className="text-xs text-muted-foreground">
-            {shiftsCompleted}/{shiftsRequired} shifts
+            {shiftsCompleted}/{shiftsRequired} смен
           </span>
           <span className="text-xs font-medium text-primary">
-            {shiftsRemaining} more to {nextLevel}
+            {'Ещё '}{shiftsRemaining}{' до '}{nextLevel}
           </span>
         </div>
 
@@ -91,7 +91,7 @@ export function LevelProgress({
           className="flex items-center justify-between w-full py-2 px-3 bg-secondary/60 rounded-lg text-sm hover:bg-secondary transition-colors"
           aria-expanded={showBenefits}
         >
-          <span className="font-medium text-foreground">Current Benefits</span>
+          <span className="font-medium text-foreground">Текущие преимущества</span>
           {showBenefits ? (
             <ChevronUp size={16} className="text-muted-foreground" />
           ) : (

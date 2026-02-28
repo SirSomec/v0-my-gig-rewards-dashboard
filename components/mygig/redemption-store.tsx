@@ -36,7 +36,7 @@ export function RedemptionStore({ items, userBalance }: RedemptionStoreProps) {
     <Card className="bg-card border-border">
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-foreground">Rewards Store</h2>
+          <h2 className="text-sm font-semibold text-foreground">Магазин наград</h2>
           <div className="flex items-center gap-1">
             <GigCoinIcon size={14} />
             <span className="text-xs font-semibold text-primary tabular-nums">{formatNumber(userBalance)}</span>

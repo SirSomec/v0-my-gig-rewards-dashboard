@@ -32,9 +32,9 @@ export function Quests({ quests }: QuestsProps) {
     <Card className="bg-card border-border">
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-foreground">Daily Goals</h2>
+          <h2 className="text-sm font-semibold text-foreground">Ежедневные цели</h2>
           <span className="text-xs text-muted-foreground">
-            {quests.filter(q => q.completed).length}/{quests.length} done
+            {quests.filter(q => q.completed).length}/{quests.length} выполнено
           </span>
         </div>
 

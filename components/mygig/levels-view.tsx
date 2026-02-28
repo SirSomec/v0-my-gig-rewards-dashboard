@@ -14,30 +14,30 @@ interface Level {
 
 const levels: Level[] = [
   {
-    name: "Bronze Starter",
+    name: "Бронзовый новичок",
     shiftsRequired: 0,
-    perks: ["Base pay rate", "Standard scheduling", "1x coin earning"],
+    perks: ["Базовая ставка", "Стандартное расписание", "1x начисление монет"],
     isCurrent: false,
     isUnlocked: true,
   },
   {
-    name: "Silver Partner",
+    name: "Серебряный партнёр",
     shiftsRequired: 10,
-    perks: ["+5% bonus on shifts", "2x weekend coins", "Priority shift picks"],
+    perks: ["+5% бонус за смены", "2x монеты в выходные", "Приоритет выбора смен"],
     isCurrent: true,
     isUnlocked: true,
   },
   {
-    name: "Gold Partner",
+    name: "Золотой партнёр",
     shiftsRequired: 25,
-    perks: ["+10% bonus on shifts", "Instant payouts", "3x weekend coins", "Flex scheduling"],
+    perks: ["+10% бонус за смены", "Мгновенные выплаты", "3x монеты в выходные", "Гибкий график"],
     isCurrent: false,
     isUnlocked: false,
   },
   {
-    name: "Platinum Elite",
+    name: "Платиновый элит",
     shiftsRequired: 50,
-    perks: ["+15% bonus on shifts", "VIP support", "5x weekend coins", "Exclusive gigs", "Free merch"],
+    perks: ["+15% бонус за смены", "VIP-поддержка", "5x монеты в выходные", "Эксклюзивные задания", "Бесплатный мерч"],
     isCurrent: false,
     isUnlocked: false,
   },
@@ -46,7 +46,7 @@ const levels: Level[] = [
 export function LevelsView() {
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-sm font-semibold text-foreground px-1">Loyalty Levels</h2>
+      <h2 className="text-sm font-semibold text-foreground px-1">Уровни лояльности</h2>
       {levels.map((level, i) => (
         <motion.div
           key={level.name}
@@ -80,11 +80,11 @@ export function LevelsView() {
                   </span>
                   {level.isCurrent && (
                     <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-medium">
-                      Current
+                      Текущий
                     </span>
                   )}
                 </div>
-                <span className="text-[11px] text-muted-foreground">{level.shiftsRequired} shifts</span>
+                <span className="text-[11px] text-muted-foreground">{level.shiftsRequired} смен</span>
               </div>
               <div className="flex flex-wrap gap-1">
                 {level.perks.map((perk) => (
