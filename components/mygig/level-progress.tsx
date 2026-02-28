@@ -1,0 +1,133 @@
+"use client"
+
+import { useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import { ChevronDown, ChevronUp, Zap, Clock, Star, TrendingUp } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
+import { GigCoinIcon } from "./gig-coin-icon"
+
+interface LevelProgressProps {
+  currentLevel: string
+  nextLevel: string
+  shiftsCompleted: number
+  shiftsRequired: number
+  shiftsRemaining: number
+}
+
+const benefits: Record<string, { icon: React.ReactNode; label: string; description: string }[]> = {
+  "Silver Partner": [
+    { icon: <TrendingUp size={16} />, label: "+5% Bonus", description: "On every completed shift" },
+    { icon: <GigCoinIcon size={16} />, label: "2x Coins", description: "On weekend shifts" },
+    { icon: <Star size={16} />, label: "Priority Picks", description: "Early access to shifts" },
+  ],
+  "Gold Partner": [
+    { icon: <TrendingUp size={16} />, label: "+10% Bonus", description: "On every completed shift" },
+    { icon: <Zap size={16} />, label: "Instant Payouts", description: "No waiting period" },
+    { icon: <GigCoinIcon size={16} />, label: "3x Coins", description: "On weekend shifts" },
+    { icon: <Clock size={16} />, label: "Flex Schedule", description: "Custom shift planning" },
+  ],
+}
+
+export function LevelProgress({
+  currentLevel,
+  nextLevel,
+  shiftsCompleted,
+  shiftsRequired,
+  shiftsRemaining,
+}: LevelProgressProps) {
+  const [showBenefits, setShowBenefits] = useState(false)
+  const progress = (shiftsCompleted / shiftsRequired) * 100
+
+  const currentBenefits = benefits[currentLevel] || benefits["Silver Partner"]
+
+  return (
+    <Card className="bg-card border-border overflow-hidden">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-foreground">Level Progress</h2>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">{currentLevel}</span>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-primary" aria-hidden="true">
+              <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="text-xs font-semibold text-primary">{nextLevel}</span>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="relative h-3 bg-secondary rounded-full overflow-hidden mb-2">
+          <motion.div
+            className="absolute inset-y-0 left-0 rounded-full"
+            style={{
+              background: "linear-gradient(90deg, oklch(0.65 0.18 250), oklch(0.78 0.16 75))",
+            }}
+            initial={{ width: 0 }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 1.2, ease: "easeOut" }}
+          />
+          <motion.div
+            className="absolute inset-y-0 left-0 rounded-full opacity-40"
+            style={{
+              background: "linear-gradient(90deg, transparent, oklch(0.9 0.12 80))",
+            }}
+            initial={{ width: 0 }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 1.2, ease: "easeOut", delay: 0.2 }}
+          />
+        </div>
+
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-xs text-muted-foreground">
+            {shiftsCompleted}/{shiftsRequired} shifts
+          </span>
+          <span className="text-xs font-medium text-primary">
+            {shiftsRemaining} more to {nextLevel}
+          </span>
+        </div>
+
+        {/* Benefits toggle */}
+        <button
+          onClick={() => setShowBenefits(!showBenefits)}
+          className="flex items-center justify-between w-full py-2 px-3 bg-secondary/60 rounded-lg text-sm hover:bg-secondary transition-colors"
+          aria-expanded={showBenefits}
+        >
+          <span className="font-medium text-foreground">Current Benefits</span>
+          {showBenefits ? (
+            <ChevronUp size={16} className="text-muted-foreground" />
+          ) : (
+            <ChevronDown size={16} className="text-muted-foreground" />
+          )}
+        </button>
+
+        <AnimatePresence>
+          {showBenefits && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+              className="overflow-hidden"
+            >
+              <div className="grid grid-cols-2 gap-2 mt-3">
+                {currentBenefits.map((benefit) => (
+                  <div
+                    key={benefit.label}
+                    className="flex items-start gap-2 p-2.5 bg-secondary/40 rounded-lg"
+                  >
+                    <div className="flex-shrink-0 p-1 rounded-md bg-primary/15 text-primary">
+                      {benefit.icon}
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-foreground leading-tight">{benefit.label}</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{benefit.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </CardContent>
+    </Card>
+  )
+}
