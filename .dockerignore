@@ -1,0 +1,24 @@
+# Зависимости
+node_modules
+.pnpm-store
+
+# Сборка Next.js
+.next
+out
+
+# Git и IDE
+.git
+.gitignore
+.cursor
+.vscode
+*.md
+
+# Локальные env (не для образа)
+.env*.local
+.env
+
+# Прочее
+Dockerfile
+.dockerignore
+*.log
+.DS_Store
