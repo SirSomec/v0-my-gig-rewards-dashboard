@@ -6,6 +6,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { GigCoinIcon } from "./gig-coin-icon"
 
+function formatNumber(n: number): string {
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+}
+
 interface HeaderProps {
   coinBalance: number
   userName: string
@@ -47,7 +51,7 @@ export function Header({ coinBalance, userName, userLevel, avatarUrl }: HeaderPr
               animate={{ y: 0, opacity: 1 }}
               className="text-sm font-bold text-primary tabular-nums"
             >
-              {coinBalance.toLocaleString()}
+              {formatNumber(coinBalance)}
             </motion.span>
           </motion.div>
           <button

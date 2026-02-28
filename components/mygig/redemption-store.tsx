@@ -6,6 +6,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { GigCoinIcon } from "./gig-coin-icon"
 
+function formatNumber(n: number): string {
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+}
+
 export interface StoreItem {
   id: string
   name: string
@@ -35,7 +39,7 @@ export function RedemptionStore({ items, userBalance }: RedemptionStoreProps) {
           <h2 className="text-sm font-semibold text-foreground">Rewards Store</h2>
           <div className="flex items-center gap-1">
             <GigCoinIcon size={14} />
-            <span className="text-xs font-semibold text-primary tabular-nums">{userBalance.toLocaleString()}</span>
+            <span className="text-xs font-semibold text-primary tabular-nums">{formatNumber(userBalance)}</span>
           </div>
         </div>
 
