@@ -11,12 +11,8 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AdminGuard } from './admin.guard';
-import {
-  AdminService,
-  CreateStoreItemDto,
-  UpdateLevelDto,
-  UpdateStoreItemDto,
-} from './admin.service';
+import { AdminService } from './admin.service';
+import { CreateStoreItemDto, UpdateLevelDto, UpdateStoreItemDto } from './dto/admin.dto';
 import { RewardsService } from '../rewards/rewards.service';
 
 @ApiTags('admin')

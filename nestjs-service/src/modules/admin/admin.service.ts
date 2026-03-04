@@ -4,30 +4,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../../infra/db/drizzle/schemas';
 import { drizzleProvider } from '../../infra/db/drizzle/drizzle.module';
 import { Inject } from '@nestjs/common';
-
-export type CreateStoreItemDto = {
-  name: string;
-  description?: string;
-  category: string;
-  cost: number;
-  icon?: string;
-  stockLimit?: number;
-  visibleFrom?: string;
-  visibleUntil?: string;
-  isActive?: number;
-  sortOrder?: number;
-  visibilityRules?: Record<string, unknown>;
-};
-
-export type UpdateStoreItemDto = Partial<CreateStoreItemDto>;
-
-export type UpdateLevelDto = {
-  name?: string;
-  shiftsRequired?: number;
-  strikeThreshold?: number | null;
-  perks?: Array<{ title: string; description?: string }>;
-  sortOrder?: number;
-};
+import type { CreateStoreItemDto, UpdateLevelDto, UpdateStoreItemDto } from './dto/admin.dto';
 
 @Injectable()
 export class AdminService {
