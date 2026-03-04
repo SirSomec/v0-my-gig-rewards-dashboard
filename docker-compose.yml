@@ -1,5 +1,11 @@
 # Фронт (app), бэкенд API (api) и БД PostgreSQL (db) — каждый в отдельном контейнере.
-# Данные БД сохраняются в volume pgdata. Переменные для API и фронта задайте в .env.
+# Данные БД сохраняются в volume pgdata.
+#
+# Подключение к БД по умолчанию (можно переопределить через .env):
+#   Пользователь: POSTGRES_USER=rewards
+#   Пароль:      POSTGRES_PASSWORD=rewards
+#   База:        POSTGRES_DB=rewards
+#   URL для API: postgres://rewards:rewards@db:5432/rewards
 
 services:
   app:
@@ -23,7 +29,7 @@ services:
       - "3001:3001"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgres://rewards:rewards@db:5432/rewards
+      - DATABASE_URL=${DATABASE_URL:-postgres://rewards:rewards@db:5432/rewards}
       - MIGRATIONS_PATH=/app/migrations
       - JWT_SECRET=${JWT_SECRET:-dev-secret}
       - JWT_EXPIRE=7d
@@ -36,9 +42,9 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: rewards
-      POSTGRES_PASSWORD: rewards
-      POSTGRES_DB: rewards
+      POSTGRES_USER: ${POSTGRES_USER:-rewards}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rewards}
+      POSTGRES_DB: ${POSTGRES_DB:-rewards}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
