@@ -9,9 +9,9 @@ ARG NEXT_PUBLIC_DEV_USER_ID=1
 ENV NEXT_PUBLIC_REWARDS_API_URL=$NEXT_PUBLIC_REWARDS_API_URL
 ENV NEXT_PUBLIC_DEV_USER_ID=$NEXT_PUBLIC_DEV_USER_ID
 
-# Кэширование зависимостей
+# Кэширование зависимостей (--ignore-scripts: postinstall ensure-env не нужен в образе, .env задаётся через build args)
 COPY package.json pnpm-lock.yaml* ./
-RUN corepack enable pnpm && pnpm install --frozen-lockfile
+RUN corepack enable pnpm && pnpm install --frozen-lockfile --ignore-scripts
 
 COPY . .
 RUN pnpm build
