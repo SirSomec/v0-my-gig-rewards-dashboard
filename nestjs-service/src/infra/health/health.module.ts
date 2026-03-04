@@ -1,14 +1,12 @@
 import { Module } from '@nestjs/common';
-import { HealthCheckService } from './health-check.service';
-import { HealthModule as CoreHealthModule } from '@mygigtechnologies/healthcheck';
+import { TerminusModule } from '@nestjs/terminus';
+import { DrizzleModule } from '../db/drizzle/drizzle.module';
+import { DrizzleHealthIndicator } from './drizzle.health';
+import { HealthController } from './health.controller';
 
 @Module({
-  imports: [
-    CoreHealthModule.forRootAsync({
-      inject: [HealthCheckService],
-      useFactory: (healthCheckService: HealthCheckService) =>
-        healthCheckService.createHealthOptions(),
-    }),
-  ],
+  imports: [TerminusModule, DrizzleModule],
+  controllers: [HealthController],
+  providers: [DrizzleHealthIndicator],
 })
 export class HealthModule {}

@@ -25,8 +25,6 @@
     "swagger:generate": "ts-node swagger-generator/index.ts"
   },
   "dependencies": {
-    "@mygigtechnologies/healthcheck": "1.1.0",
-    "@mygigtechnologies/nest-logger": "2.1.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "4.0.2",
     "@nestjs/core": "^11.0.1",
@@ -41,7 +39,8 @@
     "passport-jwt": "4.0.1",
     "postgres": "3.4.7",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "@nestjs/terminus": "^11.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

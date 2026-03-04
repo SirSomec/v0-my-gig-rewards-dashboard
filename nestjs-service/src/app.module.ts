@@ -5,7 +5,7 @@ import {
   NestModule,
   OnModuleDestroy,
 } from '@nestjs/common';
-import { RequestLoggerMiddleware } from '@mygigtechnologies/nest-logger';
+import { RequestLoggerMiddleware } from './shared/request-logger.middleware';
 import { ConfigModule } from '@nestjs/config';
 import { EnvValidationSchema } from './shared/env.validation-schema';
 import { AuthModule } from './modules/auth/auth.module';
@@ -37,7 +37,7 @@ const SHUTDOWN_TIMEOUT = 60000;
     }),
   ],
   controllers: [],
-  providers: [],
+  providers: [RequestLoggerMiddleware],
 })
 export class AppModule implements NestModule, OnModuleDestroy {
   private readonly logger = new Logger(AppModule.name);
