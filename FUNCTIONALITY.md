@@ -148,6 +148,7 @@
 
 - Все данные сейчас **моковые** в `app/page.tsx`: `USER`, `EARNINGS`, `QUESTS`, `STORE_ITEMS`.
 - Нет авторизации, нет вызовов API.
+- **Бэкенд** при разработке строится на **шаблоне микросервиса `nestjs-service/`** (NestJS, Drizzle, PostgreSQL, Redis, Health, Swagger, Helm). Подробнее — ARCHITECTURE.md, п. 1.1.
 - Для продакшена нужно:
   - API пользователя (профиль, уровень, баланс);
   - API истории начислений;
