@@ -10,8 +10,9 @@ export interface EarningEntry {
   title: string
   location: string
   date: string
-  coins: number
-  type: "shift" | "bonus" | "quest"
+  /** Сумма с знаком: положительная — начисление, отрицательная — списание (покупка) */
+  amount: number
+  type: "shift" | "bonus" | "quest" | "redemption"
 }
 
 interface EarningHistoryProps {
@@ -52,7 +53,15 @@ export function EarningHistory({ entries }: EarningHistoryProps) {
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
                 <GigCoinIcon size={16} />
-                <span className="text-sm font-bold text-success tabular-nums">+{entry.coins}</span>
+                <span
+                  className={
+                    entry.amount < 0
+                      ? "text-sm font-bold text-destructive tabular-nums"
+                      : "text-sm font-bold text-success tabular-nums"
+                  }
+                >
+                  {entry.amount >= 0 ? `+${entry.amount}` : entry.amount}
+                </span>
               </div>
             </motion.div>
           ))}

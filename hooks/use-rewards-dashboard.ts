@@ -50,8 +50,8 @@ function mapMe(m: MeResponse): DashboardUser {
   }
 }
 
-function mapType(t: string): "shift" | "bonus" | "quest" {
-  if (t === "shift" || t === "bonus" || t === "quest") return t
+function mapType(t: string): "shift" | "bonus" | "quest" | "redemption" {
+  if (t === "shift" || t === "bonus" || t === "quest" || t === "redemption") return t
   return "bonus"
 }
 
@@ -63,12 +63,13 @@ function formatTransactionDate(iso: string): string {
 }
 
 function mapTransaction(t: TransactionResponse): EarningEntry {
+  const isRedemption = t.type === "redemption"
   return {
     id: String(t.id),
-    title: t.title ?? "Начисление",
+    title: t.title ?? (isRedemption ? "Покупка в магазине" : "Начисление"),
     location: t.location ?? "—",
     date: formatTransactionDate(t.createdAt),
-    coins: Math.abs(t.amount),
+    amount: t.amount,
     type: mapType(t.type),
   }
 }
