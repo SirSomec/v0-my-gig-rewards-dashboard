@@ -147,8 +147,10 @@
 ## 5. Данные и интеграция
 
 - Все данные сейчас **моковые** в `app/page.tsx`: `USER`, `EARNINGS`, `QUESTS`, `STORE_ITEMS`.
-- Нет авторизации, нет вызовов API.
-- **Бэкенд** при разработке строится на **шаблоне микросервиса `nestjs-service/`** (NestJS, Drizzle, PostgreSQL, Redis, Health, Swagger, Helm). Подробнее — ARCHITECTURE.md, п. 1.1.
+- **Бэкенд** в `nestjs-service/`: реализованы схема БД (Drizzle), миграция со справочником уровней, API для дашборда: `GET /v1/rewards/me`, `GET /v1/rewards/transactions`, `GET /v1/rewards/quests`, `GET /v1/rewards/store`, `POST /v1/rewards/redemptions`. Текущий пользователь задаётся через `?userId=` или `DEV_USER_ID` (до этапа авторизации).
+- **Фронт** подключается к API: данные загружаются с бэкенда (`lib/rewards-api.ts`, `hooks/use-rewards-dashboard.ts`), отображаются скелетоны при загрузке и сообщение об ошибке при недоступности API. В магазине кнопка «Купить» вызывает `POST /v1/rewards/redemptions` и обновляет баланс после успешного обмена.
+- **Авторизация (dev-режим):** при наличии `NEXT_PUBLIC_DEV_USER_ID` фронт вызывает `POST /v1/auth/dev-login` с телом `{ userId }`, получает JWT и сохраняет его в localStorage; все запросы к API отправляют заголовок `Authorization: Bearer <token>`. В шапке доступна кнопка «Выйти» (сброс токена). Бэкенд: эндпоинт `POST /v1/auth/dev-login`, опциональная JWT-стратегия; rewards-эндпоинты принимают userId из JWT или из query/config.
+- Для локальной разработки задают `NEXT_PUBLIC_REWARDS_API_URL` и `NEXT_PUBLIC_DEV_USER_ID` (см. `.env.example`). На бэкенде — `DEV_USER_ID`, при использовании JWT — `JWT_SECRET` (и опционально `JWT_EXPIRE`).
 - Для продакшена нужно:
   - API пользователя (профиль, уровень, баланс);
   - API истории начислений;

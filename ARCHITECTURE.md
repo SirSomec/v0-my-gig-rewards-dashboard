@@ -74,6 +74,8 @@
 
 В нашей БД храним только то, что относится к программе лояльности и наград. Пользователей и смены не дублируем как источник правды — только ссылки на идентификаторы основной системы.
 
+**Реализация:** схемы Drizzle в `nestjs-service/src/infra/db/drizzle/schemas/` (levels, users, strikes, transactions, store_items, redemptions, quests, quest_progress, audit_log). API дашборда — модуль `rewards` (`GET/POST /v1/rewards/...`).
+
 ### 2.1 Пользователи и профиль наград
 
 | Поле / сущность | Описание |

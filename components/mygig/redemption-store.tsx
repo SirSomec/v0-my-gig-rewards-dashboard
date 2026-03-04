@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { motion } from "framer-motion"
 import { ShoppingBag, Percent, Rocket, Gift } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -17,6 +18,8 @@ export interface StoreItem {
   cost: number
   icon: "discount" | "booster" | "merch" | "gift"
   category: string
+  /** Для вызова API обмена (опционально) */
+  numericId?: number
 }
 
 const iconMap = {
@@ -29,9 +32,27 @@ const iconMap = {
 interface RedemptionStoreProps {
   items: StoreItem[]
   userBalance: number
+  /** Вызов при нажатии «Купить»; после успешного обмена баланс обновится через refetch */
+  onPurchase?: (storeItemId: number) => Promise<void>
+  /** ID товара, по которому идёт запрос обмена (для блокировки кнопки) */
+  purchasingId?: number | null
 }
 
-export function RedemptionStore({ items, userBalance }: RedemptionStoreProps) {
+export function RedemptionStore({ items, userBalance, onPurchase, purchasingId }: RedemptionStoreProps) {
+  const [loadingId, setLoadingId] = useState<number | null>(null)
+  const busy = loadingId ?? purchasingId ?? null
+
+  const handleBuy = async (item: StoreItem) => {
+    const id = item.numericId ?? parseInt(item.id, 10)
+    if (Number.isNaN(id) || !onPurchase) return
+    setLoadingId(id)
+    try {
+      await onPurchase(id)
+    } finally {
+      setLoadingId(null)
+    }
+  }
+
   return (
     <Card className="bg-card border-border">
       <CardContent className="p-4">
@@ -69,15 +90,22 @@ export function RedemptionStore({ items, userBalance }: RedemptionStoreProps) {
                 <Button
                   size="sm"
                   variant={canAfford ? "default" : "secondary"}
-                  disabled={!canAfford}
+                  disabled={!canAfford || busy !== null}
                   className={`w-full h-7 text-[11px] font-semibold rounded-lg ${
                     canAfford
                       ? "bg-primary text-primary-foreground hover:bg-primary/90"
                       : "bg-secondary text-muted-foreground"
                   }`}
+                  onClick={() => canAfford && (item.numericId ?? item.id) && handleBuy(item)}
                 >
-                  <GigCoinIcon size={12} />
-                  <span className="ml-1">{item.cost}</span>
+                  {busy === (item.numericId ?? parseInt(item.id, 10)) ? (
+                    <span className="animate-pulse">...</span>
+                  ) : (
+                    <>
+                      <GigCoinIcon size={12} />
+                      <span className="ml-1">{item.cost}</span>
+                    </>
+                  )}
                 </Button>
               </motion.div>
             )

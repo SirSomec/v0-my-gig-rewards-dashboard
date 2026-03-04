@@ -1,7 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Bell, Sun, Moon } from "lucide-react"
+import { Bell, Sun, Moon, LogOut } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -17,9 +17,11 @@ interface HeaderProps {
   userName: string
   userLevel: string
   avatarUrl?: string
+  /** В dev-режиме: кнопка «Выйти» (сброс JWT) */
+  onLogout?: () => void
 }
 
-export function Header({ coinBalance, userName, userLevel, avatarUrl }: HeaderProps) {
+export function Header({ coinBalance, userName, userLevel, avatarUrl, onLogout }: HeaderProps) {
   const { theme, setTheme, resolvedTheme } = useTheme()
   const isDark = resolvedTheme === "dark"
 
@@ -59,6 +61,17 @@ export function Header({ coinBalance, userName, userLevel, avatarUrl }: HeaderPr
               {formatNumber(coinBalance)}
             </motion.span>
           </motion.div>
+          {onLogout && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+              onClick={onLogout}
+              aria-label="Выйти (dev)"
+            >
+              <LogOut size={18} />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"

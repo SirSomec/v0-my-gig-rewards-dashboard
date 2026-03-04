@@ -12,38 +12,26 @@ interface Level {
   isUnlocked: boolean
 }
 
-const levels: Level[] = [
-  {
-    name: "Бронзовый новичок",
-    shiftsRequired: 0,
-    perks: ["Базовая ставка", "Стандартное расписание", "1x начисление монет"],
-    isCurrent: false,
-    isUnlocked: true,
-  },
-  {
-    name: "Серебряный партнёр",
-    shiftsRequired: 10,
-    perks: ["+5% бонус за смены", "2x монеты в выходные", "Приоритет выбора смен"],
-    isCurrent: true,
-    isUnlocked: true,
-  },
-  {
-    name: "Золотой партнёр",
-    shiftsRequired: 25,
-    perks: ["+10% бонус за смены", "Мгновенные выплаты", "3x монеты в выходные", "Гибкий график"],
-    isCurrent: false,
-    isUnlocked: false,
-  },
-  {
-    name: "Платиновый элит",
-    shiftsRequired: 50,
-    perks: ["+15% бонус за смены", "VIP-поддержка", "5x монеты в выходные", "Эксклюзивные задания", "Бесплатный мерч"],
-    isCurrent: false,
-    isUnlocked: false,
-  },
+const LEVELS_DATA: Omit<Level, "isCurrent" | "isUnlocked">[] = [
+  { name: "Бронзовый новичок", shiftsRequired: 0, perks: ["Базовая ставка", "Стандартное расписание", "1x начисление монет"] },
+  { name: "Серебряный партнёр", shiftsRequired: 10, perks: ["+5% бонус за смены", "2x монеты в выходные", "Приоритет выбора смен"] },
+  { name: "Золотой партнёр", shiftsRequired: 25, perks: ["+10% бонус за смены", "Мгновенные выплаты", "3x монеты в выходные", "Гибкий график"] },
+  { name: "Платиновый элит", shiftsRequired: 50, perks: ["+15% бонус за смены", "VIP-поддержка", "5x монеты в выходные", "Эксклюзивные задания", "Бесплатный мерч"] },
 ]
 
-export function LevelsView() {
+interface LevelsViewProps {
+  /** Название текущего уровня пользователя (из API) — для подсветки карточки */
+  currentLevelName?: string | null
+  /** Количество завершённых смен — для определения isUnlocked */
+  shiftsCompleted?: number
+}
+
+export function LevelsView({ currentLevelName, shiftsCompleted = 0 }: LevelsViewProps = {}) {
+  const levels: Level[] = LEVELS_DATA.map((l, i) => {
+    const isUnlocked = shiftsCompleted >= l.shiftsRequired
+    const isCurrent = currentLevelName != null && l.name === currentLevelName
+    return { ...l, isCurrent, isUnlocked }
+  })
   return (
     <div className="flex flex-col gap-3">
       <h2 className="text-sm font-semibold text-foreground px-1">Уровни лояльности</h2>
