@@ -1,0 +1,5 @@
+commonEnv:
+  - name: ENV1
+    value: "value1"
+  - name: ENV2
+    value: "value2"

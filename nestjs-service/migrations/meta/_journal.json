@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1730649600000,
+      "tag": "0001_rewards_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1730736000000,
+      "tag": "0002_seed_quests",
+      "breakpoints": true
+    }
+  ]
+}

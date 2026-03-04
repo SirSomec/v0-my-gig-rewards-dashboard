@@ -1,0 +1,31 @@
+ingress:
+  nginx:
+    enabled: false
+    className: "nginx"
+    # annotations:
+    #   nginx.ingress.kubernetes.io/configuration-snippet: |
+    #     add_header Set-Cookie "ENV=env_name; Domain=.env_name.mygig.ru; Path=/;" always;
+    #   nginx.ingress.kubernetes.io/server-snippet: |
+    #     location = /robots.txt {
+    #       add_header Content-Type text/plain;
+    #       return 200 'User-agent: *\nDisallow: /\n';
+    #     }
+    #   nginx.ingress.kubernetes.io/proxy-body-size: 10M
+    hosts:
+        - host: application_name.env_name.mygig.ru
+          paths:
+            - path: /
+              pathType: Prefix
+    tls:
+        - secretName: cert-applications-mygig-ru
+          hosts:
+            - 1application_name.env_name.mygig.ru
+
+resources:
+  requests:
+    memory: "100M"
+    cpu: "100m"
+  limits:
+    memory: "100M"
+
+deploy_to: "env_name"

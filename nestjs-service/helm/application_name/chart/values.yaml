@@ -1,0 +1,25 @@
+image:
+  repository: cr.yandex/crpp62fe28eiv5rfva0b/application_name
+  pullPolicy: Always
+  tag: "master"
+
+fullnameOverride: application_name
+
+imagePullSecrets:
+  - name: mygig-cr-creds
+
+service:
+  type: ClusterIP
+  port: 80
+
+probesAndLifecycle:
+  liveness:
+    tcpSocket:
+      port: http
+    initialDelaySeconds: 15
+    periodSeconds: 10
+  readiness:
+    tcpSocket:
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10

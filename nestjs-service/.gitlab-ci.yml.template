@@ -1,0 +1,8 @@
+# Sample for backend application
+# All possible options see in https://mygig.gitlab.yandexcloud.net/mygig/devops/iac/-/tree/master/ci-cd?ref_type=heads
+
+include:
+  - project: 'mygig/devops/iac'
+    ref: master
+    file:
+      - '/ci-cd/backends.yaml'

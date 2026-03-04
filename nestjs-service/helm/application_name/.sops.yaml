@@ -1,0 +1,10 @@
+---
+# Adding new keys: https://github.com/mozilla/sops#id13
+# sops updatekeys secrets.yaml
+
+creation_rules:
+- pgp: >-
+    D8D2DA5830D4E298FE3D1DDC2A2BD78411EC59AB,
+    53A6E93CDE871BD14A6A5BDDBDA8E91A74EF3FFA,
+    5BEC26EEB1927F818C1DD9DBF3D47FF73ED265FF
+  unencrypted_regex: '^name$'
