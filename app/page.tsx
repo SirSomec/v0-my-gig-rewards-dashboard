@@ -11,6 +11,7 @@ import { BottomNav, type NavTab } from "@/components/mygig/bottom-nav"
 import { LevelsView } from "@/components/mygig/levels-view"
 import { DashboardSkeleton } from "@/components/mygig/dashboard-skeleton"
 import { useRewardsDashboard } from "@/hooks/use-rewards-dashboard"
+import { getApiConfigForDisplay } from "@/lib/rewards-api"
 import { Button } from "@/components/ui/button"
 import { AlertCircle } from "lucide-react"
 
@@ -48,6 +49,7 @@ export default function MyGigRewards() {
   }
 
   if (error && !user) {
+    const { apiUrl, hasDevUserId } = getApiConfigForDisplay()
     return (
       <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative">
         <main className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
@@ -56,7 +58,15 @@ export default function MyGigRewards() {
           </div>
           <p className="text-sm text-muted-foreground text-center">{error}</p>
           <p className="text-xs text-muted-foreground text-center">
-            Убедитесь, что бэкенд запущен и заданы NEXT_PUBLIC_REWARDS_API_URL и NEXT_PUBLIC_DEV_USER_ID.
+            Убедитесь, что бэкенд запущен и в <code className="bg-muted px-1 rounded">.env</code> заданы{" "}
+            <code className="bg-muted px-1 rounded">NEXT_PUBLIC_REWARDS_API_URL</code> и{" "}
+            <code className="bg-muted px-1 rounded">NEXT_PUBLIC_DEV_USER_ID</code>.
+          </p>
+          <p className="text-xs text-muted-foreground text-center">
+            Сейчас: API = {apiUrl}, DEV_USER_ID = {hasDevUserId ? "задан" : "не задан"}.
+          </p>
+          <p className="text-xs text-muted-foreground text-center max-w-sm">
+            После клонирования из Git выполните <code className="bg-muted px-1 rounded">npm install</code> (создастся .env из .env.example), при необходимости отредактируйте .env и перезапустите <code className="bg-muted px-1 rounded">npm run dev</code>.
           </p>
           <Button variant="outline" onClick={() => refetch()}>
             Повторить

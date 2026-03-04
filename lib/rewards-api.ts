@@ -13,6 +13,14 @@ const getBaseUrl = (): string =>
 const getDevUserIdEnv = (): string | null =>
   process.env.NEXT_PUBLIC_DEV_USER_ID ?? null;
 
+/** Для отображения в UI при ошибке (проверка настроек). Вызывать только на клиенте. */
+export function getApiConfigForDisplay(): { apiUrl: string; hasDevUserId: boolean } {
+  return {
+    apiUrl: getBaseUrl(),
+    hasDevUserId: !!getDevUserIdEnv(),
+  };
+}
+
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(TOKEN_STORAGE_KEY);
