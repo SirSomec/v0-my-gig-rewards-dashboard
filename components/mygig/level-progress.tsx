@@ -12,6 +12,10 @@ interface LevelProgressProps {
   shiftsCompleted: number
   shiftsRequired: number
   shiftsRemaining: number
+  /** Штрафы за 30 дней (для отображения «N/M до понижения») */
+  strikesCount?: number
+  /** Порог штрафов для понижения уровня; null = бронза, понижение не применяется */
+  strikesThreshold?: number | null
 }
 
 const benefits: Record<string, { icon: React.ReactNode; label: string; description: string }[]> = {
@@ -34,9 +38,12 @@ export function LevelProgress({
   shiftsCompleted,
   shiftsRequired,
   shiftsRemaining,
+  strikesCount = 0,
+  strikesThreshold,
 }: LevelProgressProps) {
   const [showBenefits, setShowBenefits] = useState(false)
-  const progress = (shiftsCompleted / shiftsRequired) * 100
+  const progress = shiftsRequired > 0 ? (shiftsCompleted / shiftsRequired) * 100 : 0
+  const showStrikes = strikesThreshold != null && strikesThreshold > 0
 
   const currentBenefits = benefits[currentLevel] || benefits["Серебряный партнёр"]
 
@@ -76,7 +83,7 @@ export function LevelProgress({
           />
         </div>
 
-        <div className="flex items-center justify-between mb-4">
+        <div className={`flex items-center justify-between ${showStrikes ? 'mb-2' : 'mb-4'}`}>
           <span className="text-xs text-muted-foreground">
             {shiftsCompleted}/{shiftsRequired} смен
           </span>
@@ -84,6 +91,17 @@ export function LevelProgress({
             {'Ещё '}{shiftsRemaining}{' до '}{nextLevel}
           </span>
         </div>
+
+        {showStrikes && (
+          <p className="text-xs text-muted-foreground mb-4">
+            {strikesCount}/{strikesThreshold} штрафов за 30 дней
+            {strikesCount >= strikesThreshold ? (
+              <span className="text-destructive font-medium"> (до понижения)</span>
+            ) : (
+              <span> (до понижения)</span>
+            )}
+          </p>
+        )}
 
         {/* Benefits toggle */}
         <button

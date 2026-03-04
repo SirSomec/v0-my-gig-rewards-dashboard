@@ -98,6 +98,8 @@ export default function MyGigRewards() {
                 shiftsCompleted={user.shiftsCompleted}
                 shiftsRequired={user.shiftsRequired}
                 shiftsRemaining={user.shiftsRemaining}
+                strikesCount={user.strikesCount}
+                strikesThreshold={user.strikesThreshold}
               />
               <Quests quests={quests} />
               <EarningHistory entries={transactions.slice(0, 3)} />
