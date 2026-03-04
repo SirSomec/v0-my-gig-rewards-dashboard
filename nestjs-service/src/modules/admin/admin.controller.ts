@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -10,7 +11,12 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AdminGuard } from './admin.guard';
-import { AdminService } from './admin.service';
+import {
+  AdminService,
+  CreateStoreItemDto,
+  UpdateLevelDto,
+  UpdateStoreItemDto,
+} from './admin.service';
 import { RewardsService } from '../rewards/rewards.service';
 
 @ApiTags('admin')
@@ -70,10 +76,43 @@ export class AdminController {
     return this.admin.listStoreItems();
   }
 
+  @Post('store-items')
+  @ApiOperation({ summary: 'Создать товар' })
+  async createStoreItem(@Body() body: CreateStoreItemDto) {
+    if (!body.name || body.category == null || body.cost == null) {
+      throw new Error('name, category and cost are required');
+    }
+    return this.admin.createStoreItem(body);
+  }
+
+  @Patch('store-items/:id')
+  @ApiOperation({ summary: 'Обновить товар' })
+  async updateStoreItem(@Param('id') id: string, @Body() body: UpdateStoreItemDto) {
+    const itemId = parseInt(id, 10);
+    if (Number.isNaN(itemId)) throw new Error('Invalid store item id');
+    return this.admin.updateStoreItem(itemId, body);
+  }
+
+  @Delete('store-items/:id')
+  @ApiOperation({ summary: 'Удалить товар (мягкое удаление)' })
+  async deleteStoreItem(@Param('id') id: string) {
+    const itemId = parseInt(id, 10);
+    if (Number.isNaN(itemId)) throw new Error('Invalid store item id');
+    return this.admin.deleteStoreItem(itemId);
+  }
+
   @Get('levels')
   @ApiOperation({ summary: 'Справочник уровней' })
   async listLevels() {
     return this.admin.listLevels();
+  }
+
+  @Patch('levels/:id')
+  @ApiOperation({ summary: 'Обновить уровень' })
+  async updateLevel(@Param('id') id: string, @Body() body: UpdateLevelDto) {
+    const levelId = parseInt(id, 10);
+    if (Number.isNaN(levelId)) throw new Error('Invalid level id');
+    return this.admin.updateLevel(levelId, body);
   }
 
   @Post('shifts/complete')

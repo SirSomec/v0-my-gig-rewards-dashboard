@@ -60,7 +60,47 @@ export interface AdminLevel {
   shiftsRequired: number;
   strikeThreshold: number | null;
   sortOrder: number;
+  perks?: Array<{ title: string; description?: string }>;
 }
+
+export interface AdminStoreItem {
+  id: number;
+  name: string;
+  description: string | null;
+  category: string;
+  cost: number;
+  icon: string;
+  stockLimit: number | null;
+  visibleFrom: string | null;
+  visibleUntil: string | null;
+  isActive: number;
+  sortOrder: number;
+  visibilityRules?: Record<string, unknown> | null;
+}
+
+export type CreateStoreItemBody = {
+  name: string;
+  description?: string;
+  category: string;
+  cost: number;
+  icon?: string;
+  stockLimit?: number;
+  visibleFrom?: string;
+  visibleUntil?: string;
+  isActive?: number;
+  sortOrder?: number;
+  visibilityRules?: Record<string, unknown>;
+};
+
+export type UpdateStoreItemBody = Partial<CreateStoreItemBody>;
+
+export type UpdateLevelBody = {
+  name?: string;
+  shiftsRequired?: number;
+  strikeThreshold?: number | null;
+  perks?: Array<{ title: string; description?: string }>;
+  sortOrder?: number;
+};
 
 export async function adminListUsers(search?: string, limit?: number): Promise<AdminUser[]> {
   const params = new URLSearchParams();
@@ -93,8 +133,43 @@ export async function adminListLevels(): Promise<AdminLevel[]> {
   return fetchAdmin<AdminLevel[]>("/v1/admin/levels");
 }
 
-export async function adminListStoreItems(): Promise<Record<string, unknown>[]> {
-  return fetchAdmin<Record<string, unknown>[]>("/v1/admin/store-items");
+export async function adminListStoreItems(): Promise<AdminStoreItem[]> {
+  return fetchAdmin<AdminStoreItem[]>("/v1/admin/store-items");
+}
+
+export async function adminCreateStoreItem(
+  body: CreateStoreItemBody
+): Promise<{ id: number }> {
+  return fetchAdmin("/v1/admin/store-items", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function adminUpdateStoreItem(
+  id: number,
+  body: UpdateStoreItemBody
+): Promise<{ id: number }> {
+  return fetchAdmin(`/v1/admin/store-items/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function adminDeleteStoreItem(id: number): Promise<{ id: number }> {
+  return fetchAdmin(`/v1/admin/store-items/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function adminUpdateLevel(
+  id: number,
+  body: UpdateLevelBody
+): Promise<{ id: number }> {
+  return fetchAdmin(`/v1/admin/levels/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
 }
 
 export async function adminRecordShift(body: {

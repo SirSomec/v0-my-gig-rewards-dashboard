@@ -1,9 +1,33 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { eq, ilike, or, sql } from 'drizzle-orm';
+import { eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../../infra/db/drizzle/schemas';
 import { drizzleProvider } from '../../infra/db/drizzle/drizzle.module';
 import { Inject } from '@nestjs/common';
+
+export type CreateStoreItemDto = {
+  name: string;
+  description?: string;
+  category: string;
+  cost: number;
+  icon?: string;
+  stockLimit?: number;
+  visibleFrom?: string;
+  visibleUntil?: string;
+  isActive?: number;
+  sortOrder?: number;
+  visibilityRules?: Record<string, unknown>;
+};
+
+export type UpdateStoreItemDto = Partial<CreateStoreItemDto>;
+
+export type UpdateLevelDto = {
+  name?: string;
+  shiftsRequired?: number;
+  strikeThreshold?: number | null;
+  perks?: Array<{ title: string; description?: string }>;
+  sortOrder?: number;
+};
 
 @Injectable()
 export class AdminService {
@@ -135,11 +159,85 @@ export class AdminService {
 
   async listStoreItems() {
     const { storeItems } = schema;
-    return this.db.select().from(storeItems).orderBy(storeItems.sortOrder, storeItems.id);
+    return this.db
+      .select()
+      .from(storeItems)
+      .where(isNull(storeItems.deletedAt))
+      .orderBy(storeItems.sortOrder, storeItems.id);
+  }
+
+  async createStoreItem(dto: CreateStoreItemDto) {
+    const { storeItems } = schema;
+    const [row] = await this.db
+      .insert(storeItems)
+      .values({
+        name: dto.name,
+        description: dto.description ?? null,
+        category: dto.category,
+        cost: dto.cost,
+        icon: dto.icon ?? 'gift',
+        stockLimit: dto.stockLimit ?? null,
+        visibleFrom: dto.visibleFrom ? new Date(dto.visibleFrom) : null,
+        visibleUntil: dto.visibleUntil ? new Date(dto.visibleUntil) : null,
+        isActive: dto.isActive ?? 1,
+        sortOrder: dto.sortOrder ?? 0,
+        visibilityRules: dto.visibilityRules ?? null,
+      })
+      .returning({ id: storeItems.id });
+    if (!row) throw new Error('Insert failed');
+    return { id: row.id };
+  }
+
+  async updateStoreItem(id: number, dto: UpdateStoreItemDto) {
+    const { storeItems } = schema;
+    const [existing] = await this.db.select().from(storeItems).where(eq(storeItems.id, id)).limit(1);
+    if (!existing) throw new NotFoundException('Store item not found');
+    const updates: Partial<typeof storeItems.$inferInsert> = {};
+    if (dto.name !== undefined) updates.name = dto.name;
+    if (dto.description !== undefined) updates.description = dto.description;
+    if (dto.category !== undefined) updates.category = dto.category;
+    if (dto.cost !== undefined) updates.cost = dto.cost;
+    if (dto.icon !== undefined) updates.icon = dto.icon;
+    if (dto.stockLimit !== undefined) updates.stockLimit = dto.stockLimit;
+    if (dto.visibleFrom !== undefined) updates.visibleFrom = dto.visibleFrom ? new Date(dto.visibleFrom) : null;
+    if (dto.visibleUntil !== undefined) updates.visibleUntil = dto.visibleUntil ? new Date(dto.visibleUntil) : null;
+    if (dto.isActive !== undefined) updates.isActive = dto.isActive;
+    if (dto.sortOrder !== undefined) updates.sortOrder = dto.sortOrder;
+    if (dto.visibilityRules !== undefined) updates.visibilityRules = dto.visibilityRules;
+    if (Object.keys(updates).length === 0) return { id };
+    await this.db.update(storeItems).set(updates).where(eq(storeItems.id, id));
+    return { id };
+  }
+
+  async deleteStoreItem(id: number) {
+    const { storeItems } = schema;
+    const [existing] = await this.db.select().from(storeItems).where(eq(storeItems.id, id)).limit(1);
+    if (!existing) throw new NotFoundException('Store item not found');
+    const now = new Date();
+    await this.db
+      .update(storeItems)
+      .set({ deletedAt: now, isActive: 0 })
+      .where(eq(storeItems.id, id));
+    return { id };
   }
 
   async listLevels() {
     const { levels } = schema;
     return this.db.select().from(levels).orderBy(levels.sortOrder);
+  }
+
+  async updateLevel(id: number, dto: UpdateLevelDto) {
+    const { levels } = schema;
+    const [existing] = await this.db.select().from(levels).where(eq(levels.id, id)).limit(1);
+    if (!existing) throw new NotFoundException('Level not found');
+    const updates: Partial<typeof levels.$inferInsert> = {};
+    if (dto.name !== undefined) updates.name = dto.name;
+    if (dto.shiftsRequired !== undefined) updates.shiftsRequired = dto.shiftsRequired;
+    if (dto.strikeThreshold !== undefined) updates.strikeThreshold = dto.strikeThreshold;
+    if (dto.perks !== undefined) updates.perks = dto.perks;
+    if (dto.sortOrder !== undefined) updates.sortOrder = dto.sortOrder;
+    if (Object.keys(updates).length === 0) return { id };
+    await this.db.update(levels).set(updates).where(eq(levels.id, id));
+    return { id };
   }
 }
