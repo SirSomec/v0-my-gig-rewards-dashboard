@@ -1,0 +1,3 @@
+[submodule "nestjs-service"]
+	path = nestjs-service
+	url = git@mygig.gitlab.yandexcloud.net:mygig/backend/templates/nestjs-service.git
