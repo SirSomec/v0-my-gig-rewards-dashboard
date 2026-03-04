@@ -28,6 +28,7 @@ const SHUTDOWN_TIMEOUT = 60000;
       cache: true,
       envFilePath: ['.env.local', '.env.development', '.env'],
       validationSchema: EnvValidationSchema,
+      validationOptions: { allowUnknown: true, abortEarly: false },
     }),
   ],
   controllers: [],

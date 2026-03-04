@@ -165,7 +165,14 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/v1/rewards/me?userI
 
 Сайт доступен по адресу `http://ВАШ_IP:3000`, API — по `http://ВАШ_IP:3001`.
 
-**Если в логах API ошибка** `Config validation error: "MONGO_CONNECTION" is required...` — значит, запущен старый образ API (без правок валидации окружения). Нужно подтянуть код и пересобрать образ: `git pull`, затем `docker compose build api --no-cache` и `docker compose up -d`. Пароли к БД здесь ни при чём — они уже заданы в docker-compose.
+**Если в логах API ошибка** `Config validation error: "MONGO_CONNECTION" is required...`:
+
+1. На сервере проверьте, что в коде схема с опциональными полями:  
+   `grep -n "optional()" nestjs-service/src/shared/env.validation-schema.ts` — должны быть строки с `Joi.string().optional()` и т.п.
+2. Подтяните код и пересоберите образ **без кэша**:  
+   `git pull` → `docker compose build api --no-cache` → `docker compose up -d`.
+3. Если ошибка не исчезла, зайдите в контейнер и проверьте скомпилированную схему:  
+   `docker compose run --rm api cat /app/dist/shared/env.validation-schema.js | head -50` — в выводе не должно быть `.required()` для MONGO_CONNECTION, REDIS_* и т.д.
 
 ---
 
