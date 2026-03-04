@@ -113,9 +113,39 @@ export async function adminGetUser(id: number): Promise<Record<string, unknown>>
   return fetchAdmin<Record<string, unknown>>(`/v1/admin/users/${id}`);
 }
 
-export async function adminListRedemptions(status?: string): Promise<AdminRedemption[]> {
-  const params = status ? `?status=${encodeURIComponent(status)}` : "";
-  return fetchAdmin<AdminRedemption[]>(`/v1/admin/redemptions${params}`);
+export async function adminListRedemptions(params?: {
+  status?: string;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<{
+  items: AdminRedemption[];
+  total: number;
+  page: number;
+  pageSize: number;
+}> {
+  const searchParams = new URLSearchParams();
+  if (params?.status != null) searchParams.set("status", params.status);
+  if (params?.search != null) searchParams.set("search", params.search);
+  if (params?.dateFrom != null) searchParams.set("dateFrom", params.dateFrom);
+  if (params?.dateTo != null) searchParams.set("dateTo", params.dateTo);
+  if (params?.page != null) searchParams.set("page", String(params.page));
+  if (params?.pageSize != null) searchParams.set("pageSize", String(params.pageSize));
+  const q = searchParams.toString();
+  return fetchAdmin(`/v1/admin/redemptions${q ? `?${q}` : ""}`);
+}
+
+export async function adminBulkUpdateRedemptions(
+  ids: number[],
+  status: "fulfilled" | "cancelled",
+  options?: { notes?: string; returnCoins?: boolean }
+): Promise<{ updated: number; errors: Array<{ id: number; reason: string }> }> {
+  return fetchAdmin("/v1/admin/redemptions/bulk-update", {
+    method: "POST",
+    body: JSON.stringify({ ids, status, ...options }),
+  });
 }
 
 export async function adminUpdateRedemption(

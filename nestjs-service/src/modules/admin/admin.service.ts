@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { eq, ilike, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../../infra/db/drizzle/schemas';
 import { drizzleProvider } from '../../infra/db/drizzle/drizzle.module';
@@ -73,9 +73,59 @@ export class AdminService {
     };
   }
 
-  async listRedemptions(status?: string, limit = 100) {
+  async listRedemptions(
+    opts: {
+      status?: string;
+      search?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      page?: number;
+      pageSize?: number;
+    } = {},
+  ) {
     const { redemptions, users, storeItems } = schema;
-    let q = this.db
+    const page = Math.max(1, opts.page ?? 1);
+    const pageSize = Math.min(500, Math.max(1, opts.pageSize ?? 50));
+
+    const conditions: Parameters<typeof and>[0][] = [];
+    if (opts.status?.trim()) {
+      conditions.push(eq(redemptions.status, opts.status.trim()));
+    }
+    if (opts.dateFrom) {
+      const d = new Date(opts.dateFrom);
+      if (!Number.isNaN(d.getTime())) {
+        conditions.push(sql`${redemptions.createdAt} >= ${d}`);
+      }
+    }
+    if (opts.dateTo) {
+      const d = new Date(opts.dateTo);
+      if (!Number.isNaN(d.getTime())) {
+        d.setHours(23, 59, 59, 999);
+        conditions.push(sql`${redemptions.createdAt} <= ${d}`);
+      }
+    }
+    if (opts.search?.trim()) {
+      const term = `%${opts.search.trim()}%`;
+      conditions.push(
+        or(
+          sql`${redemptions.userId}::text LIKE ${term}`,
+          ilike(users.name, term),
+          ilike(storeItems.name, term),
+        )!,
+      );
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [countResult] = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(redemptions)
+      .innerJoin(users, eq(redemptions.userId, users.id))
+      .innerJoin(storeItems, eq(redemptions.storeItemId, storeItems.id))
+      .where(whereClause);
+    const total = Number(countResult?.count ?? 0);
+
+    const items = await this.db
       .select({
         id: redemptions.id,
         userId: redemptions.userId,
@@ -91,12 +141,12 @@ export class AdminService {
       .from(redemptions)
       .innerJoin(users, eq(redemptions.userId, users.id))
       .innerJoin(storeItems, eq(redemptions.storeItemId, storeItems.id))
+      .where(whereClause)
       .orderBy(sql`${redemptions.createdAt} desc`)
-      .limit(limit);
-    if (status?.trim()) {
-      q = q.where(eq(redemptions.status, status.trim())) as typeof q;
-    }
-    return q;
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
+
+    return { items, total, page, pageSize };
   }
 
   async updateRedemption(
@@ -132,6 +182,53 @@ export class AdminService {
       }
     }
     return { id: redemptionId, status };
+  }
+
+  async bulkUpdateRedemptions(
+    ids: number[],
+    status: 'fulfilled' | 'cancelled',
+    notes?: string,
+    returnCoins = false,
+  ): Promise<{ updated: number; errors: Array<{ id: number; reason: string }> }> {
+    if (!ids.length) return { updated: 0, errors: [] };
+    const { redemptions, users } = schema;
+    const errors: Array<{ id: number; reason: string }> = [];
+    let updated = 0;
+    const now = new Date();
+    for (const redemptionId of ids) {
+      const [r] = await this.db.select().from(redemptions).where(eq(redemptions.id, redemptionId)).limit(1);
+      if (!r) {
+        errors.push({ id: redemptionId, reason: 'not_found' });
+        continue;
+      }
+      if (r.status !== 'pending') {
+        errors.push({ id: redemptionId, reason: 'already_processed' });
+        continue;
+      }
+      await this.db
+        .update(redemptions)
+        .set({ status, processedAt: now, notes: notes ?? null })
+        .where(eq(redemptions.id, redemptionId));
+      if (status === 'cancelled' && returnCoins) {
+        const [u] = await this.db.select().from(users).where(eq(users.id, r.userId)).limit(1);
+        if (u) {
+          await this.db
+            .update(users)
+            .set({ balance: u.balance + r.coinsSpent })
+            .where(eq(users.id, r.userId));
+          await this.db.insert(schema.transactions).values({
+            userId: r.userId,
+            amount: r.coinsSpent,
+            type: 'manual_credit',
+            title: 'Возврат за отмену обмена',
+            description: notes ?? undefined,
+            sourceRef: String(redemptionId),
+          });
+        }
+      }
+      updated += 1;
+    }
+    return { updated, errors };
   }
 
   async listStoreItems() {

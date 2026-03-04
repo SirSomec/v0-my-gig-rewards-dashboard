@@ -42,12 +42,23 @@ export class AdminController {
   }
 
   @Get('redemptions')
-  @ApiOperation({ summary: 'Список заявок на обмен (фильтр по статусу)' })
+  @ApiOperation({ summary: 'Список заявок на обмен с пагинацией и фильтрами' })
   async listRedemptions(
     @Query('status') status?: string,
-    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
   ) {
-    return this.admin.listRedemptions(status, limit ? parseInt(limit, 10) : 100);
+    const opts: Parameters<AdminService['listRedemptions']>[0] = {};
+    if (status !== undefined) opts.status = status;
+    if (search !== undefined) opts.search = search;
+    if (dateFrom !== undefined) opts.dateFrom = dateFrom;
+    if (dateTo !== undefined) opts.dateTo = dateTo;
+    if (page !== undefined) opts.page = parseInt(page, 10);
+    if (pageSize !== undefined) opts.pageSize = parseInt(pageSize, 10);
+    return this.admin.listRedemptions(opts);
   }
 
   @Patch('redemptions/:id')
@@ -64,6 +75,16 @@ export class AdminController {
       body.notes,
       body.returnCoins ?? false,
     );
+  }
+
+  @Post('redemptions/bulk-update')
+  @ApiOperation({ summary: 'Массовое изменение статуса заявок (только pending)' })
+  async bulkUpdateRedemptions(
+    @Body() body: { ids: number[]; status: 'fulfilled' | 'cancelled'; notes?: string; returnCoins?: boolean },
+  ) {
+    const { ids, status, notes, returnCoins } = body;
+    if (!Array.isArray(ids) || ids.length === 0) throw new Error('ids array required');
+    return this.admin.bulkUpdateRedemptions(ids, status, notes, returnCoins ?? false);
   }
 
   @Get('store-items')
