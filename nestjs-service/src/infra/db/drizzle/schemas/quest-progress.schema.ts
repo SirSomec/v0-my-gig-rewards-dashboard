@@ -1,4 +1,4 @@
-import { integer, timestamp, varchar } from 'drizzle-orm/pg-core';
+import { integer, pgTable, timestamp, varchar } from 'drizzle-orm/pg-core';
 import { quests } from './quests.schema';
 import { users } from './users.schema';
 

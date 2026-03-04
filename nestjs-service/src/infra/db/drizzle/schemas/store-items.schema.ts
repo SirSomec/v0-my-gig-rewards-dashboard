@@ -1,4 +1,4 @@
-import { integer, jsonb, timestamp, varchar } from 'drizzle-orm/pg-core';
+import { integer, jsonb, pgTable, timestamp, varchar } from 'drizzle-orm/pg-core';
 import { timestamps } from './base.schema';
 
 export const storeItems = pgTable('store_items', {

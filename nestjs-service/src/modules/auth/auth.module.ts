@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, type JwtModuleOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import type { Envs } from '../../shared/env.validation-schema';
 import { BasicAuthStrategy } from './basic.strategy';
@@ -19,7 +19,7 @@ import { AuthDevController } from './auth-dev.controller';
         signOptions: {
           expiresIn: config.get<string>('JWT_EXPIRE') ?? '7d',
         },
-      }),
+      } as JwtModuleOptions),
     }),
   ],
   controllers: [AuthDevController],

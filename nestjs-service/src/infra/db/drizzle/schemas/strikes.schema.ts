@@ -1,4 +1,4 @@
-import { integer, timestamp, varchar } from 'drizzle-orm/pg-core';
+import { integer, pgTable, timestamp, varchar } from 'drizzle-orm/pg-core';
 import { users } from './users.schema';
 
 export const strikes = pgTable('strikes', {

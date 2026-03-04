@@ -38,7 +38,8 @@ export class AuthDevController {
     const expire = this.config.get<string>('JWT_EXPIRE') ?? '7d';
     const accessToken = this.jwt.sign(
       { sub: userId },
-      { secret, expiresIn: expire },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JWT sign options accept string expiresIn at runtime
+      { secret, expiresIn: expire } as any,
     );
     return { accessToken };
   }

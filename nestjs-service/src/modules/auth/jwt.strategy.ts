@@ -10,7 +10,7 @@ export interface JwtPayload {
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
-  constructor(private readonly configService: ConfigService<Envs, true>) {
+  constructor(configService: ConfigService<Envs, true>) {
     const secret =
       configService.get<string>('JWT_SECRET') ?? 'dev-secret-change-in-production';
     super({

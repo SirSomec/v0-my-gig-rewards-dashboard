@@ -1,4 +1,4 @@
-import { integer, jsonb, varchar } from 'drizzle-orm/pg-core';
+import { integer, jsonb, pgTable, varchar } from 'drizzle-orm/pg-core';
 import { timestamps } from './base.schema';
 
 export const quests = pgTable('quests', {
