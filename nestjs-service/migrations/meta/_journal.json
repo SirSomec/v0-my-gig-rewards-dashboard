@@ -15,6 +15,13 @@
       "when": 1730736000000,
       "tag": "0002_seed_quests",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1730822400000,
+      "tag": "0003_seed_default_user",
+      "breakpoints": true
     }
   ]
 }
