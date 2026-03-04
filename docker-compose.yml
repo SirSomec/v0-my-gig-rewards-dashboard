@@ -1,5 +1,5 @@
-# Фронт + бэкенд API + БД. Бэкенд устанавливается и запускается в отдельном контейнере.
-# Переменные для API (JWT_SECRET, DATABASE_URL) и для фронта (NEXT_PUBLIC_*) задайте в .env.
+# Фронт (app), бэкенд API (api) и БД PostgreSQL (db) — каждый в отдельном контейнере.
+# Данные БД сохраняются в volume pgdata. Переменные для API и фронта задайте в .env.
 
 services:
   app:
@@ -32,6 +32,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # БД PostgreSQL в отдельном контейнере; порт 5432 не проброшен наружу (доступ только из api).
   db:
     image: postgres:16-alpine
     environment:

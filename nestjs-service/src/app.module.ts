@@ -10,10 +10,7 @@ import { ConfigModule } from '@nestjs/config';
 import { EnvValidationSchema } from './shared/env.validation-schema';
 import { AuthModule } from './modules/auth/auth.module';
 import { DrizzleModule } from './infra/db/drizzle/drizzle.module';
-import { MongooseModule } from './infra/db/mongoose/mongoose.module';
 import { HealthModule } from './infra/health/health.module';
-import { RedisModule } from './infra/db/redis/redis.module';
-import { CacheModule } from './infra/cache/cache.module';
 import { RewardsModule } from './modules/rewards/rewards.module';
 import { AdminModule } from './modules/admin/admin.module';
 
@@ -24,9 +21,6 @@ const SHUTDOWN_TIMEOUT = 60000;
     AuthModule,
     HealthModule,
     DrizzleModule,
-    MongooseModule,
-    RedisModule,
-    CacheModule,
     RewardsModule,
     AdminModule,
     ConfigModule.forRoot({
