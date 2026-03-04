@@ -30,10 +30,11 @@ const EARNINGS: EarningEntry[] = [
 ]
 
 const QUESTS: Quest[] = [
-  { id: "q1", title: "Серия смен", description: "Завершите 3 смены подряд", progress: 2, total: 3, reward: 100, icon: "streak", completed: false },
-  { id: "q2", title: "Ранняя пташка", description: "Примите смену до 8 утра", progress: 1, total: 1, reward: 30, icon: "calendar", completed: true },
-  { id: "q3", title: "Лучший работник", description: "Получите рейтинг 5 звёзд на 2 сменах", progress: 1, total: 2, reward: 75, icon: "trophy", completed: false },
-  { id: "q4", title: "Цель недели", description: "Завершите 5 смен за неделю", progress: 3, total: 5, reward: 150, icon: "target", completed: false },
+  { id: "q1", title: "Ранняя пташка", description: "Примите смену до 8 утра", progress: 1, total: 1, reward: 30, icon: "calendar", completed: true, period: "daily" },
+  { id: "q2", title: "Первая смена дня", description: "Завершите хотя бы одну смену", progress: 1, total: 1, reward: 25, icon: "streak", completed: false, period: "daily" },
+  { id: "q3", title: "Цель недели", description: "Завершите 5 смен за неделю", progress: 3, total: 5, reward: 150, icon: "target", completed: false, period: "weekly" },
+  { id: "q4", title: "Серия смен", description: "Завершите 3 смены подряд", progress: 2, total: 3, reward: 100, icon: "streak", completed: false, period: "weekly" },
+  { id: "q5", title: "Лучший работник", description: "Получите рейтинг 5 звёзд на 2 сменах", progress: 1, total: 2, reward: 75, icon: "trophy", completed: false, period: "weekly" },
 ]
 
 const STORE_ITEMS: StoreItem[] = [
