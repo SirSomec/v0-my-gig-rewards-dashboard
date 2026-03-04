@@ -8,6 +8,11 @@ COPY package.json package-lock.json* ./
 RUN npm install --legacy-peer-deps
 
 COPY . .
+# Drizzle 0.44 migrator ожидает файлы migrations/{tag}.sql; у нас подпапки {tag}/migration.sql — разворачиваем
+RUN for d in migrations/*/; do \
+      name="$$(basename "$$d")"; \
+      if [ -f "$$d/migration.sql" ]; then cp "$$d/migration.sql" "migrations/$$name.sql"; fi; \
+    done
 RUN mkdir -p migrations && npm run build
 
 # Продакшен-образ
