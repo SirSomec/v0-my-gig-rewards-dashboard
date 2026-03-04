@@ -146,16 +146,44 @@ sudo ufw status
 
 ## 8. Обновление приложения после изменений
 
-В каталоге проекта на сервере:
+**Задача пользователя:** синхронизировать изменения и обновить контейнеры. Всё остальное (сборка образов, перезапуск) выполняется одним скриптом.
+
+В каталоге проекта на сервере (один раз сделайте скрипт исполняемым, если ещё не делали):
 
 ```bash
-# Если проект клонирован из Git
-git pull
-
-# Пересобрать образ и перезапустить контейнеры
-docker compose build --no-cache
-docker compose up -d
+chmod +x scripts/deploy.sh
 ```
+
+При каждом обновлении:
+
+```bash
+./scripts/deploy.sh
+```
+
+Скрипт по очереди:
+1. Выполняет `git pull` (если проект клонирован из Git).
+2. Собирает образы: `docker compose build`.
+3. Перезапускает контейнеры: `docker compose up -d`.
+
+Дополнительные команды вручную не нужны.
+
+### Полный стек (фронт + API + БД) — опционально
+
+Если на том же сервере поднимаете API и PostgreSQL, используйте дополнительный файл `docker-compose.api.yml`. Контейнер API при старте **автоматически применяет миграции БД**, отдельно их запускать не нужно.
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.api.yml build
+docker compose -f docker-compose.yml -f docker-compose.api.yml up -d
+```
+
+Чтобы и обновление делалось одним скриптом, в `scripts/deploy.sh` можно заменить вызов на:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.api.yml build
+docker compose -f docker-compose.yml -f docker-compose.api.yml up -d
+```
+
+Перед первым запуском создайте в корне проекта файл `.env` с переменными для API (например `DATABASE_URL`, `JWT_SECRET`). В `docker-compose.api.yml` для БД заданы логин/пароль/БД: `rewards`/`rewards`/`rewards`.
 
 ---
 
@@ -240,4 +268,5 @@ sudo certbot --nginx -d ваш-домен.ru
 - Docker: установка из официального репозитория Docker
 - Проект: клонирование Git или распаковка архива в `/opt/...`
 - Запуск: `docker compose build && docker compose up -d`
+- **Обновление после изменений:** один раз `chmod +x scripts/deploy.sh`, далее при каждом обновлении — `./scripts/deploy.sh` (синхронизация и перезапуск контейнеров выполняются автоматически)
 - Доступ: `http://ВАШ_IP:3000` или через Nginx по домену с HTTPS.
