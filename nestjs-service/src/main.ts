@@ -7,6 +7,8 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  app.enableCors({ origin: true }); // разрешаем запросы с любого origin (фронт на другом порту/домене)
+
   app.enableShutdownHooks([ShutdownSignal.SIGTERM]);
 
   const configService = app.get<ConfigService>(ConfigService);
