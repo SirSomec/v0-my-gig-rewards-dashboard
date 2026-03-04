@@ -111,6 +111,8 @@ function mapStoreItem(s: StoreItemResponse): StoreItem & { numericId: number } {
     cost: s.cost,
     icon: storeIconMap[s.icon] ?? "gift",
     category: s.category,
+    stockLimit: s.stockLimit ?? undefined,
+    redeemedCount: s.redeemedCount ?? 0,
   }
 }
 

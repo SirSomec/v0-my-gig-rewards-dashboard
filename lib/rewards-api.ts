@@ -122,6 +122,10 @@ export interface StoreItemResponse {
   category: string;
   cost: number;
   icon: string;
+  /** Общий лимит (тираж). null = без лимита */
+  stockLimit?: number | null;
+  /** Сколько уже выкуплено (pending + fulfilled) */
+  redeemedCount?: number;
 }
 
 export interface CreateRedemptionResponse {

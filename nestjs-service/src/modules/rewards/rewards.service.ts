@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, desc, eq, gte, lt, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../../infra/db/drizzle/schemas';
 import { drizzleProvider } from '../../infra/db/drizzle/drizzle.module';
@@ -163,13 +163,27 @@ export class RewardsService {
   }
 
   async getStoreItems(): Promise<StoreItemResponseDto[]> {
-    const { storeItems } = schema;
+    const { storeItems, redemptions } = schema;
     const rows = await this.db
       .select()
       .from(storeItems)
-      .where(eq(storeItems.isActive, 1))
+      .where(and(eq(storeItems.isActive, 1), isNull(storeItems.deletedAt)))
       .orderBy(storeItems.sortOrder, storeItems.id);
-    return rows.map((r) => {
+    const result: StoreItemResponseDto[] = [];
+    for (const r of rows) {
+      let redeemedCount = 0;
+      if (r.stockLimit != null) {
+        const countResult = await this.db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(redemptions)
+          .where(
+            and(
+              eq(redemptions.storeItemId, r.id),
+              or(eq(redemptions.status, 'pending'), eq(redemptions.status, 'fulfilled')),
+            ),
+          );
+        redeemedCount = countResult[0]?.count ?? 0;
+      }
       const dto = new StoreItemResponseDto();
       dto.id = r.id;
       dto.name = r.name;
@@ -177,8 +191,11 @@ export class RewardsService {
       dto.category = r.category;
       dto.cost = r.cost;
       dto.icon = r.icon ?? 'gift';
-      return dto;
-    });
+      dto.stockLimit = r.stockLimit;
+      dto.redeemedCount = redeemedCount;
+      result.push(dto);
+    }
+    return result;
   }
 
   async createRedemption(userId: number, storeItemId: number): Promise<{ redemptionId: number }> {
@@ -191,8 +208,26 @@ export class RewardsService {
     if (!item || item.isActive !== 1) {
       throw new NotFoundException('Store item not found or inactive');
     }
+    if (item.deletedAt) {
+      throw new NotFoundException('Store item not found or inactive');
+    }
     if (user.balance < item.cost) {
       throw new NotFoundException('Insufficient balance');
+    }
+    if (item.stockLimit != null) {
+      const countResult = await this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(redemptions)
+        .where(
+          and(
+            eq(redemptions.storeItemId, storeItemId),
+            or(eq(redemptions.status, 'pending'), eq(redemptions.status, 'fulfilled')),
+          ),
+        );
+      const redeemed = countResult[0]?.count ?? 0;
+      if (redeemed >= item.stockLimit) {
+        throw new NotFoundException('Товар закончился');
+      }
     }
     const [redemption] = await this.db
       .insert(redemptions)
