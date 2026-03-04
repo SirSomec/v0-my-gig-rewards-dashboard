@@ -1,8 +1,51 @@
+# Фронт + бэкенд API + БД. Бэкенд устанавливается и запускается в отдельном контейнере.
+# Переменные для API (JWT_SECRET, DATABASE_URL) и для фронта (NEXT_PUBLIC_*) задайте в .env.
+
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_REWARDS_API_URL=${NEXT_PUBLIC_REWARDS_API_URL:-http://localhost:3001}
+        - NEXT_PUBLIC_DEV_USER_ID=${NEXT_PUBLIC_DEV_USER_ID:-1}
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
     restart: unless-stopped
+
+  api:
+    build:
+      context: ./nestjs-service
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgres://rewards:rewards@db:5432/rewards
+      - MIGRATIONS_PATH=/app/migrations
+      - JWT_SECRET=${JWT_SECRET:-dev-secret}
+      - JWT_EXPIRE=7d
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: rewards
+      POSTGRES_PASSWORD: rewards
+      POSTGRES_DB: rewards
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rewards"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:

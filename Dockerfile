@@ -3,6 +3,12 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+# Переменные для фронта (API URL и dev-user) — подставляются при сборке образа
+ARG NEXT_PUBLIC_REWARDS_API_URL=http://localhost:3001
+ARG NEXT_PUBLIC_DEV_USER_ID=1
+ENV NEXT_PUBLIC_REWARDS_API_URL=$NEXT_PUBLIC_REWARDS_API_URL
+ENV NEXT_PUBLIC_DEV_USER_ID=$NEXT_PUBLIC_DEV_USER_ID
+
 # Кэширование зависимостей
 COPY package.json pnpm-lock.yaml* ./
 RUN corepack enable pnpm && pnpm install --frozen-lockfile

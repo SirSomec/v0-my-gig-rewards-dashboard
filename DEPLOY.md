@@ -117,14 +117,22 @@ ls -la
 
 ---
 
-## 6. Сборка и запуск контейнера
+## 6. Сборка и запуск контейнеров
 
-В каталоге проекта на сервере (например `/opt/v0-my-gig-rewards-dashboard` или `/opt/mygig-dashboard`):
+Запускаются **три контейнера**: фронт (app), бэкенд API (api), БД PostgreSQL (db). Бэкенд устанавливается и работает в отдельном контейнере; при старте API автоматически применяются миграции БД.
+
+**Перед первым запуском** создайте в корне проекта файл `.env` (или скопируйте из `.env.example`). Обязательно задайте:
+
+- `NEXT_PUBLIC_REWARDS_API_URL` — URL, по которому браузер пользователя достучится до API (например `http://ВАШ_IP_СЕРВЕРА:3001`). Не используйте `http://localhost:3001` на продакшене — с другого компьютера API будет недоступен.
+- `NEXT_PUBLIC_DEV_USER_ID` — ID тестового пользователя для входа (например `1`).
+- `JWT_SECRET` — секрет для JWT (в production задайте свой).
+
+В каталоге проекта на сервере:
 
 ```bash
 cd /opt/v0-my-gig-rewards-dashboard   # или ваш путь
 
-# Сборка образа
+# Сборка образов (фронт, API, образ БД не собирается — используется postgres:16-alpine)
 docker compose build
 
 # Запуск в фоне
@@ -135,18 +143,24 @@ docker compose up -d
 
 ```bash
 docker compose ps
+# Должны быть контейнеры app, api, db в состоянии running
+
 curl -s -o /dev/null -w "%{http_code}" http://localhost:3000
-# Должно вернуть 200
+# Должно вернуть 200 (фронт)
+
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/v1/rewards/me?userId=1
+# Должно вернуть 200 (API)
 ```
 
-Сайт будет доступен по адресу `http://ВАШ_IP:3000`.
+Сайт доступен по адресу `http://ВАШ_IP:3000`, API — по `http://ВАШ_IP:3001`.
 
 ---
 
-## 7. Открытие порта в файрволе (если включён ufw)
+## 7. Открытие портов в файрволе (если включён ufw)
 
 ```bash
 sudo ufw allow 3000/tcp
+sudo ufw allow 3001/tcp
 # или, если позже поставите nginx на 80/443:
 # sudo ufw allow 80/tcp
 # sudo ufw allow 443/tcp
@@ -179,34 +193,19 @@ chmod +x scripts/deploy.sh
 
 Дополнительные команды вручную не нужны.
 
-### Полный стек (фронт + API + БД) — опционально
-
-Если на том же сервере поднимаете API и PostgreSQL, используйте дополнительный файл `docker-compose.api.yml`. Контейнер API при старте **автоматически применяет миграции БД**, отдельно их запускать не нужно.
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.api.yml build
-docker compose -f docker-compose.yml -f docker-compose.api.yml up -d
-```
-
-Чтобы и обновление делалось одним скриптом, в `scripts/deploy.sh` можно заменить вызов на:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.api.yml build
-docker compose -f docker-compose.yml -f docker-compose.api.yml up -d
-```
-
-Перед первым запуском создайте в корне проекта файл `.env` с переменными для API (например `DATABASE_URL`, `JWT_SECRET`). В `docker-compose.api.yml` для БД заданы логин/пароль/БД: `rewards`/`rewards`/`rewards`.
+По умолчанию в одном `docker compose up -d` поднимаются фронт, API и БД (см. раздел 6). Если нужен **только фронт** без бэкенда (API уже где-то снаружи), в `docker-compose.yml` можно закомментировать сервисы `api` и `db` и задать в `.env` переменную `NEXT_PUBLIC_REWARDS_API_URL` на внешний URL API.
 
 ---
 
 ## 9. Полезные команды
 
-| Действие              | Команда                    |
-|-----------------------|----------------------------|
-| Логи приложения       | `docker compose logs -f`   |
-| Остановить            | `docker compose down`      |
-| Запустить снова       | `docker compose up -d`     |
-| Статус контейнеров    | `docker compose ps`        |
+| Действие              | Команда                         |
+|-----------------------|----------------------------------|
+| Логи всех контейнеров | `docker compose logs -f`         |
+| Логи только API       | `docker compose logs -f api`     |
+| Остановить            | `docker compose down`            |
+| Запустить снова       | `docker compose up -d`           |
+| Статус контейнеров    | `docker compose ps`              |
 
 ---
 
