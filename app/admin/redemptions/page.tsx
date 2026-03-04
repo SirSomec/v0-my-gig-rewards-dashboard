@@ -45,16 +45,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { format } from "date-fns"
-import { ru } from "date-fns/locale"
 
 const STATUSES = [
-  { value: "", label: "Все статусы" },
+  { value: "all", label: "Все статусы" },
   { value: "pending", label: "Ожидают" },
   { value: "fulfilled", label: "Выполнены" },
   { value: "cancelled", label: "Отменены" },
 ] as const
 
 const PAGE_SIZES = [25, 50, 100, 200] as const
+
+function formatDate(date: string | Date | null | undefined): string {
+  if (date == null) return "—"
+  const d = new Date(date)
+  if (Number.isNaN(d.getTime())) return "—"
+  return format(d, "dd.MM.yyyy HH:mm")
+}
 
 export default function AdminRedemptionsPage() {
   const [data, setData] = useState<{
@@ -65,7 +71,7 @@ export default function AdminRedemptionsPage() {
   } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [statusFilter, setStatusFilter] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
   const [search, setSearch] = useState("")
   const [searchApplied, setSearchApplied] = useState("")
   const [dateFrom, setDateFrom] = useState("")
@@ -97,7 +103,7 @@ export default function AdminRedemptionsPage() {
       page,
       pageSize,
     }
-    if (statusFilter) params.status = statusFilter
+    if (statusFilter && statusFilter !== "all") params.status = statusFilter
     if (searchApplied.trim()) params.search = searchApplied.trim()
     if (dateFrom) params.dateFrom = dateFrom
     if (dateTo) params.dateTo = dateTo
@@ -206,7 +212,7 @@ export default function AdminRedemptionsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {STATUSES.map((s) => (
-                    <SelectItem key={s.value || "all"} value={s.value}>
+                    <SelectItem key={s.value} value={s.value}>
                       {s.label}
                     </SelectItem>
                   ))}
@@ -341,7 +347,7 @@ export default function AdminRedemptionsPage() {
                       </TableCell>
                       <TableCell className="font-mono text-xs">{r.id}</TableCell>
                       <TableCell className="whitespace-nowrap text-muted-foreground">
-                        {format(new Date(r.createdAt), "dd.MM.yyyy HH:mm", { locale: ru })}
+                        {formatDate(r.createdAt)}
                       </TableCell>
                       <TableCell>
                         <Link
