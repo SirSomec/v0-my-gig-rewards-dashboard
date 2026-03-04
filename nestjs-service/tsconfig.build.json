@@ -7,6 +7,9 @@
     "**/*spec.ts",
     "drizzle.config.ts",
     "pact-provider-tests",
-    "swagger-generator"
+    "swagger-generator",
+    "src/infra/db/redis",
+    "src/infra/db/mongoose",
+    "src/infra/cache"
   ]
 }
