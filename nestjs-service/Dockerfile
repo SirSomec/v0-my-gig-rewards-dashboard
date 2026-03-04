@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Сначала ставим все зависимости (в т.ч. dev) — для сборки нужен @nestjs/cli
 COPY package.json package-lock.json* ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 COPY . .
 RUN mkdir -p migrations && npm run build
@@ -22,7 +22,7 @@ RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 apiuser
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json package-lock.json* ./
 # Только production-зависимости для рантайма
-RUN npm install --omit=dev
+RUN npm install --omit=dev --legacy-peer-deps
 
 COPY --from=builder /app/migrations ./migrations
 COPY --from=builder /app/scripts/docker-entrypoint.sh /entrypoint.sh
