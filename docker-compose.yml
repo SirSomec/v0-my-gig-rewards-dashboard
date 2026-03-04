@@ -15,6 +15,7 @@ services:
       args:
         - NEXT_PUBLIC_REWARDS_API_URL=${NEXT_PUBLIC_REWARDS_API_URL:-http://localhost:3001}
         - NEXT_PUBLIC_DEV_USER_ID=${NEXT_PUBLIC_DEV_USER_ID:-1}
+        - NEXT_PUBLIC_ADMIN_SECRET=${NEXT_PUBLIC_ADMIN_SECRET:-${ADMIN_SECRET:-admin-dev-secret}}
     ports:
       - "3000:3000"
     environment:
@@ -35,6 +36,8 @@ services:
       - JWT_EXPIRE=7d
       # Разрешает dev-login в production (без этого будет 403 "Dev login is disabled in production")
       - DEV_USER_ID=${NEXT_PUBLIC_DEV_USER_ID:-1}
+      # Ключ для админ-API (X-Admin-Key). Задайте в .env для production.
+      - ADMIN_SECRET=${ADMIN_SECRET:-admin-dev-secret}
     depends_on:
       db:
         condition: service_healthy

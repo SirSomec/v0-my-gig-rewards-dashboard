@@ -3,11 +3,13 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Переменные для фронта (API URL и dev-user) — подставляются при сборке образа
+# Переменные для фронта (API URL, dev-user, админ-ключ) — подставляются при сборке образа
 ARG NEXT_PUBLIC_REWARDS_API_URL=http://localhost:3001
 ARG NEXT_PUBLIC_DEV_USER_ID=1
+ARG NEXT_PUBLIC_ADMIN_SECRET=admin-dev-secret
 ENV NEXT_PUBLIC_REWARDS_API_URL=$NEXT_PUBLIC_REWARDS_API_URL
 ENV NEXT_PUBLIC_DEV_USER_ID=$NEXT_PUBLIC_DEV_USER_ID
+ENV NEXT_PUBLIC_ADMIN_SECRET=$NEXT_PUBLIC_ADMIN_SECRET
 
 # Кэширование зависимостей (--ignore-scripts: postinstall ensure-env не нужен в образе, .env задаётся через build args)
 COPY package.json pnpm-lock.yaml* ./
