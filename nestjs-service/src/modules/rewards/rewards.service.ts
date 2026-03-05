@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, desc, eq, gte, isNull, lt, lte, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../../infra/db/drizzle/schemas';
 import { drizzleProvider } from '../../infra/db/drizzle/drizzle.module';
@@ -38,6 +38,27 @@ function isQuestInActiveWindow(
   if (activeFrom != null && now < activeFrom) return false;
   if (activeUntil != null && now > activeUntil) return false;
   return true;
+}
+
+/** Конфиг условия квеста (расширенный) */
+interface QuestConditionConfig {
+  total?: number;
+  totalHours?: number;
+  clientId?: string;
+  clientIds?: string[];
+  category?: string;
+}
+
+/** Целевое значение для отображения (смены или часы) */
+function getQuestTarget(config: QuestConditionConfig, conditionType: string): number {
+  if (
+    conditionType === 'hours_count' ||
+    conditionType === 'hours_count_client' ||
+    conditionType === 'hours_count_clients'
+  ) {
+    return config.totalHours ?? 1;
+  }
+  return config.total ?? 1;
 }
 
 @Injectable()
@@ -161,8 +182,8 @@ export class RewardsService {
               : q.period === 'monthly'
                 ? monthKey
                 : todayKey;
-      const config = (q.conditionConfig as { total?: number }) ?? {};
-      const total = config.total ?? 1;
+      const config = (q.conditionConfig as QuestConditionConfig) ?? {};
+      const total = getQuestTarget(config, q.conditionType);
       const prog = await this.db
         .select()
         .from(questProgress)
@@ -176,13 +197,18 @@ export class RewardsService {
         .limit(1);
       const progress = prog[0]?.progress ?? 0;
       const completed = !!prog[0]?.completedAt;
+      const isHoursCondition =
+        q.conditionType === 'hours_count' ||
+        q.conditionType === 'hours_count_client' ||
+        q.conditionType === 'hours_count_clients';
+      const displayProgress = isHoursCondition ? (progress as number) / 10 : (progress as number);
       const dto = new QuestResponseDto();
       dto.id = q.id;
       dto.name = q.name;
       dto.description = q.description;
       dto.period = q.period;
       dto.isOneTime = q.isOneTime === 1;
-      dto.progress = progress;
+      dto.progress = displayProgress;
       dto.total = total;
       dto.reward = q.rewardCoins;
       dto.icon = q.icon ?? 'target';
@@ -310,6 +336,9 @@ export class RewardsService {
     coins: number,
     title?: string,
     location?: string,
+    clientId?: string,
+    category?: string,
+    hours?: number,
   ): Promise<{ transactionId: number }> {
     const { users, transactions } = schema;
     const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
@@ -327,6 +356,9 @@ export class RewardsService {
         type: 'shift',
         title: title ?? 'Смена',
         location: location ?? undefined,
+        clientId: clientId ?? undefined,
+        category: category ?? undefined,
+        hours: hours != null ? hours : undefined,
       })
       .returning({ id: transactions.id });
     if (!tx) throw new Error('Failed to create transaction');
@@ -441,24 +473,70 @@ export class RewardsService {
         periodStart = monthStart;
         periodEnd = nextMonthStart;
       }
-      const config = (q.conditionConfig as { total?: number }) ?? {};
-      const total = config.total ?? 1;
+      const config = (q.conditionConfig as QuestConditionConfig) ?? {};
+      const isHoursCondition =
+        q.conditionType === 'hours_count' ||
+        q.conditionType === 'hours_count_client' ||
+        q.conditionType === 'hours_count_clients';
+      const totalTarget = isHoursCondition ? (config.totalHours ?? 1) : (config.total ?? 1);
+      const totalForStorage = isHoursCondition ? Math.round(totalTarget * 10) : totalTarget;
+
+      const baseConditions = and(
+        eq(transactions.userId, userId),
+        eq(transactions.type, 'shift'),
+        gte(transactions.createdAt, periodStart),
+        lt(transactions.createdAt, periodEnd),
+      );
 
       let progress = 0;
       if (q.conditionType === 'shifts_count') {
         const countResult = await this.db
           .select({ count: sql<number>`count(*)::int` })
           .from(transactions)
-          .where(
-            and(
-              eq(transactions.userId, userId),
-              eq(transactions.type, 'shift'),
-              gte(transactions.createdAt, periodStart),
-              lt(transactions.createdAt, periodEnd),
-            ),
-          );
-        progress = Math.min(countResult[0]?.count ?? 0, total);
+          .where(baseConditions);
+        progress = Math.min(countResult[0]?.count ?? 0, totalForStorage);
+      } else if (q.conditionType === 'shifts_count_client' && config.clientId) {
+        const countResult = await this.db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(transactions)
+          .where(and(baseConditions, eq(transactions.clientId, config.clientId)));
+        progress = Math.min(countResult[0]?.count ?? 0, totalForStorage);
+      } else if (q.conditionType === 'shifts_count_clients' && Array.isArray(config.clientIds) && config.clientIds.length > 0) {
+        const countResult = await this.db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(transactions)
+          .where(and(baseConditions, inArray(transactions.clientId, config.clientIds)));
+        progress = Math.min(countResult[0]?.count ?? 0, totalForStorage);
+      } else if (q.conditionType === 'shifts_count_category' && config.category) {
+        const countResult = await this.db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(transactions)
+          .where(and(baseConditions, eq(transactions.category, config.category)));
+        progress = Math.min(countResult[0]?.count ?? 0, totalForStorage);
+      } else if (q.conditionType === 'hours_count') {
+        const sumResult = await this.db
+          .select({ sum: sql<number>`coalesce(sum(${transactions.hours}), 0)` })
+          .from(transactions)
+          .where(baseConditions);
+        const sumHours = Number(sumResult[0]?.sum ?? 0);
+        progress = Math.min(Math.round(sumHours * 10), totalForStorage);
+      } else if (q.conditionType === 'hours_count_client' && config.clientId) {
+        const sumResult = await this.db
+          .select({ sum: sql<number>`coalesce(sum(${transactions.hours}), 0)` })
+          .from(transactions)
+          .where(and(baseConditions, eq(transactions.clientId, config.clientId)));
+        const sumHours = Number(sumResult[0]?.sum ?? 0);
+        progress = Math.min(Math.round(sumHours * 10), totalForStorage);
+      } else if (q.conditionType === 'hours_count_clients' && Array.isArray(config.clientIds) && config.clientIds.length > 0) {
+        const sumResult = await this.db
+          .select({ sum: sql<number>`coalesce(sum(${transactions.hours}), 0)` })
+          .from(transactions)
+          .where(and(baseConditions, inArray(transactions.clientId, config.clientIds)));
+        const sumHours = Number(sumResult[0]?.sum ?? 0);
+        progress = Math.min(Math.round(sumHours * 10), totalForStorage);
       }
+
+      const total = totalForStorage;
 
       const existing = await this.db
         .select()

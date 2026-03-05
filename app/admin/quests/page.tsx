@@ -48,6 +48,12 @@ const PERIODS = [
 
 const CONDITION_TYPES = [
   { value: "shifts_count", label: "Количество смен (за период)" },
+  { value: "shifts_count_client", label: "Смены в конкретном клиенте (бренде)" },
+  { value: "shifts_count_clients", label: "Смены в нескольких клиентах" },
+  { value: "shifts_count_category", label: "Смены в конкретной категории (профессии)" },
+  { value: "hours_count", label: "Выполнение часов" },
+  { value: "hours_count_client", label: "Часы в конкретном клиенте" },
+  { value: "hours_count_clients", label: "Часы в нескольких клиентах" },
 ] as const
 
 const ICONS = [
@@ -58,15 +64,48 @@ const ICONS = [
   { value: "gift", label: "Подарок" },
 ] as const
 
-function conditionConfigToTotal(config: Record<string, unknown> | null): number {
-  if (!config || typeof config.total !== "number") return 1
-  return Math.max(1, config.total)
+type ConditionConfigForm = {
+  total?: number
+  totalHours?: number
+  clientId?: string
+  clientIds?: string[]
+  category?: string
+}
+
+function conditionConfigToTotal(config: Record<string, unknown> | null, conditionType?: string): number {
+  if (!config) return 1
+  if (
+    conditionType === "hours_count" ||
+    conditionType === "hours_count_client" ||
+    conditionType === "hours_count_clients"
+  ) {
+    return typeof config.totalHours === "number" ? Math.max(0.1, config.totalHours) : 1
+  }
+  return typeof config.total === "number" ? Math.max(1, config.total) : 1
+}
+
+function conditionConfigToDisplay(config: Record<string, unknown> | null, conditionType?: string): string {
+  if (!config) return "1"
+  if (
+    conditionType === "hours_count" ||
+    conditionType === "hours_count_client" ||
+    conditionType === "hours_count_clients"
+  ) {
+    const h = config.totalHours ?? 1
+    return `${h} ч`
+  }
+  const t = config.total ?? 1
+  const parts = [String(t)]
+  if (config.clientId) parts.push(`клиент: ${config.clientId}`)
+  if (Array.isArray(config.clientIds) && config.clientIds.length) parts.push(`клиенты: ${config.clientIds.join(", ")}`)
+  if (config.category) parts.push(`кат.: ${config.category}`)
+  return parts.join(", ")
 }
 
 const emptyForm: CreateQuestBody & {
   id?: number
   activeUntilEndOfPeriod?: boolean
-  conditionConfig?: { total?: number }
+  conditionConfig?: ConditionConfigForm
 } = {
   name: "",
   description: "",
@@ -114,16 +153,23 @@ export default function AdminQuestsPage() {
 
   const openEdit = (quest: AdminQuest) => {
     setEditingQuest(quest)
-    const total = conditionConfigToTotal(quest.conditionConfig)
     const period = (quest.period === "daily" || quest.period === "weekly" || quest.period === "monthly")
       ? quest.period
       : "daily"
+    const c = quest.conditionConfig || {}
+    const config: ConditionConfigForm = {
+      total: typeof c.total === "number" ? c.total : 1,
+      totalHours: typeof c.totalHours === "number" ? c.totalHours : undefined,
+      clientId: typeof c.clientId === "string" ? c.clientId : undefined,
+      clientIds: Array.isArray(c.clientIds) ? c.clientIds.filter((x): x is string => typeof x === "string") : undefined,
+      category: typeof c.category === "string" ? c.category : undefined,
+    }
     setForm({
       name: quest.name,
       description: quest.description ?? "",
       period,
       conditionType: quest.conditionType,
-      conditionConfig: { total },
+      conditionConfig: config,
       rewardCoins: quest.rewardCoins,
       icon: (quest.icon ?? "target") as "target" | "star" | "zap" | "trophy" | "gift",
       isActive: quest.isActive,
@@ -145,13 +191,26 @@ export default function AdminQuestsPage() {
       setError("Награда не может быть отрицательной")
       return
     }
-    const total = Math.max(1, Number((form.conditionConfig as { total?: number })?.total) || 1)
+    const cfg = form.conditionConfig || {}
+    const isHours =
+      form.conditionType === "hours_count" ||
+      form.conditionType === "hours_count_client" ||
+      form.conditionType === "hours_count_clients"
+    const conditionConfig: Record<string, unknown> = {}
+    if (isHours) {
+      conditionConfig.totalHours = Math.max(0.1, Number(cfg.totalHours) || 1)
+    } else {
+      conditionConfig.total = Math.max(1, Number(cfg.total) || 1)
+    }
+    if (cfg.clientId?.trim()) conditionConfig.clientId = cfg.clientId.trim()
+    if (Array.isArray(cfg.clientIds) && cfg.clientIds.length) conditionConfig.clientIds = cfg.clientIds
+    if (cfg.category?.trim()) conditionConfig.category = cfg.category.trim()
     const body: CreateQuestBody & { activeUntilEndOfPeriod?: boolean } = {
       name: form.name.trim(),
       description: form.description?.trim() || undefined,
       period: form.period,
       conditionType: form.conditionType,
-      conditionConfig: { total },
+      conditionConfig,
       rewardCoins: Number(form.rewardCoins) || 0,
       icon: form.icon,
       isActive: form.isActive ? 1 : 0,
@@ -210,7 +269,7 @@ export default function AdminQuestsPage() {
       ) : (
         <div className="space-y-2">
           {quests.map((q) => {
-            const total = conditionConfigToTotal(q.conditionConfig)
+            const displayTarget = conditionConfigToDisplay(q.conditionConfig, q.conditionType)
             return (
               <Card key={q.id}>
                 <CardContent className="p-3 flex items-center justify-between gap-2">
@@ -225,7 +284,7 @@ export default function AdminQuestsPage() {
                             ? "Ежемесячный"
                             : q.period}{" "}
                       {q.isOneTime === 1 && "· единоразовый "}
-                      · {q.conditionType} (цель: {total}) · {q.rewardCoins} монет
+                      · {q.conditionType} (цель: {displayTarget}) · {q.rewardCoins} монет
                       {q.isActive === 0 && " · отключён"}
                       {q.activeUntil && (
                         <> · до {new Date(q.activeUntil).toLocaleString("ru", { dateStyle: "short", timeStyle: "short" })}</>
@@ -334,13 +393,166 @@ export default function AdminQuestsPage() {
                   id="condition-total"
                   type="number"
                   min={1}
-                  value={(form.conditionConfig as { total?: number })?.total ?? 1}
+                  value={(form.conditionConfig as ConditionConfigForm)?.total ?? 1}
                   onChange={(e) =>
                     setForm((f) => ({
                       ...f,
-                      conditionConfig: {
-                        total: Math.max(1, Number(e.target.value) || 1),
-                      },
+                      conditionConfig: { ...f.conditionConfig, total: Math.max(1, Number(e.target.value) || 1) },
+                    }))
+                  }
+                />
+              </div>
+            )}
+            {(form.conditionType === "shifts_count_client" || form.conditionType === "hours_count_client") && (
+              <>
+                {form.conditionType === "shifts_count_client" && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="condition-total-client">Цель (кол-во смен)</Label>
+                    <Input
+                      id="condition-total-client"
+                      type="number"
+                      min={1}
+                      value={(form.conditionConfig as ConditionConfigForm)?.total ?? 1}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          conditionConfig: { ...f.conditionConfig, total: Math.max(1, Number(e.target.value) || 1) },
+                        }))
+                      }
+                    />
+                  </div>
+                )}
+                {form.conditionType === "hours_count_client" && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="condition-totalhours-client">Цель (часов)</Label>
+                    <Input
+                      id="condition-totalhours-client"
+                      type="number"
+                      min={0.1}
+                      step={0.5}
+                      value={(form.conditionConfig as ConditionConfigForm)?.totalHours ?? 1}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          conditionConfig: { ...f.conditionConfig, totalHours: Math.max(0.1, Number(e.target.value) || 1) },
+                        }))
+                      }
+                    />
+                  </div>
+                )}
+                <div className="grid gap-2">
+                  <Label htmlFor="condition-clientId">ID или код клиента (бренда)</Label>
+                  <Input
+                    id="condition-clientId"
+                    value={(form.conditionConfig as ConditionConfigForm)?.clientId ?? ""}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        conditionConfig: { ...f.conditionConfig, clientId: e.target.value.trim() || undefined },
+                      }))
+                    }
+                    placeholder="Например: acme"
+                  />
+                </div>
+              </>
+            )}
+            {(form.conditionType === "shifts_count_clients" || form.conditionType === "hours_count_clients") && (
+              <>
+                {form.conditionType === "shifts_count_clients" && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="condition-total-clients">Цель (кол-во смен)</Label>
+                    <Input
+                      id="condition-total-clients"
+                      type="number"
+                      min={1}
+                      value={(form.conditionConfig as ConditionConfigForm)?.total ?? 1}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          conditionConfig: { ...f.conditionConfig, total: Math.max(1, Number(e.target.value) || 1) },
+                        }))
+                      }
+                    />
+                  </div>
+                )}
+                {form.conditionType === "hours_count_clients" && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="condition-totalhours-clients">Цель (часов)</Label>
+                    <Input
+                      id="condition-totalhours-clients"
+                      type="number"
+                      min={0.1}
+                      step={0.5}
+                      value={(form.conditionConfig as ConditionConfigForm)?.totalHours ?? 1}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          conditionConfig: { ...f.conditionConfig, totalHours: Math.max(0.1, Number(e.target.value) || 1) },
+                        }))
+                      }
+                    />
+                  </div>
+                )}
+                <div className="grid gap-2">
+                  <Label htmlFor="condition-clientIds">Коды клиентов (через запятую)</Label>
+                  <Input
+                    id="condition-clientIds"
+                    value={((form.conditionConfig as ConditionConfigForm)?.clientIds ?? []).join(", ")}
+                    onChange={(e) => {
+                      const ids = e.target.value.split(",").map((s) => s.trim()).filter(Boolean)
+                      setForm((f) => ({ ...f, conditionConfig: { ...f.conditionConfig, clientIds: ids } }))
+                    }}
+                    placeholder="acme, beta, gamma"
+                  />
+                </div>
+              </>
+            )}
+            {form.conditionType === "shifts_count_category" && (
+              <>
+                <div className="grid gap-2">
+                  <Label htmlFor="condition-total-cat">Цель (кол-во смен)</Label>
+                  <Input
+                    id="condition-total-cat"
+                    type="number"
+                    min={1}
+                    value={(form.conditionConfig as ConditionConfigForm)?.total ?? 1}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        conditionConfig: { ...f.conditionConfig, total: Math.max(1, Number(e.target.value) || 1) },
+                      }))
+                    }
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="condition-category">Категория (профессия)</Label>
+                  <Input
+                    id="condition-category"
+                    value={(form.conditionConfig as ConditionConfigForm)?.category ?? ""}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        conditionConfig: { ...f.conditionConfig, category: e.target.value.trim() || undefined },
+                      }))
+                    }
+                    placeholder="Например: курьер"
+                  />
+                </div>
+              </>
+            )}
+            {form.conditionType === "hours_count" && (
+              <div className="grid gap-2">
+                <Label htmlFor="condition-totalHours">Цель (часов за период)</Label>
+                <Input
+                  id="condition-totalHours"
+                  type="number"
+                  min={0.1}
+                  step={0.5}
+                  value={(form.conditionConfig as ConditionConfigForm)?.totalHours ?? 1}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      conditionConfig: { ...f.conditionConfig, totalHours: Math.max(0.1, Number(e.target.value) || 1) },
                     }))
                   }
                 />

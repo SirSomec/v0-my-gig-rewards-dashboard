@@ -166,11 +166,20 @@ export class AdminController {
   @Post('shifts/complete')
   @ApiOperation({ summary: '[Мок] Засчитать смену для пользователя' })
   async recordShift(
-    @Body() body: { userId: number; coins: number; title?: string; location?: string },
+    @Body()
+    body: {
+      userId: number;
+      coins: number;
+      title?: string;
+      location?: string;
+      clientId?: string;
+      category?: string;
+      hours?: number;
+    },
   ) {
-    const { userId, coins, title, location } = body;
+    const { userId, coins, title, location, clientId, category, hours } = body;
     if (userId == null || typeof coins !== 'number') throw new Error('userId and coins required');
-    return this.rewards.recordShiftCompleted(userId, coins, title, location);
+    return this.rewards.recordShiftCompleted(userId, coins, title, location, clientId, category, hours);
   }
 
   @Post('strikes')

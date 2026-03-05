@@ -106,6 +106,9 @@ export class RewardsController {
       coins,
       body.title,
       body.location,
+      body.clientId,
+      body.category,
+      body.hours,
     );
   }
 

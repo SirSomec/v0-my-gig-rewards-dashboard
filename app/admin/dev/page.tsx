@@ -21,6 +21,9 @@ export default function AdminDevPage() {
   const [userId, setUserId] = useState<string>("")
   const [coins, setCoins] = useState("")
   const [shiftTitle, setShiftTitle] = useState("")
+  const [shiftClientId, setShiftClientId] = useState("")
+  const [shiftCategory, setShiftCategory] = useState("")
+  const [shiftHours, setShiftHours] = useState("")
   const [strikeType, setStrikeType] = useState<"no_show" | "late_cancel">("no_show")
   const [loadingUsers, setLoadingUsers] = useState(true)
   const [submittingShift, setSubmittingShift] = useState(false)
@@ -46,11 +49,21 @@ export default function AdminDevPage() {
       return
     }
     setSubmittingShift(true)
-    adminRecordShift({ userId: uid, coins: c, title: shiftTitle || undefined })
+    adminRecordShift({
+      userId: uid,
+      coins: c,
+      title: shiftTitle || undefined,
+      clientId: shiftClientId.trim() || undefined,
+      category: shiftCategory.trim() || undefined,
+      hours: shiftHours ? Number(shiftHours) : undefined,
+    })
       .then(() => {
         toast({ title: "Смена засчитана" })
         setCoins("")
         setShiftTitle("")
+        setShiftClientId("")
+        setShiftCategory("")
+        setShiftHours("")
         loadUsers()
       })
       .catch((e) => toast({ title: e instanceof Error ? e.message : "Ошибка", variant: "destructive" }))
@@ -118,6 +131,33 @@ export default function AdminDevPage() {
               value={shiftTitle}
               onChange={(e) => setShiftTitle(e.target.value)}
               placeholder="Смена в ресторане"
+            />
+          </div>
+          <div>
+            <Label>Клиент / бренд (опционально)</Label>
+            <Input
+              value={shiftClientId}
+              onChange={(e) => setShiftClientId(e.target.value)}
+              placeholder="Код клиента для квестов"
+            />
+          </div>
+          <div>
+            <Label>Категория / профессия (опционально)</Label>
+            <Input
+              value={shiftCategory}
+              onChange={(e) => setShiftCategory(e.target.value)}
+              placeholder="Например: курьер"
+            />
+          </div>
+          <div>
+            <Label>Часы (опционально)</Label>
+            <Input
+              type="number"
+              min={0}
+              step={0.5}
+              value={shiftHours}
+              onChange={(e) => setShiftHours(e.target.value)}
+              placeholder="8"
             />
           </div>
           <Button

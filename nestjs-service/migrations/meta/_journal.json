@@ -29,6 +29,13 @@
       "when": 1730908800000,
       "tag": "0004_quests_is_one_time_and_active_window",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1730995200000,
+      "tag": "0005_transactions_client_category_hours",
+      "breakpoints": true
     }
   ]
 }

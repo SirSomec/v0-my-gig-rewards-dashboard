@@ -273,6 +273,9 @@ export async function adminRecordShift(body: {
   coins: number;
   title?: string;
   location?: string;
+  clientId?: string;
+  category?: string;
+  hours?: number;
 }): Promise<{ transactionId: number }> {
   return fetchAdmin("/v1/admin/shifts/complete", {
     method: "POST",
