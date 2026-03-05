@@ -20,6 +20,8 @@ interface LevelProgressProps {
   strikesLimitPerWeek?: number | null
   /** Лимит штрафов за месяц для уровня (при превышении — понижение) */
   strikesLimitPerMonth?: number | null
+  /** Перки текущего уровня из API (синхронно с настройками уровней в админке). Если заданы — отображаются вместо захардкоженного списка. */
+  currentLevelPerks?: Array<{ title: string; description?: string }>
 }
 
 const benefits: Record<string, { icon: React.ReactNode; label: string; description: string }[]> = {
@@ -46,6 +48,7 @@ export function LevelProgress({
   strikesCountMonth = 0,
   strikesLimitPerWeek,
   strikesLimitPerMonth,
+  currentLevelPerks: currentLevelPerksFromApi,
 }: LevelProgressProps) {
   const [showBenefits, setShowBenefits] = useState(false)
   const progress = shiftsRequired > 0 ? (shiftsCompleted / shiftsRequired) * 100 : 0
@@ -53,7 +56,15 @@ export function LevelProgress({
   const hasMonthLimit = strikesLimitPerMonth != null && strikesLimitPerMonth > 0
   const showStrikes = hasWeekLimit || hasMonthLimit
 
-  const currentBenefits = benefits[currentLevel] || benefits["Серебряный партнёр"]
+  const hardcodedBenefits = benefits[currentLevel] || benefits["Серебряный партнёр"]
+  const useApiPerks = currentLevelPerksFromApi != null && currentLevelPerksFromApi.length > 0
+  const currentBenefits = useApiPerks
+    ? currentLevelPerksFromApi.map((p) => ({
+        icon: <Star size={16} />,
+        label: p.title,
+        description: p.description ?? "",
+      }))
+    : hardcodedBenefits
 
   return (
     <Card className="bg-card border-border overflow-hidden">

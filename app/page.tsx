@@ -23,7 +23,7 @@ const pageVariants = {
 
 export default function MyGigRewards() {
   const [activeTab, setActiveTab] = useState<NavTab>("home")
-  const { user, transactions, quests, storeItems, loading, error, refetch, purchaseItem, logout, isLoggedIn } = useRewardsDashboard()
+  const { user, transactions, quests, storeItems, currentLevelPerks, loading, error, refetch, purchaseItem, logout, isLoggedIn } = useRewardsDashboard()
 
   if (loading && !user) {
     return (
@@ -112,6 +112,7 @@ export default function MyGigRewards() {
                 strikesCountMonth={user.strikesCountMonth}
                 strikesLimitPerWeek={user.strikesLimitPerWeek}
                 strikesLimitPerMonth={user.strikesLimitPerMonth}
+                currentLevelPerks={currentLevelPerks}
               />
               <Quests quests={quests} />
               <EarningHistory entries={transactions.slice(0, 3)} />

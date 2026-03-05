@@ -7,6 +7,7 @@ import {
   fetchStrikes,
   fetchQuests,
   fetchStore,
+  fetchLevels,
   createRedemption as apiCreateRedemption,
   devLogin,
   getDevUserId,
@@ -17,6 +18,7 @@ import {
   type StrikeResponse,
   type QuestResponse,
   type StoreItemResponse,
+  type LevelResponse,
 } from "@/lib/rewards-api"
 import type { EarningEntry } from "@/components/mygig/earning-history"
 import type { Quest } from "@/components/mygig/quests"
@@ -165,6 +167,8 @@ export interface UseRewardsDashboardResult {
   transactions: EarningEntry[]
   quests: Quest[]
   storeItems: (StoreItem & { numericId: number })[]
+  /** Перки текущего уровня пользователя (из API уровней), синхронно с админкой */
+  currentLevelPerks: Array<{ title: string; description?: string }>
   loading: boolean
   error: string | null
   refetch: () => Promise<void>
@@ -179,6 +183,7 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
   const [transactions, setTransactions] = useState<EarningEntry[]>([])
   const [quests, setQuests] = useState<Quest[]>([])
   const [storeItems, setStoreItems] = useState<(StoreItem & { numericId: number })[]>([])
+  const [levels, setLevels] = useState<LevelResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -186,14 +191,16 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
     setError(null)
     setLoading(true)
     try {
-      const [meRes, transactionsRes, strikesRes, questsRes, storeRes] = await Promise.all([
+      const [meRes, transactionsRes, strikesRes, questsRes, storeRes, levelsRes] = await Promise.all([
         fetchMe(),
         fetchTransactions(),
         fetchStrikes(),
         fetchQuests(),
         fetchStore(),
+        fetchLevels(),
       ])
       setUser(mapMe(meRes))
+      setLevels(levelsRes)
       const txEntries = transactionsRes.map(mapTransaction)
       const strikeEntries = strikesRes
         .filter((s) => !s.removedAt)
@@ -207,6 +214,7 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
       setTransactions([])
       setQuests([])
       setStoreItems([])
+      setLevels([])
     } finally {
       setLoading(false)
     }
@@ -248,11 +256,17 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
     void load()
   }, [load])
 
+  const currentLevelPerks =
+    user && levels.length > 0
+      ? (levels.find((l) => l.name === user.level)?.perks ?? [])
+      : []
+
   return {
     user,
     transactions,
     quests,
     storeItems,
+    currentLevelPerks,
     loading,
     error,
     refetch: load,
