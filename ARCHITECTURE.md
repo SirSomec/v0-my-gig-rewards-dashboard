@@ -125,12 +125,15 @@
 | `amount` | Сумма (+ начисление, − списание). |
 | `type` | `shift` \| `bonus` \| `quest` \| `manual_credit` \| `manual_debit` \| `redemption` и т.д. |
 | `source_ref` | Внешняя ссылка (ID смены, ID квеста, ID заявки на обмен) — опционально. |
-| `title`, `description` | Для отображения в истории (например, «Смена на складе — Amazon FC», «Бонус за выходные»). |
+| `title`, `description` | Для отображения в истории (например, «Смена на складе», «Бонус за выходные»). |
 | `location` | Опционально (локация смены). |
+| `client_id` | ID или код бренда/клиента (для квестов по сменам или часам в клиенте). |
+| `category` | Категория/профессия смены (для квестов по категории). |
+| `hours` | Отработанные часы в смене (для квестов по часам). |
 | `created_at` | Время операции. |
 | `created_by` | Для ручных операций — ID админа (опционально). |
 
-Баланс пользователя = сумма всех `amount` по `user_id` или отдельное поле `balance`, обновляемое при каждой транзакции (в зависимости от выбранной модели консистентности).
+Баланс пользователя обновляется при каждой транзакции. При записи смены (админка или API) можно передать `client_id`, `category` и `hours` — они сохраняются в транзакции и используются при расчёте прогресса квестов (условия по клиенту, категории, часам).
 
 ### 2.5 Магазин (товары)
 
@@ -170,12 +173,14 @@
 |------|----------|
 | `id` (PK) | Внутренний ID. |
 | `name`, `description` | Название и описание цели. |
-| `period` | `daily` \| `weekly`. |
-| `condition_type` | Тип условия (например: shifts_count, shifts_streak, early_shift, rating_5_stars). |
-| `condition_config` | JSON параметров (total, время «до 8:00», число смен и т.д.). |
+| `period` | `daily` \| `weekly` \| `monthly`. |
+| `condition_type` | Тип условия: `shifts_count`, `shifts_count_client`, `shifts_count_clients`, `shifts_count_category`, `hours_count`, `hours_count_client`, `hours_count_clients`. |
+| `condition_config` | JSON параметров: `total` (число смен), `totalHours` (часы), `clientId`, `clientIds[]`, `category` — в зависимости от типа. |
 | `reward_coins` | Награда в монетах. |
 | `icon` | streak, target, calendar, trophy. |
 | `is_active` | Вкл/выкл. |
+| `is_one_time` | Единоразовый квест (пользователь выполняет один раз). |
+| `active_from`, `active_until` | Окно активности (опционально); после `active_until` квест не показывается (автоотключение по периоду). |
 | `target_type` | `all` \| `group` — для всех или для групп. |
 | `target_group_id` | FK на группу (если target_type = group); NULL для глобальных. |
 
@@ -188,7 +193,7 @@
 | `id` (PK) | Внутренний ID. |
 | `user_id` | FK на пользователя. |
 | `quest_id` | FK на шаблон квеста. |
-| `period_key` | Идентификатор периода: дата (YYYY-MM-DD) для daily, номер недели/дата понедельника для weekly. |
+| `period_key` | Идентификатор периода: дата (YYYY-MM-DD) для daily, дата понедельника для weekly, YYYY-MM для monthly; для единоразового квеста — `'once'`. |
 | `progress` | Текущее значение (например, число завершённых смен за период). |
 | `completed_at` | NULL или время выполнения (тогда начисление уже выдано). |
 | `created_at`, `updated_at` | Служебные поля. |
