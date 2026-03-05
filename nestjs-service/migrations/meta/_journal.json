@@ -36,6 +36,13 @@
       "when": 1730995200000,
       "tag": "0005_transactions_client_category_hours",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1731081600000,
+      "tag": "0006_strikes_removed",
+      "breakpoints": true
     }
   ]
 }

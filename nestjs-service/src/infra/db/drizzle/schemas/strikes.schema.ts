@@ -8,4 +8,8 @@ export const strikes = pgTable('strikes', {
   shiftExternalId: varchar('shift_external_id', { length: 256 }),
   occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  /** Когда штраф снят (не учитывается в подсчёте за 30 дней) */
+  removedAt: timestamp('removed_at', { withTimezone: true }),
+  /** Причина снятия */
+  removalReason: varchar('removal_reason', { length: 512 }),
 });

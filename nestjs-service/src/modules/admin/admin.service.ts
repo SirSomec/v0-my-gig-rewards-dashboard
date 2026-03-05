@@ -5,12 +5,14 @@ import * as schema from '../../infra/db/drizzle/schemas';
 import { drizzleProvider } from '../../infra/db/drizzle/drizzle.module';
 import { Inject } from '@nestjs/common';
 import type { CreateQuestDto, CreateStoreItemDto, UpdateLevelDto, UpdateQuestDto, UpdateStoreItemDto } from './dto/admin.dto';
+import { RewardsService } from '../rewards/rewards.service';
 
 @Injectable()
 export class AdminService {
   constructor(
     @Inject(drizzleProvider)
     private readonly db: PostgresJsDatabase<typeof schema>,
+    private readonly rewards: RewardsService,
   ) {}
 
   async listUsers(search?: string, limit = 50) {
@@ -64,10 +66,13 @@ export class AdminService {
       .where(eq(transactions.userId, userId))
       .orderBy(sql`${transactions.createdAt} desc`)
       .limit(20);
+    const activeStrikesIn30d = strikesList.filter(
+      (s) => !(s as { removedAt?: Date | null }).removedAt && (s.occurredAt as Date) >= thirtyDaysAgo,
+    );
     return {
       ...userRow.user,
       levelName: userRow.level.name,
-      strikesCount30d: strikesList.filter((s) => (s.occurredAt as Date) >= thirtyDaysAgo).length,
+      strikesCount30d: activeStrikesIn30d.length,
       strikes: strikesList,
       recentTransactions: recentTx,
     };
@@ -406,7 +411,9 @@ export class AdminService {
     if (!levelRow) throw new NotFoundException('Level not found');
     const [userRow] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!userRow) throw new NotFoundException('User not found');
+    const oldLevelId = userRow.levelId;
     await this.db.update(users).set({ levelId }).where(eq(users.id, userId));
+    await this.logAudit('user_level_change', 'user', String(userId), { levelId: oldLevelId }, { levelId });
     return { id: userId, levelId };
   }
 
@@ -438,6 +445,84 @@ export class AdminService {
         createdBy: null,
       })
       .returning({ id: transactions.id });
+    await this.logAudit('manual_transaction', 'transaction', String(inserted!.id), undefined, {
+      userId,
+      amount: txAmount,
+      type,
+      title: title?.trim() || defaultTitle,
+      description: description?.trim() || undefined,
+    });
     return { transactionId: inserted!.id, newBalance };
+  }
+
+  /** Снять штраф с причиной и пересчитать уровень (6.7) */
+  async removeStrike(strikeId: number, reason: string) {
+    const { strikes } = schema;
+    const [strike] = await this.db.select().from(strikes).where(eq(strikes.id, strikeId)).limit(1);
+    if (!strike) throw new NotFoundException('Strike not found');
+    if ((strike as { removedAt?: Date | null }).removedAt) {
+      throw new NotFoundException('Strike already removed');
+    }
+    const now = new Date();
+    await this.db
+      .update(strikes)
+      .set({
+        removedAt: now,
+        removalReason: reason?.trim() || null,
+      })
+      .where(eq(strikes.id, strikeId));
+    await this.rewards.recalcUserLevelConsideringStrikes(strike.userId);
+    await this.logAudit('strike_removed', 'strike', String(strikeId), undefined, {
+      userId: strike.userId,
+      reason: reason?.trim() || undefined,
+    });
+    return { id: strikeId, userId: strike.userId };
+  }
+
+  /** Запись в журнал аудита (6.9) */
+  async logAudit(
+    action: string,
+    entityType: string,
+    entityId: string,
+    oldValues?: Record<string, unknown>,
+    newValues?: Record<string, unknown>,
+  ) {
+    const { auditLog } = schema;
+    await this.db.insert(auditLog).values({
+      adminId: null,
+      action,
+      entityType,
+      entityId,
+      oldValues: oldValues ?? null,
+      newValues: newValues ?? null,
+    });
+  }
+
+  /** Список записей аудита с пагинацией (6.9) */
+  async listAuditLog(opts: { page?: number; pageSize?: number; action?: string; entityType?: string } = {}) {
+    const { auditLog } = schema;
+    const page = Math.max(1, opts.page ?? 1);
+    const pageSize = Math.min(200, Math.max(1, opts.pageSize ?? 50));
+    const conditions: Parameters<typeof and>[0][] = [];
+    if (opts.action?.trim()) {
+      conditions.push(eq(auditLog.action, opts.action.trim()));
+    }
+    if (opts.entityType?.trim()) {
+      conditions.push(eq(auditLog.entityType, opts.entityType.trim()));
+    }
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    const [countResult] = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(auditLog)
+      .where(whereClause);
+    const total = Number(countResult?.count ?? 0);
+    const items = await this.db
+      .select()
+      .from(auditLog)
+      .where(whereClause)
+      .orderBy(sql`${auditLog.createdAt} desc`)
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
+    return { items, total, page, pageSize };
   }
 }

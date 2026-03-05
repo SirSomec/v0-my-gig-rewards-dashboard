@@ -316,3 +316,44 @@ export async function adminRegisterStrike(body: {
     body: JSON.stringify(body),
   });
 }
+
+export async function adminRemoveStrike(
+  strikeId: number,
+  reason: string
+): Promise<{ id: number; userId: number }> {
+  return fetchAdmin(`/v1/admin/strikes/${strikeId}/remove`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export interface AdminAuditEntry {
+  id: number;
+  adminId: number | null;
+  action: string;
+  entityType: string | null;
+  entityId: string | null;
+  oldValues: Record<string, unknown> | null;
+  newValues: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export async function adminListAuditLog(params?: {
+  page?: number;
+  pageSize?: number;
+  action?: string;
+  entityType?: string;
+}): Promise<{
+  items: AdminAuditEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+}> {
+  const searchParams = new URLSearchParams();
+  if (params?.page != null) searchParams.set("page", String(params.page));
+  if (params?.pageSize != null) searchParams.set("pageSize", String(params.pageSize));
+  if (params?.action != null) searchParams.set("action", params.action);
+  if (params?.entityType != null) searchParams.set("entityType", params.entityType);
+  const q = searchParams.toString();
+  return fetchAdmin(`/v1/admin/audit-log${q ? `?${q}` : ""}`);
+}

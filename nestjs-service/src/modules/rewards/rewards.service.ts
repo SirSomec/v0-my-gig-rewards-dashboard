@@ -113,7 +113,13 @@ export class RewardsService {
     const strikesCount = await this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(strikes)
-      .where(and(eq(strikes.userId, userId), gte(strikes.occurredAt, thirtyDaysAgo)));
+      .where(
+        and(
+          eq(strikes.userId, userId),
+          gte(strikes.occurredAt, thirtyDaysAgo),
+          isNull(strikes.removedAt),
+        ),
+      );
     const count = strikesCount[0]?.count ?? 0;
     const nextLevelRows = await this.db
       .select()
@@ -328,6 +334,52 @@ export class RewardsService {
   }
 
   /**
+   * Пересчёт уровня с учётом штрафов: уровень по сменам, затем понижение при достижении порога штрафов за 30 дней.
+   * Вызывается после снятия штрафа (6.7).
+   */
+  async recalcUserLevelConsideringStrikes(userId: number): Promise<void> {
+    const { users, levels, strikes } = schema;
+    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) return;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const countResult = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(strikes)
+      .where(
+        and(
+          eq(strikes.userId, userId),
+          gte(strikes.occurredAt, thirtyDaysAgo),
+          isNull(strikes.removedAt),
+        ),
+      );
+    const strikeCount = countResult[0]?.count ?? 0;
+    const [levelByShifts] = await this.db
+      .select()
+      .from(levels)
+      .where(lte(levels.shiftsRequired, user.shiftsCompleted))
+      .orderBy(desc(levels.shiftsRequired))
+      .limit(1);
+    if (!levelByShifts) return;
+    let targetLevel = levelByShifts;
+    while (
+      targetLevel.strikeThreshold != null &&
+      strikeCount >= targetLevel.strikeThreshold
+    ) {
+      const [prevLevel] = await this.db
+        .select()
+        .from(levels)
+        .where(eq(levels.sortOrder, targetLevel.sortOrder - 1))
+        .limit(1);
+      if (!prevLevel) break;
+      targetLevel = prevLevel;
+    }
+    if (targetLevel.id !== user.levelId) {
+      await this.db.update(users).set({ levelId: targetLevel.id }).where(eq(users.id, userId));
+    }
+  }
+
+  /**
    * Засчитать завершённую смену: начисление монет, транзакция, +1 к shifts_completed, пересчёт уровня.
    * Для вызова из админки/dev или из webhook при интеграции.
    */
@@ -403,7 +455,13 @@ export class RewardsService {
     const countResult = await this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(strikes)
-      .where(and(eq(strikes.userId, userId), gte(strikes.occurredAt, thirtyDaysAgo)));
+      .where(
+        and(
+          eq(strikes.userId, userId),
+          gte(strikes.occurredAt, thirtyDaysAgo),
+          isNull(strikes.removedAt),
+        ),
+      );
     const count = countResult[0]?.count ?? 0;
     const [currentLevel] = await this.db
       .select()

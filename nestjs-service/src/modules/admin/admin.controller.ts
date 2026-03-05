@@ -226,4 +226,28 @@ export class AdminController {
     }
     return this.rewards.registerStrike(userId, type, shiftExternalId);
   }
+
+  @Post('strikes/:id/remove')
+  @ApiOperation({ summary: 'Снять штраф с указанием причины, пересчёт уровня (6.7)' })
+  async removeStrike(@Param('id') id: string, @Body() body: { reason?: string }) {
+    const strikeId = parseInt(id, 10);
+    if (Number.isNaN(strikeId)) throw new Error('Invalid strike id');
+    return this.admin.removeStrike(strikeId, body.reason ?? '');
+  }
+
+  @Get('audit-log')
+  @ApiOperation({ summary: 'Журнал аудита: кто, когда, что изменил (6.9)' })
+  async listAuditLog(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('action') action?: string,
+    @Query('entityType') entityType?: string,
+  ) {
+    const opts: Parameters<AdminService['listAuditLog']>[0] = {};
+    if (page !== undefined) opts.page = parseInt(page, 10);
+    if (pageSize !== undefined) opts.pageSize = parseInt(pageSize, 10);
+    if (action !== undefined) opts.action = action;
+    if (entityType !== undefined) opts.entityType = entityType;
+    return this.admin.listAuditLog(opts);
+  }
 }

@@ -8,6 +8,7 @@ import {
   adminListLevels,
   adminUpdateUserLevel,
   adminManualTransaction,
+  adminRemoveStrike,
 } from "@/lib/admin-api"
 import type { AdminLevel } from "@/lib/admin-api"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -46,6 +47,9 @@ export default function AdminUserDetailPage() {
   const [balanceAmount, setBalanceAmount] = useState("")
   const [balanceComment, setBalanceComment] = useState("")
   const [balanceSubmitting, setBalanceSubmitting] = useState(false)
+  const [strikeToRemove, setStrikeToRemove] = useState<number | null>(null)
+  const [removalReason, setRemovalReason] = useState("")
+  const [removalSubmitting, setRemovalSubmitting] = useState(false)
   const { toast } = useToast()
 
   const loadUser = useCallback(() => {
@@ -125,6 +129,20 @@ export default function AdminUserDetailPage() {
       .finally(() => setBalanceSubmitting(false))
   }
 
+  const handleRemoveStrike = () => {
+    if (strikeToRemove == null) return
+    setRemovalSubmitting(true)
+    adminRemoveStrike(strikeToRemove, removalReason)
+      .then(() => {
+        toast({ title: "Штраф снят, уровень пересчитан" })
+        setStrikeToRemove(null)
+        setRemovalReason("")
+        loadUser()
+      })
+      .catch((e) => toast({ title: e instanceof Error ? e.message : "Ошибка", variant: "destructive" }))
+      .finally(() => setRemovalSubmitting(false))
+  }
+
   if (Number.isNaN(id)) return <p className="text-destructive">Неверный ID</p>
   if (error) return <p className="text-destructive">{error}</p>
   if (loading || !data) return <Skeleton className="h-64 w-full rounded-lg" />
@@ -198,14 +216,36 @@ export default function AdminUserDetailPage() {
 
       {strikes.length > 0 && (
         <Card>
-          <CardHeader className="py-2 text-sm font-medium">Штрафы</CardHeader>
+          <CardHeader className="py-2 text-sm font-medium">Штрафы (6.7)</CardHeader>
           <CardContent>
-            <ul className="text-sm space-y-1">
-              {strikes.map((s: Record<string, unknown>, i: number) => (
-                <li key={i}>
-                  {String(s.type)} — {String(s.occurredAt)}
-                </li>
-              ))}
+            <ul className="text-sm space-y-2">
+              {strikes.map((s: Record<string, unknown>, i: number) => {
+                const removed = !!(s as { removedAt?: string | null }).removedAt
+                return (
+                  <li key={i} className="flex items-center justify-between gap-2">
+                    <span>
+                      {String(s.type)} — {String(s.occurredAt)}
+                      {removed && (
+                        <span className="text-muted-foreground ml-1">
+                          (снят{(s as { removalReason?: string }).removalReason ? `: ${(s as { removalReason: string }).removalReason}` : ""})
+                        </span>
+                      )}
+                    </span>
+                    {!removed && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setStrikeToRemove(Number((s as { id: number }).id))
+                          setRemovalReason("")
+                        }}
+                      >
+                        Снять
+                      </Button>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           </CardContent>
         </Card>
@@ -261,6 +301,36 @@ export default function AdminUserDetailPage() {
               disabled={balanceSubmitting || !balanceAmount.trim()}
             >
               {balanceSubmitting ? "Сохранение…" : balanceType === "manual_credit" ? "Начислить" : "Списать"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={strikeToRemove !== null} onOpenChange={(open) => !open && setStrikeToRemove(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Снять штраф (6.7)</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="removal-reason">Причина снятия</Label>
+              <Input
+                id="removal-reason"
+                value={removalReason}
+                onChange={(e) => setRemovalReason(e.target.value)}
+                placeholder="Ошибка системы, форс-мажор…"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStrikeToRemove(null)}>
+              Отмена
+            </Button>
+            <Button
+              onClick={handleRemoveStrike}
+              disabled={removalSubmitting}
+            >
+              {removalSubmitting ? "Сохранение…" : "Снять штраф"}
             </Button>
           </DialogFooter>
         </DialogContent>
