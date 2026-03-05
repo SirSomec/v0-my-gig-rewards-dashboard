@@ -150,6 +150,29 @@ export async function adminGetUser(id: number): Promise<Record<string, unknown>>
   return fetchAdmin<Record<string, unknown>>(`/v1/admin/users/${id}`);
 }
 
+export async function adminUpdateUserLevel(
+  id: number,
+  levelId: number
+): Promise<{ id: number; levelId: number }> {
+  return fetchAdmin(`/v1/admin/users/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ levelId }),
+  });
+}
+
+export async function adminManualTransaction(body: {
+  userId: number;
+  amount: number;
+  type: "manual_credit" | "manual_debit";
+  title?: string;
+  description?: string;
+}): Promise<{ transactionId: number; newBalance: number }> {
+  return fetchAdmin("/v1/admin/transactions", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function adminListRedemptions(params?: {
   status?: string;
   search?: string;

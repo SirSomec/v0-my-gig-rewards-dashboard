@@ -398,4 +398,46 @@ export class AdminService {
     await this.db.update(quests).set({ isActive: 0 }).where(eq(quests.id, id));
     return { id };
   }
+
+  /** Ручное изменение уровня пользователя (6.5) */
+  async updateUserLevel(userId: number, levelId: number) {
+    const { users, levels } = schema;
+    const [levelRow] = await this.db.select().from(levels).where(eq(levels.id, levelId)).limit(1);
+    if (!levelRow) throw new NotFoundException('Level not found');
+    const [userRow] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!userRow) throw new NotFoundException('User not found');
+    await this.db.update(users).set({ levelId }).where(eq(users.id, userId));
+    return { id: userId, levelId };
+  }
+
+  /** Ручное начисление или списание монет (6.6) */
+  async manualCreditDebit(
+    userId: number,
+    amount: number,
+    type: 'manual_credit' | 'manual_debit',
+    title?: string,
+    description?: string,
+  ) {
+    const { users, transactions } = schema;
+    const [userRow] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!userRow) throw new NotFoundException('User not found');
+    if (amount <= 0) throw new Error('amount must be positive');
+    const txAmount = type === 'manual_debit' ? -amount : amount;
+    const newBalance = userRow.balance + txAmount;
+    if (newBalance < 0) throw new Error('Insufficient balance for debit');
+    const defaultTitle = type === 'manual_credit' ? 'Ручное начисление' : 'Ручное списание';
+    await this.db.update(users).set({ balance: newBalance }).where(eq(users.id, userId));
+    const [inserted] = await this.db
+      .insert(transactions)
+      .values({
+        userId,
+        amount: txAmount,
+        type,
+        title: title?.trim() || defaultTitle,
+        description: description?.trim() || null,
+        createdBy: null,
+      })
+      .returning({ id: transactions.id });
+    return { transactionId: inserted!.id, newBalance };
+  }
 }

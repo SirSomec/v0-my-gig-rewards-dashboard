@@ -41,6 +41,39 @@ export class AdminController {
     return this.admin.getUserDetail(userId);
   }
 
+  @Patch('users/:id')
+  @ApiOperation({ summary: 'Ручное изменение уровня пользователя (6.5)' })
+  async updateUserLevel(
+    @Param('id') id: string,
+    @Body() body: { levelId: number },
+  ) {
+    const userId = parseInt(id, 10);
+    if (Number.isNaN(userId)) throw new Error('Invalid user id');
+    if (body.levelId == null || typeof body.levelId !== 'number') {
+      throw new Error('levelId required');
+    }
+    return this.admin.updateUserLevel(userId, body.levelId);
+  }
+
+  @Post('transactions')
+  @ApiOperation({ summary: 'Ручное начисление или списание монет (6.6)' })
+  async manualCreditDebit(
+    @Body()
+    body: {
+      userId: number;
+      amount: number;
+      type: 'manual_credit' | 'manual_debit';
+      title?: string;
+      description?: string;
+    },
+  ) {
+    const { userId, amount, type, title, description } = body;
+    if (userId == null || typeof amount !== 'number' || (type !== 'manual_credit' && type !== 'manual_debit')) {
+      throw new Error('userId, amount and type (manual_credit | manual_debit) required');
+    }
+    return this.admin.manualCreditDebit(userId, amount, type, title, description);
+  }
+
   @Get('redemptions')
   @ApiOperation({ summary: 'Список заявок на обмен с пагинацией и фильтрами' })
   async listRedemptions(
