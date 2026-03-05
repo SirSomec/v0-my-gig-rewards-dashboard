@@ -43,6 +43,13 @@
       "when": 1731081600000,
       "tag": "0006_strikes_removed",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1731196800000,
+      "tag": "0007_levels_strike_limits_week_month",
+      "breakpoints": true
     }
   ]
 }
