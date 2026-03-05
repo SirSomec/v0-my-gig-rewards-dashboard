@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -45,14 +46,21 @@ export class AdminController {
   @ApiOperation({ summary: 'Ручное изменение уровня пользователя (6.5)' })
   async updateUserLevel(
     @Param('id') id: string,
-    @Body() body: { levelId: number },
+    @Body() body: { levelId?: number | string },
   ) {
     const userId = parseInt(id, 10);
-    if (Number.isNaN(userId)) throw new Error('Invalid user id');
-    if (body.levelId == null || typeof body.levelId !== 'number') {
-      throw new Error('levelId required');
+    if (Number.isNaN(userId)) {
+      throw new BadRequestException('Invalid user id');
     }
-    return this.admin.updateUserLevel(userId, body.levelId);
+    const raw = body?.levelId;
+    if (raw == null) {
+      throw new BadRequestException('levelId required');
+    }
+    const levelId = typeof raw === 'number' ? raw : parseInt(String(raw), 10);
+    if (Number.isNaN(levelId) || levelId < 1) {
+      throw new BadRequestException('levelId must be a positive number');
+    }
+    return this.admin.updateUserLevel(userId, levelId);
   }
 
   @Post('transactions')
