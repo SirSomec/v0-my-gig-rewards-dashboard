@@ -12,7 +12,7 @@ import {
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AdminGuard } from './admin.guard';
 import { AdminService } from './admin.service';
-import { CreateStoreItemDto, UpdateLevelDto, UpdateStoreItemDto } from './dto/admin.dto';
+import { CreateQuestDto, CreateStoreItemDto, UpdateLevelDto, UpdateQuestDto, UpdateStoreItemDto } from './dto/admin.dto';
 import { RewardsService } from '../rewards/rewards.service';
 
 @ApiTags('admin')
@@ -130,6 +130,37 @@ export class AdminController {
     const levelId = parseInt(id, 10);
     if (Number.isNaN(levelId)) throw new Error('Invalid level id');
     return this.admin.updateLevel(levelId, body);
+  }
+
+  @Get('quests')
+  @ApiOperation({ summary: 'Список квестов' })
+  async listQuests() {
+    return this.admin.listQuests();
+  }
+
+  @Post('quests')
+  @ApiOperation({ summary: 'Создать квест' })
+  async createQuest(@Body() body: CreateQuestDto) {
+    if (!body.name || !body.period || !body.conditionType || body.rewardCoins == null) {
+      throw new Error('name, period, conditionType and rewardCoins are required');
+    }
+    return this.admin.createQuest(body);
+  }
+
+  @Patch('quests/:id')
+  @ApiOperation({ summary: 'Обновить квест' })
+  async updateQuest(@Param('id') id: string, @Body() body: UpdateQuestDto) {
+    const questId = parseInt(id, 10);
+    if (Number.isNaN(questId)) throw new Error('Invalid quest id');
+    return this.admin.updateQuest(questId, body);
+  }
+
+  @Delete('quests/:id')
+  @ApiOperation({ summary: 'Отключить квест (мягкое удаление: isActive=0)' })
+  async deleteQuest(@Param('id') id: string) {
+    const questId = parseInt(id, 10);
+    if (Number.isNaN(questId)) throw new Error('Invalid quest id');
+    return this.admin.deleteQuest(questId);
   }
 
   @Post('shifts/complete')

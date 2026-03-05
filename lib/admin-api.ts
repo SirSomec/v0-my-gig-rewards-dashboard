@@ -102,6 +102,35 @@ export type UpdateLevelBody = {
   sortOrder?: number;
 };
 
+export interface AdminQuest {
+  id: number;
+  name: string;
+  description: string | null;
+  period: string;
+  conditionType: string;
+  conditionConfig: Record<string, unknown> | null;
+  rewardCoins: number;
+  icon: string | null;
+  isActive: number;
+  targetType: string | null;
+  targetGroupId: number | null;
+}
+
+export type CreateQuestBody = {
+  name: string;
+  description?: string;
+  period: "daily" | "weekly";
+  conditionType: string;
+  conditionConfig?: Record<string, unknown>;
+  rewardCoins: number;
+  icon?: string;
+  isActive?: number;
+  targetType?: "all" | "group";
+  targetGroupId?: number | null;
+};
+
+export type UpdateQuestBody = Partial<CreateQuestBody>;
+
 export async function adminListUsers(search?: string, limit?: number): Promise<AdminUser[]> {
   const params = new URLSearchParams();
   if (search) params.set("search", search);
@@ -199,6 +228,35 @@ export async function adminUpdateLevel(
   return fetchAdmin(`/v1/admin/levels/${id}`, {
     method: "PATCH",
     body: JSON.stringify(body),
+  });
+}
+
+export async function adminListQuests(): Promise<AdminQuest[]> {
+  return fetchAdmin<AdminQuest[]>("/v1/admin/quests");
+}
+
+export async function adminCreateQuest(
+  body: CreateQuestBody
+): Promise<{ id: number }> {
+  return fetchAdmin("/v1/admin/quests", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function adminUpdateQuest(
+  id: number,
+  body: UpdateQuestBody
+): Promise<{ id: number }> {
+  return fetchAdmin(`/v1/admin/quests/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function adminDeleteQuest(id: number): Promise<{ id: number }> {
+  return fetchAdmin(`/v1/admin/quests/${id}`, {
+    method: "DELETE",
   });
 }
 

@@ -4,7 +4,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../../infra/db/drizzle/schemas';
 import { drizzleProvider } from '../../infra/db/drizzle/drizzle.module';
 import { Inject } from '@nestjs/common';
-import type { CreateStoreItemDto, UpdateLevelDto, UpdateStoreItemDto } from './dto/admin.dto';
+import type { CreateQuestDto, CreateStoreItemDto, UpdateLevelDto, UpdateQuestDto, UpdateStoreItemDto } from './dto/admin.dto';
 
 @Injectable()
 export class AdminService {
@@ -312,6 +312,60 @@ export class AdminService {
     if (dto.sortOrder !== undefined) updates.sortOrder = dto.sortOrder;
     if (Object.keys(updates).length === 0) return { id };
     await this.db.update(levels).set(updates).where(eq(levels.id, id));
+    return { id };
+  }
+
+  async listQuests() {
+    const { quests } = schema;
+    return this.db.select().from(quests).orderBy(quests.id);
+  }
+
+  async createQuest(dto: CreateQuestDto) {
+    const { quests } = schema;
+    const [row] = await this.db
+      .insert(quests)
+      .values({
+        name: dto.name,
+        description: dto.description ?? null,
+        period: dto.period,
+        conditionType: dto.conditionType,
+        conditionConfig: dto.conditionConfig ?? {},
+        rewardCoins: dto.rewardCoins,
+        icon: dto.icon ?? 'target',
+        isActive: dto.isActive ?? 1,
+        targetType: dto.targetType ?? 'all',
+        targetGroupId: dto.targetGroupId ?? null,
+      })
+      .returning({ id: quests.id });
+    if (!row) throw new Error('Insert failed');
+    return { id: row.id };
+  }
+
+  async updateQuest(id: number, dto: UpdateQuestDto) {
+    const { quests } = schema;
+    const [existing] = await this.db.select().from(quests).where(eq(quests.id, id)).limit(1);
+    if (!existing) throw new NotFoundException('Quest not found');
+    const updates: Partial<typeof quests.$inferInsert> = {};
+    if (dto.name !== undefined) updates.name = dto.name;
+    if (dto.description !== undefined) updates.description = dto.description;
+    if (dto.period !== undefined) updates.period = dto.period;
+    if (dto.conditionType !== undefined) updates.conditionType = dto.conditionType;
+    if (dto.conditionConfig !== undefined) updates.conditionConfig = dto.conditionConfig;
+    if (dto.rewardCoins !== undefined) updates.rewardCoins = dto.rewardCoins;
+    if (dto.icon !== undefined) updates.icon = dto.icon;
+    if (dto.isActive !== undefined) updates.isActive = dto.isActive;
+    if (dto.targetType !== undefined) updates.targetType = dto.targetType;
+    if (dto.targetGroupId !== undefined) updates.targetGroupId = dto.targetGroupId;
+    if (Object.keys(updates).length === 0) return { id };
+    await this.db.update(quests).set(updates).where(eq(quests.id, id));
+    return { id };
+  }
+
+  async deleteQuest(id: number) {
+    const { quests } = schema;
+    const [existing] = await this.db.select().from(quests).where(eq(quests.id, id)).limit(1);
+    if (!existing) throw new NotFoundException('Quest not found');
+    await this.db.update(quests).set({ isActive: 0 }).where(eq(quests.id, id));
     return { id };
   }
 }

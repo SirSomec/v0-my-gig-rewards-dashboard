@@ -36,3 +36,29 @@ export class UpdateLevelDto {
   perks?: Array<{ title: string; description?: string }>;
   sortOrder?: number;
 }
+
+export class CreateQuestDto {
+  name!: string;
+  description?: string;
+  period!: 'daily' | 'weekly';
+  conditionType!: string;
+  conditionConfig?: Record<string, unknown>;
+  rewardCoins!: number;
+  icon?: string;
+  isActive?: number;
+  targetType?: 'all' | 'group';
+  targetGroupId?: number | null;
+}
+
+export class UpdateQuestDto {
+  name?: string;
+  description?: string;
+  period?: 'daily' | 'weekly';
+  conditionType?: string;
+  conditionConfig?: Record<string, unknown>;
+  rewardCoins?: number;
+  icon?: string;
+  isActive?: number;
+  targetType?: 'all' | 'group';
+  targetGroupId?: number | null;
+}

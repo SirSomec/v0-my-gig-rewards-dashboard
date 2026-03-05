@@ -2,13 +2,14 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Users, ShoppingBag, Gift, Layers, Zap } from "lucide-react"
+import { Users, ShoppingBag, Gift, Layers, Zap, Target } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const nav = [
   { href: "/admin/users", label: "Пользователи", icon: Users },
   { href: "/admin/redemptions", label: "Заявки на обмен", icon: Gift },
   { href: "/admin/store", label: "Магазин", icon: ShoppingBag },
+  { href: "/admin/quests", label: "Квесты", icon: Target },
   { href: "/admin/levels", label: "Уровни", icon: Layers },
   { href: "/admin/dev", label: "Мок: смены и штрафы", icon: Zap },
 ]
