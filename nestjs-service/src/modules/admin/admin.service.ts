@@ -364,7 +364,6 @@ export class AdminService {
       const weekEnd = new Date(monday.getTime() + 7 * 86400000);
       return new Date(weekEnd.getTime() - 1);
     }
-    const monthStart = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
     const nextMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
     return new Date(nextMonth.getTime() - 1);
   }
