@@ -129,7 +129,13 @@ export default function MyGigRewards() {
               transition={{ duration: 0.25 }}
               className="flex flex-col gap-4"
             >
-              <EarningHistory entries={transactions} />
+              <EarningHistory
+                entries={transactions}
+                initialPageSize={20}
+                loadMoreSize={10}
+                title="История начислений"
+                showViewAll={false}
+              />
             </motion.div>
           )}
 
