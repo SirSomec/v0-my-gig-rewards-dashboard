@@ -18,6 +18,7 @@ import { TransactionResponseDto } from './dto/transaction.dto';
 import { StrikeResponseDto } from './dto/strike.dto';
 import { QuestResponseDto } from './dto/quest.dto';
 import { StoreItemResponseDto } from './dto/store.dto';
+import { LevelResponseDto } from './dto/level.dto';
 
 interface RequestWithUser extends Request {
   user?: { userId: number };
@@ -82,6 +83,12 @@ export class RewardsController {
   @ApiOperation({ summary: 'Каталог товаров магазина' })
   async getStore(): Promise<StoreItemResponseDto[]> {
     return this.rewards.getStoreItems();
+  }
+
+  @Get('levels')
+  @ApiOperation({ summary: 'Список уровней лояльности (название, порог смен, перки)' })
+  async getLevels(): Promise<LevelResponseDto[]> {
+    return this.rewards.getLevels();
   }
 
   @Post('redemptions')

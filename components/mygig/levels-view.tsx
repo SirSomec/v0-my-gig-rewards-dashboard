@@ -1,23 +1,18 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Check, Lock } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
+import { fetchLevels, type LevelResponse } from "@/lib/rewards-api"
 
 interface Level {
   name: string
   shiftsRequired: number
-  perks: string[]
+  perks: Array<{ title: string; description?: string }>
   isCurrent: boolean
   isUnlocked: boolean
 }
-
-const LEVELS_DATA: Omit<Level, "isCurrent" | "isUnlocked">[] = [
-  { name: "Бронзовый новичок", shiftsRequired: 0, perks: ["Базовая ставка", "Стандартное расписание", "1x начисление монет"] },
-  { name: "Серебряный партнёр", shiftsRequired: 10, perks: ["+5% бонус за смены", "2x монеты в выходные", "Приоритет выбора смен"] },
-  { name: "Золотой партнёр", shiftsRequired: 25, perks: ["+10% бонус за смены", "Мгновенные выплаты", "3x монеты в выходные", "Гибкий график"] },
-  { name: "Платиновый элит", shiftsRequired: 50, perks: ["+15% бонус за смены", "VIP-поддержка", "5x монеты в выходные", "Эксклюзивные задания", "Бесплатный мерч"] },
-]
 
 interface LevelsViewProps {
   /** Название текущего уровня пользователя (из API) — для подсветки карточки */
@@ -27,7 +22,20 @@ interface LevelsViewProps {
 }
 
 export function LevelsView({ currentLevelName, shiftsCompleted = 0 }: LevelsViewProps = {}) {
-  const levels: Level[] = LEVELS_DATA.map((l, i) => {
+  const [levelsFromApi, setLevelsFromApi] = useState<LevelResponse[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setLoading(true)
+    setError(null)
+    fetchLevels()
+      .then(setLevelsFromApi)
+      .catch((e) => setError(e instanceof Error ? e.message : "Ошибка загрузки уровней"))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const levels: Level[] = levelsFromApi.map((l) => {
     const isUnlocked = shiftsCompleted >= l.shiftsRequired
     const isCurrent = currentLevelName != null && l.name === currentLevelName
     return { ...l, isCurrent, isUnlocked }
@@ -35,9 +43,16 @@ export function LevelsView({ currentLevelName, shiftsCompleted = 0 }: LevelsView
   return (
     <div className="flex flex-col gap-3">
       <h2 className="text-sm font-semibold text-foreground px-1">Уровни лояльности</h2>
-      {levels.map((level, i) => (
-        <motion.div
-          key={level.name}
+      {loading ? (
+        <p className="text-sm text-muted-foreground px-1">Загрузка…</p>
+      ) : error ? (
+        <p className="text-sm text-destructive px-1">{error}</p>
+      ) : levels.length === 0 ? (
+        <p className="text-sm text-muted-foreground px-1">Нет уровней</p>
+      ) : (
+        levels.map((level, i) => (
+          <motion.div
+            key={level.name}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: i * 0.1 }}
@@ -74,20 +89,22 @@ export function LevelsView({ currentLevelName, shiftsCompleted = 0 }: LevelsView
                 </div>
                 <span className="text-[11px] text-muted-foreground">{level.shiftsRequired} смен</span>
               </div>
-              <div className="flex flex-wrap gap-1">
-                {level.perks.map((perk) => (
-                  <span
-                    key={perk}
-                    className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground"
-                  >
-                    {perk}
-                  </span>
-                ))}
-              </div>
+                <div className="flex flex-wrap gap-1">
+                  {level.perks.map((perk, j) => (
+                    <span
+                      key={j}
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground"
+                      title={perk.description}
+                    >
+                      {perk.description ? `${perk.title}: ${perk.description}` : perk.title}
+                    </span>
+                  ))}
+                </div>
             </CardContent>
-          </Card>
-        </motion.div>
-      ))}
+            </Card>
+          </motion.div>
+        ))
+      )}
     </div>
   )
 }

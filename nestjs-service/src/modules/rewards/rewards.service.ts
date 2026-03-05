@@ -6,6 +6,7 @@ import * as schema from '../../infra/db/drizzle/schemas';
 import { drizzleProvider } from '../../infra/db/drizzle/drizzle.module';
 import type { Envs } from '../../shared/env.validation-schema';
 import { MeResponseDto } from './dto/me.dto';
+import { LevelResponseDto } from './dto/level.dto';
 import { QuestResponseDto } from './dto/quest.dto';
 import { StoreItemResponseDto } from './dto/store.dto';
 import { StrikeResponseDto } from './dto/strike.dto';
@@ -311,6 +312,21 @@ export class RewardsService {
       result.push(dto);
     }
     return result;
+  }
+
+  /** Список уровней лояльности для отображения в ЛК (название, порог смен, перки). */
+  async getLevels(): Promise<LevelResponseDto[]> {
+    const { levels } = schema;
+    const rows = await this.db.select().from(levels).orderBy(levels.sortOrder);
+    return rows.map((r) => {
+      const dto = new LevelResponseDto();
+      dto.id = r.id;
+      dto.name = r.name;
+      dto.shiftsRequired = r.shiftsRequired;
+      dto.perks = Array.isArray(r.perks) ? r.perks : [];
+      dto.sortOrder = r.sortOrder;
+      return dto;
+    });
   }
 
   async createRedemption(userId: number, storeItemId: number): Promise<{ redemptionId: number }> {
