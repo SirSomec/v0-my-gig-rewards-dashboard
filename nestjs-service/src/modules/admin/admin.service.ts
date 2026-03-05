@@ -453,7 +453,10 @@ export class AdminService {
     const [userRow] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!userRow) throw new NotFoundException('User not found');
     const oldLevelId = userRow.levelId;
-    await this.db.update(users).set({ levelId }).where(eq(users.id, userId));
+    await this.db
+      .update(users)
+      .set({ levelId, shiftsCompleted: 0 })
+      .where(eq(users.id, userId));
     await this.logAudit('user_level_change', 'user', String(userId), { levelId: oldLevelId }, { levelId });
     return { id: userId, levelId };
   }

@@ -108,6 +108,7 @@ export class RewardsService {
   }
 
   async getMe(userId: number): Promise<MeResponseDto> {
+    await this.recalcUserLevel(userId);
     const { users, levels, strikes } = schema;
     const rows = await this.db
       .select({
@@ -398,7 +399,10 @@ export class RewardsService {
       .orderBy(desc(levels.shiftsRequired))
       .limit(1);
     if (newLevel && newLevel.id !== user.levelId) {
-      await this.db.update(users).set({ levelId: newLevel.id }).where(eq(users.id, userId));
+      await this.db
+        .update(users)
+        .set({ levelId: newLevel.id, shiftsCompleted: 0 })
+        .where(eq(users.id, userId));
     }
   }
 
@@ -464,7 +468,10 @@ export class RewardsService {
       targetLevel = prevLevel;
     }
     if (targetLevel.id !== user.levelId) {
-      await this.db.update(users).set({ levelId: targetLevel.id }).where(eq(users.id, userId));
+      await this.db
+        .update(users)
+        .set({ levelId: targetLevel.id, shiftsCompleted: 0 })
+        .where(eq(users.id, userId));
     }
   }
 
@@ -617,7 +624,10 @@ export class RewardsService {
         .where(eq(levels.sortOrder, currentLevel.sortOrder - 1))
         .limit(1);
       if (prevLevel) {
-        await this.db.update(users).set({ levelId: prevLevel.id }).where(eq(users.id, userId));
+        await this.db
+          .update(users)
+          .set({ levelId: prevLevel.id, shiftsCompleted: 0 })
+          .where(eq(users.id, userId));
         levelDemoted = true;
       }
     }
