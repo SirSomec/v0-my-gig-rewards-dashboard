@@ -58,7 +58,6 @@ export interface AdminLevel {
   id: number;
   name: string;
   shiftsRequired: number;
-  strikeThreshold: number | null;
   strikeLimitPerWeek: number | null;
   strikeLimitPerMonth: number | null;
   sortOrder: number;
@@ -99,7 +98,6 @@ export type UpdateStoreItemBody = Partial<CreateStoreItemBody>;
 export type UpdateLevelBody = {
   name?: string;
   shiftsRequired?: number;
-  strikeThreshold?: number | null;
   strikeLimitPerWeek?: number | null;
   strikeLimitPerMonth?: number | null;
   perks?: Array<{ title: string; description?: string }>;

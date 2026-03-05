@@ -12,10 +12,6 @@ interface LevelProgressProps {
   shiftsCompleted: number
   shiftsRequired: number
   shiftsRemaining: number
-  /** Штрафы за 30 дней (устаревший счётчик) */
-  strikesCount?: number
-  /** Порог штрафов за 30 дней (устаревший); null = бронза */
-  strikesThreshold?: number | null
   /** Штрафов за текущую неделю */
   strikesCountWeek?: number
   /** Штрафов за текущий месяц */
@@ -46,8 +42,6 @@ export function LevelProgress({
   shiftsCompleted,
   shiftsRequired,
   shiftsRemaining,
-  strikesCount = 0,
-  strikesThreshold,
   strikesCountWeek = 0,
   strikesCountMonth = 0,
   strikesLimitPerWeek,
@@ -57,7 +51,7 @@ export function LevelProgress({
   const progress = shiftsRequired > 0 ? (shiftsCompleted / shiftsRequired) * 100 : 0
   const hasWeekLimit = strikesLimitPerWeek != null && strikesLimitPerWeek > 0
   const hasMonthLimit = strikesLimitPerMonth != null && strikesLimitPerMonth > 0
-  const showStrikes = hasWeekLimit || hasMonthLimit || (strikesThreshold != null && strikesThreshold > 0)
+  const showStrikes = hasWeekLimit || hasMonthLimit
 
   const currentBenefits = benefits[currentLevel] || benefits["Серебряный партнёр"]
 
@@ -97,49 +91,63 @@ export function LevelProgress({
           />
         </div>
 
-        <div className={`flex items-center justify-between ${showStrikes ? 'mb-2' : 'mb-4'}`}>
+        <div className={`flex items-center justify-between ${showStrikes ? "mb-2" : "mb-4"}`}>
           <span className="text-xs text-muted-foreground">
             {shiftsCompleted}/{shiftsRequired} смен
           </span>
           <span className="text-xs font-medium text-primary">
-            {'Ещё '}{shiftsRemaining}{' до '}{nextLevel}
+            Ещё {shiftsRemaining} до {nextLevel}
           </span>
         </div>
 
         {showStrikes && (
-          <p className="text-xs text-muted-foreground mb-4">
+          <div className="mb-4 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              При превышении количества штрафов за неделю или за месяц уровень будет понижен на один шаг. Следите за счётчиками ниже.
+            </p>
             {hasWeekLimit && (
-              <span>
-                {strikesCountWeek}/{strikesLimitPerWeek} штрафов за неделю
-                {strikesCountWeek > (strikesLimitPerWeek ?? 0) ? (
-                  <span className="text-destructive font-medium"> (превышен лимит)</span>
-                ) : (
-                  <span> (до понижения)</span>
-                )}
-              </span>
+              <div>
+                <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                  <span>Штрафы за неделю</span>
+                  <span className={strikesCountWeek > (strikesLimitPerWeek ?? 0) ? "font-medium text-destructive" : ""}>
+                    {strikesCountWeek}/{strikesLimitPerWeek}
+                    {strikesCountWeek > (strikesLimitPerWeek ?? 0) ? " — превышен лимит" : ""}
+                  </span>
+                </div>
+                <div className="relative h-2 bg-secondary rounded-full overflow-hidden">
+                  <motion.div
+                    className={`absolute inset-y-0 left-0 rounded-full ${strikesCountWeek > (strikesLimitPerWeek ?? 0) ? "bg-destructive/90" : "bg-amber-500/80"}`}
+                    initial={{ width: 0 }}
+                    animate={{
+                      width: `${Math.min(100, (strikesCountWeek / (strikesLimitPerWeek ?? 1)) * 100)}%`,
+                    }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                  />
+                </div>
+              </div>
             )}
-            {hasWeekLimit && hasMonthLimit && " · "}
             {hasMonthLimit && (
-              <span>
-                {strikesCountMonth}/{strikesLimitPerMonth} штрафов за месяц
-                {strikesCountMonth > (strikesLimitPerMonth ?? 0) ? (
-                  <span className="text-destructive font-medium"> (превышен лимит)</span>
-                ) : (
-                  <span> (до понижения)</span>
-                )}
-              </span>
+              <div>
+                <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                  <span>Штрафы за месяц</span>
+                  <span className={strikesCountMonth > (strikesLimitPerMonth ?? 0) ? "font-medium text-destructive" : ""}>
+                    {strikesCountMonth}/{strikesLimitPerMonth}
+                    {strikesCountMonth > (strikesLimitPerMonth ?? 0) ? " — превышен лимит" : ""}
+                  </span>
+                </div>
+                <div className="relative h-2 bg-secondary rounded-full overflow-hidden">
+                  <motion.div
+                    className={`absolute inset-y-0 left-0 rounded-full ${strikesCountMonth > (strikesLimitPerMonth ?? 0) ? "bg-destructive/90" : "bg-amber-500/80"}`}
+                    initial={{ width: 0 }}
+                    animate={{
+                      width: `${Math.min(100, (strikesCountMonth / (strikesLimitPerMonth ?? 1)) * 100)}%`,
+                    }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                  />
+                </div>
+              </div>
             )}
-            {!hasWeekLimit && !hasMonthLimit && strikesThreshold != null && strikesThreshold > 0 && (
-              <span>
-                {strikesCount}/{strikesThreshold} штрафов за 30 дней
-                {strikesCount >= strikesThreshold ? (
-                  <span className="text-destructive font-medium"> (до понижения)</span>
-                ) : (
-                  <span> (до понижения)</span>
-                )}
-              </span>
-            )}
-          </p>
+          </div>
         )}
 
         {/* Benefits toggle */}

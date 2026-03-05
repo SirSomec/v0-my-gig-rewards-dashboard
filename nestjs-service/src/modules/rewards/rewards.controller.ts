@@ -37,7 +37,7 @@ export class RewardsController {
   }
 
   @Get('me')
-  @ApiOperation({ summary: 'Текущий пользователь: профиль, баланс, уровень, штрафы за 30 дней' })
+  @ApiOperation({ summary: 'Текущий пользователь: профиль, баланс, уровень, штрафы за неделю/месяц' })
   async getMe(
     @Req() req: RequestWithUser,
     @Query('userId') userId?: string,

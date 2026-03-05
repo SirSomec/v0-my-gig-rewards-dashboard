@@ -9,10 +9,6 @@ export class MeResponseDto {
   nextLevelName!: string | null;
   shiftsCompleted!: number;
   shiftsRequired!: number;
-  /** Штрафы за последние 30 дней (для обратной совместимости) */
-  strikesCount!: number;
-  /** Порог за 30 дней (устаревший; приоритет у лимитов за неделю/месяц) */
-  strikesThreshold!: number | null;
   /** Штрафов за текущую неделю */
   strikesCountWeek!: number;
   /** Штрафов за текущий месяц */

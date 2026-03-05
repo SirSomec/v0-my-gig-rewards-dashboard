@@ -33,8 +33,6 @@ export interface DashboardUser {
   shiftsRequired: number
   shiftsRemaining: number
   avatarUrl?: string
-  strikesCount: number
-  strikesThreshold: number | null
   strikesCountWeek: number
   strikesCountMonth: number
   strikesLimitPerWeek: number | null
@@ -51,8 +49,6 @@ function mapMe(m: MeResponse): DashboardUser {
     shiftsRequired: m.shiftsRequired,
     shiftsRemaining: Math.max(0, m.shiftsRequired - m.shiftsCompleted),
     avatarUrl: m.avatarUrl ?? undefined,
-    strikesCount: m.strikesCount,
-    strikesThreshold: m.strikesThreshold,
     strikesCountWeek: m.strikesCountWeek ?? 0,
     strikesCountMonth: m.strikesCountMonth ?? 0,
     strikesLimitPerWeek: m.strikesLimitPerWeek ?? null,

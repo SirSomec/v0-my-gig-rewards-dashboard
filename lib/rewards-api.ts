@@ -89,8 +89,6 @@ export interface MeResponse {
   nextLevelName: string | null;
   shiftsCompleted: number;
   shiftsRequired: number;
-  strikesCount: number;
-  strikesThreshold: number | null;
   strikesCountWeek: number;
   strikesCountMonth: number;
   strikesLimitPerWeek: number | null;

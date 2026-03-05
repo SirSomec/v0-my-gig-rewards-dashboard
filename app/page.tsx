@@ -108,8 +108,6 @@ export default function MyGigRewards() {
                 shiftsCompleted={user.shiftsCompleted}
                 shiftsRequired={user.shiftsRequired}
                 shiftsRemaining={user.shiftsRemaining}
-                strikesCount={user.strikesCount}
-                strikesThreshold={user.strikesThreshold}
                 strikesCountWeek={user.strikesCountWeek}
                 strikesCountMonth={user.strikesCountMonth}
                 strikesLimitPerWeek={user.strikesLimitPerWeek}

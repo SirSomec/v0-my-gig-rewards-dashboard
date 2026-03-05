@@ -127,19 +127,7 @@ export class RewardsService {
     const weekEnd = endOfWeekUTC(now);
     const monthStart = startOfMonthUTC(now);
     const nextMonthStart = startOfNextMonthUTC(now);
-    const thirtyDaysAgo = new Date(now);
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const [count30, countWeek, countMonth] = await Promise.all([
-      this.db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(strikes)
-        .where(
-          and(
-            eq(strikes.userId, userId),
-            gte(strikes.occurredAt, thirtyDaysAgo),
-            isNull(strikes.removedAt),
-          ),
-        ),
+    const [countWeek, countMonth] = await Promise.all([
       this.db
         .select({ count: sql<number>`count(*)::int` })
         .from(strikes)
@@ -163,7 +151,6 @@ export class RewardsService {
           ),
         ),
     ]);
-    const count = count30[0]?.count ?? 0;
     const countWeekVal = countWeek[0]?.count ?? 0;
     const countMonthVal = countMonth[0]?.count ?? 0;
     const nextLevelRows = await this.db
@@ -183,8 +170,6 @@ export class RewardsService {
     dto.nextLevelName = nextLevel?.name ?? null;
     dto.shiftsCompleted = user.shiftsCompleted;
     dto.shiftsRequired = level.shiftsRequired;
-    dto.strikesCount = count;
-    dto.strikesThreshold = level.strikeThreshold;
     dto.strikesCountWeek = countWeekVal;
     dto.strikesCountMonth = countMonthVal;
     dto.strikesLimitPerWeek = level.strikeLimitPerWeek ?? null;

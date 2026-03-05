@@ -49,7 +49,6 @@ export default function AdminLevelsPage() {
   const [form, setForm] = useState({
     name: "",
     shiftsRequired: 0,
-    strikeThreshold: "" as number | "",
     strikeLimitPerWeek: "" as number | "",
     strikeLimitPerMonth: "" as number | "",
     sortOrder: 0,
@@ -75,7 +74,6 @@ export default function AdminLevelsPage() {
     setForm({
       name: level.name,
       shiftsRequired: level.shiftsRequired,
-      strikeThreshold: level.strikeThreshold ?? "",
       strikeLimitPerWeek: level.strikeLimitPerWeek ?? "",
       strikeLimitPerMonth: level.strikeLimitPerMonth ?? "",
       sortOrder: level.sortOrder,
@@ -98,7 +96,6 @@ export default function AdminLevelsPage() {
     const body: UpdateLevelBody = {
       name: form.name.trim(),
       shiftsRequired: Number(form.shiftsRequired) ?? 0,
-      strikeThreshold: form.strikeThreshold === "" ? null : Number(form.strikeThreshold),
       strikeLimitPerWeek: form.strikeLimitPerWeek === "" ? null : Number(form.strikeLimitPerWeek),
       strikeLimitPerMonth: form.strikeLimitPerMonth === "" ? null : Number(form.strikeLimitPerMonth),
       sortOrder: Number(form.sortOrder) ?? 0,
@@ -133,8 +130,7 @@ export default function AdminLevelsPage() {
                 <div className="min-w-0">
                   <p className="font-medium">{l.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    Смен до уровня: {l.shiftsRequired} · Порог штрафов (30 д):{" "}
-                    {l.strikeThreshold ?? "—"} · Неделя: {l.strikeLimitPerWeek ?? "—"} · Месяц: {l.strikeLimitPerMonth ?? "—"} · #{l.sortOrder}
+                    Смен до уровня: {l.shiftsRequired} · Лимит штрафов: неделя {l.strikeLimitPerWeek ?? "—"}, месяц {l.strikeLimitPerMonth ?? "—"} · #{l.sortOrder}
                   </p>
                   {l.perks?.length ? (
                     <p className="text-xs text-muted-foreground mt-1">
@@ -187,23 +183,6 @@ export default function AdminLevelsPage() {
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="strikeThreshold">Порог штрафов за 30 д (устар., пусто = не понижаем)</Label>
-                <Input
-                  id="strikeThreshold"
-                  type="number"
-                  min={0}
-                  value={form.strikeThreshold}
-                  onChange={(e) => {
-                    const v = e.target.value
-                    setForm((f) => ({
-                      ...f,
-                      strikeThreshold: v === "" ? "" : Number(v),
-                    }))
-                  }}
-                  placeholder="—"
-                />
-              </div>
               <div className="grid gap-2">
                 <Label htmlFor="strikeLimitPerWeek">Лимит штрафов за неделю</Label>
                 <Input

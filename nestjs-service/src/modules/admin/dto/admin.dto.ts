@@ -32,7 +32,6 @@ export class UpdateStoreItemDto {
 export class UpdateLevelDto {
   name?: string;
   shiftsRequired?: number;
-  strikeThreshold?: number | null;
   /** Лимит штрафов за неделю (при превышении — понижение уровня); null = не учитывать */
   strikeLimitPerWeek?: number | null;
   /** Лимит штрафов за месяц (при превышении — понижение уровня); null = не учитывать */
