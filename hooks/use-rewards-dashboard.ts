@@ -168,7 +168,7 @@ export interface UseRewardsDashboardResult {
   quests: Quest[]
   storeItems: (StoreItem & { numericId: number })[]
   /** Перки текущего уровня пользователя (из API уровней), синхронно с админкой */
-  currentLevelPerks: Array<{ title: string; description?: string }>
+  currentLevelPerks: Array<{ title: string; description?: string; icon?: string }>
   loading: boolean
   error: string | null
   refetch: () => Promise<void>

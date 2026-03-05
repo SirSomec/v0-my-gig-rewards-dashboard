@@ -20,21 +20,29 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
-function perksToJson(perks: Array<{ title: string; description?: string }>): string {
+type PerkItem = { title: string; description?: string; icon?: string }
+
+function perksToJson(perks: Array<PerkItem>): string {
   if (!perks?.length) return "[]"
   return JSON.stringify(perks, null, 2)
 }
 
-function parsePerksJson(value: string): Array<{ title: string; description?: string }> {
+function parsePerksJson(value: string): Array<PerkItem> {
   const t = value.trim()
   if (!t) return []
   try {
     const arr = JSON.parse(t)
     if (!Array.isArray(arr)) return []
-    return arr.filter(
-      (p): p is { title: string; description?: string } =>
-        p && typeof p === "object" && typeof (p as { title?: unknown }).title === "string"
-    )
+    return arr
+      .filter(
+        (p): p is Record<string, unknown> =>
+          p && typeof p === "object" && typeof (p as { title?: unknown }).title === "string"
+      )
+      .map((p) => ({
+        title: String(p.title),
+        description: p.description != null ? String(p.description) : undefined,
+        icon: p.icon != null && p.icon !== "" ? String(p.icon) : undefined,
+      }))
   } catch {
     return []
   }
@@ -262,10 +270,10 @@ export default function AdminLevelsPage() {
                 onChange={(e) =>
                   setForm((f) => ({ ...f, perksJson: e.target.value }))
                 }
-                placeholder='[{"title": "Бонус 5%"}, {"title": "Приоритет", "description": "Ранний доступ к сменам"}]'
+                placeholder='[{"title": "Бонус 5%", "icon": "trending-up"}, {"title": "Приоритет", "description": "Ранний доступ к сменам", "icon": "star"}]'
               />
               <p className="text-xs text-muted-foreground">
-                Массив объектов: {"{ \"title\": \"...\", \"description\": \"...\" }"}
+                Массив: {"{ \"title\": \"...\", \"description\": \"...\", \"icon\": \"...\" }"}. Значки: star, trending-up, zap, clock, coin, gift, target, award
               </p>
             </div>
           </div>

@@ -135,7 +135,7 @@ export interface LevelResponse {
   id: number;
   name: string;
   shiftsRequired: number;
-  perks: Array<{ title: string; description?: string }>;
+  perks: Array<{ title: string; description?: string; icon?: string }>;
   sortOrder: number;
 }
 

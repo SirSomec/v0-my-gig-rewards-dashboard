@@ -2,9 +2,25 @@
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { ChevronDown, ChevronUp, Zap, Clock, Star, TrendingUp } from "lucide-react"
+import { ChevronDown, ChevronUp, Zap, Clock, Star, TrendingUp, Gift, Target, Award } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { GigCoinIcon } from "./gig-coin-icon"
+
+const PERK_ICON_MAP: Record<string, React.ReactNode> = {
+  star: <Star size={16} />,
+  "trending-up": <TrendingUp size={16} />,
+  zap: <Zap size={16} />,
+  clock: <Clock size={16} />,
+  coin: <GigCoinIcon size={16} />,
+  gift: <Gift size={16} />,
+  target: <Target size={16} />,
+  award: <Award size={16} />,
+}
+function getPerkIcon(iconName: string | undefined): React.ReactNode {
+  if (!iconName) return <Star size={16} />
+  const key = iconName.toLowerCase().replace(/_/g, "-")
+  return PERK_ICON_MAP[key] ?? <Star size={16} />
+}
 
 interface LevelProgressProps {
   currentLevel: string
@@ -21,7 +37,7 @@ interface LevelProgressProps {
   /** Лимит штрафов за месяц для уровня (при превышении — понижение) */
   strikesLimitPerMonth?: number | null
   /** Перки текущего уровня из API (синхронно с настройками уровней в админке). Если заданы — отображаются вместо захардкоженного списка. */
-  currentLevelPerks?: Array<{ title: string; description?: string }>
+  currentLevelPerks?: Array<{ title: string; description?: string; icon?: string }>
 }
 
 const benefits: Record<string, { icon: React.ReactNode; label: string; description: string }[]> = {
@@ -60,7 +76,7 @@ export function LevelProgress({
   const useApiPerks = currentLevelPerksFromApi != null && currentLevelPerksFromApi.length > 0
   const currentBenefits = useApiPerks
     ? currentLevelPerksFromApi.map((p) => ({
-        icon: <Star size={16} />,
+        icon: getPerkIcon(p.icon),
         label: p.title,
         description: p.description ?? "",
       }))

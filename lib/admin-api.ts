@@ -63,7 +63,7 @@ export interface AdminLevel {
   sortOrder: number;
   /** Дополнительный множитель бонусов за смену для уровня (по умолчанию 1) */
   bonusMultiplier?: number;
-  perks?: Array<{ title: string; description?: string }>;
+  perks?: Array<{ title: string; description?: string; icon?: string }>;
 }
 
 export interface AdminStoreItem {
@@ -102,7 +102,7 @@ export type UpdateLevelBody = {
   shiftsRequired?: number;
   strikeLimitPerWeek?: number | null;
   strikeLimitPerMonth?: number | null;
-  perks?: Array<{ title: string; description?: string }>;
+  perks?: Array<{ title: string; description?: string; icon?: string }>;
   sortOrder?: number;
   /** Дополнительный множитель бонусов за смену для уровня */
   bonusMultiplier?: number;
