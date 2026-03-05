@@ -322,6 +322,12 @@ export class AdminService {
 
   async createQuest(dto: CreateQuestDto) {
     const { quests } = schema;
+    const now = new Date();
+    let activeFrom: Date | null = dto.activeFrom ? new Date(dto.activeFrom) : null;
+    let activeUntil: Date | null = dto.activeUntil ? new Date(dto.activeUntil) : null;
+    if (dto.activeUntilEndOfPeriod && dto.period) {
+      activeUntil = this.endOfPeriodUTC(now, dto.period);
+    }
     const [row] = await this.db
       .insert(quests)
       .values({
@@ -333,12 +339,34 @@ export class AdminService {
         rewardCoins: dto.rewardCoins,
         icon: dto.icon ?? 'target',
         isActive: dto.isActive ?? 1,
+        isOneTime: dto.isOneTime ?? 0,
+        activeFrom,
+        activeUntil,
         targetType: dto.targetType ?? 'all',
         targetGroupId: dto.targetGroupId ?? null,
       })
       .returning({ id: quests.id });
     if (!row) throw new Error('Insert failed');
     return { id: row.id };
+  }
+
+  /** Конец текущего периода (последний момент включительно) в UTC */
+  private endOfPeriodUTC(d: Date, period: 'daily' | 'weekly' | 'monthly'): Date {
+    if (period === 'daily') {
+      const dayStart = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+      const next = new Date(dayStart.getTime() + 86400000);
+      return new Date(next.getTime() - 1);
+    }
+    if (period === 'weekly') {
+      const day = d.getUTCDay();
+      const mondayOffset = day === 0 ? -6 : 1 - day;
+      const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + mondayOffset));
+      const weekEnd = new Date(monday.getTime() + 7 * 86400000);
+      return new Date(weekEnd.getTime() - 1);
+    }
+    const monthStart = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+    const nextMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
+    return new Date(nextMonth.getTime() - 1);
   }
 
   async updateQuest(id: number, dto: UpdateQuestDto) {
@@ -354,6 +382,9 @@ export class AdminService {
     if (dto.rewardCoins !== undefined) updates.rewardCoins = dto.rewardCoins;
     if (dto.icon !== undefined) updates.icon = dto.icon;
     if (dto.isActive !== undefined) updates.isActive = dto.isActive;
+    if (dto.isOneTime !== undefined) updates.isOneTime = dto.isOneTime;
+    if (dto.activeFrom !== undefined) updates.activeFrom = dto.activeFrom ? new Date(dto.activeFrom) : null;
+    if (dto.activeUntil !== undefined) updates.activeUntil = dto.activeUntil ? new Date(dto.activeUntil) : null;
     if (dto.targetType !== undefined) updates.targetType = dto.targetType;
     if (dto.targetGroupId !== undefined) updates.targetGroupId = dto.targetGroupId;
     if (Object.keys(updates).length === 0) return { id };

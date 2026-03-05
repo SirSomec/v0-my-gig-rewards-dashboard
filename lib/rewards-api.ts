@@ -108,6 +108,7 @@ export interface QuestResponse {
   name: string;
   description: string | null;
   period: string;
+  isOneTime: boolean;
   progress: number;
   total: number;
   reward: number;

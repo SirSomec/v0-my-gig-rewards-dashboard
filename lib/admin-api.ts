@@ -112,6 +112,9 @@ export interface AdminQuest {
   rewardCoins: number;
   icon: string | null;
   isActive: number;
+  isOneTime: number;
+  activeFrom: string | null;
+  activeUntil: string | null;
   targetType: string | null;
   targetGroupId: number | null;
 }
@@ -119,12 +122,17 @@ export interface AdminQuest {
 export type CreateQuestBody = {
   name: string;
   description?: string;
-  period: "daily" | "weekly";
+  period: "daily" | "weekly" | "monthly";
   conditionType: string;
   conditionConfig?: Record<string, unknown>;
   rewardCoins: number;
   icon?: string;
   isActive?: number;
+  isOneTime?: number;
+  /** Отключить квест в конце текущего периода */
+  activeUntilEndOfPeriod?: boolean;
+  activeFrom?: string;
+  activeUntil?: string;
   targetType?: "all" | "group";
   targetGroupId?: number | null;
 };

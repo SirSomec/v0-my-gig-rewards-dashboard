@@ -82,6 +82,14 @@ const questIconMap: Record<string, Quest["icon"]> = {
 }
 
 function mapQuest(q: QuestResponse): Quest {
+  const period =
+    q.period === "daily"
+      ? "daily"
+      : q.period === "weekly"
+        ? "weekly"
+        : q.period === "monthly"
+          ? "monthly"
+          : "daily";
   return {
     id: String(q.id),
     title: q.name,
@@ -91,7 +99,8 @@ function mapQuest(q: QuestResponse): Quest {
     reward: q.reward,
     icon: questIconMap[q.icon] ?? "target",
     completed: q.completed,
-    period: q.period === "daily" ? "daily" : "weekly",
+    period,
+    isOneTime: q.isOneTime,
   }
 }
 

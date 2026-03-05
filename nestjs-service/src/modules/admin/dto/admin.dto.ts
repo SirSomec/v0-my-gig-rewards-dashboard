@@ -40,12 +40,18 @@ export class UpdateLevelDto {
 export class CreateQuestDto {
   name!: string;
   description?: string;
-  period!: 'daily' | 'weekly';
+  period!: 'daily' | 'weekly' | 'monthly';
   conditionType!: string;
   conditionConfig?: Record<string, unknown>;
   rewardCoins!: number;
   icon?: string;
   isActive?: number;
+  /** Единоразовый квест (любой период) */
+  isOneTime?: number;
+  /** Квест отключится автоматически в конце текущего периода */
+  activeUntilEndOfPeriod?: boolean;
+  activeFrom?: string;
+  activeUntil?: string;
   targetType?: 'all' | 'group';
   targetGroupId?: number | null;
 }
@@ -53,12 +59,15 @@ export class CreateQuestDto {
 export class UpdateQuestDto {
   name?: string;
   description?: string;
-  period?: 'daily' | 'weekly';
+  period?: 'daily' | 'weekly' | 'monthly';
   conditionType?: string;
   conditionConfig?: Record<string, unknown>;
   rewardCoins?: number;
   icon?: string;
   isActive?: number;
+  isOneTime?: number;
+  activeFrom?: string;
+  activeUntil?: string;
   targetType?: 'all' | 'group';
   targetGroupId?: number | null;
 }

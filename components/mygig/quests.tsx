@@ -14,8 +14,10 @@ export interface Quest {
   reward: number
   icon: "streak" | "target" | "calendar" | "trophy"
   completed: boolean
-  /** Период цели: ежедневная или еженедельная */
-  period: "daily" | "weekly"
+  /** Период цели: ежедневная, еженедельная или ежемесячная */
+  period: "daily" | "weekly" | "monthly";
+  /** Единоразовый квест (можно выполнить только один раз) */
+  isOneTime?: boolean;
 }
 
 const iconMap = {
@@ -97,8 +99,10 @@ function QuestCard({
 }
 
 export function Quests({ quests }: QuestsProps) {
-  const dailyQuests = quests.filter((q) => q.period === "daily")
-  const weeklyQuests = quests.filter((q) => q.period === "weekly")
+  const dailyQuests = quests.filter((q) => q.period === "daily" && !q.isOneTime)
+  const weeklyQuests = quests.filter((q) => q.period === "weekly" && !q.isOneTime)
+  const monthlyQuests = quests.filter((q) => q.period === "monthly" && !q.isOneTime)
+  const onceQuests = quests.filter((q) => q.isOneTime)
 
   return (
     <Card className="bg-card border-border">
@@ -127,8 +131,40 @@ export function Quests({ quests }: QuestsProps) {
                 {weeklyQuests.filter((q) => q.completed).length}/{weeklyQuests.length}
               </span>
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 mb-4">
               {weeklyQuests.map((quest, i) => (
+                <QuestCard key={quest.id} quest={quest} index={i} />
+              ))}
+            </div>
+          </>
+        )}
+
+        {monthlyQuests.length > 0 && (
+          <>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-foreground">Ежемесячные цели</h2>
+              <span className="text-xs text-muted-foreground">
+                {monthlyQuests.filter((q) => q.completed).length}/{monthlyQuests.length}
+              </span>
+            </div>
+            <div className="flex flex-col gap-2 mb-4">
+              {monthlyQuests.map((quest, i) => (
+                <QuestCard key={quest.id} quest={quest} index={i} />
+              ))}
+            </div>
+          </>
+        )}
+
+        {onceQuests.length > 0 && (
+          <>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-foreground">Единоразовые цели</h2>
+              <span className="text-xs text-muted-foreground">
+                {onceQuests.filter((q) => q.completed).length}/{onceQuests.length}
+              </span>
+            </div>
+            <div className="flex flex-col gap-2">
+              {onceQuests.map((quest, i) => (
                 <QuestCard key={quest.id} quest={quest} index={i} />
               ))}
             </div>

@@ -24,6 +24,22 @@ function startOfWeekUTC(d: Date): Date {
   return startOfDayUTC(monday);
 }
 
+/** Первый день текущего месяца (00:00 UTC) */
+function startOfMonthUTC(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+}
+
+/** Квест активен в момент now с учётом activeFrom/activeUntil */
+function isQuestInActiveWindow(
+  activeFrom: Date | null,
+  activeUntil: Date | null,
+  now: Date,
+): boolean {
+  if (activeFrom != null && now < activeFrom) return false;
+  if (activeUntil != null && now > activeUntil) return false;
+  return true;
+}
+
 @Injectable()
 export class RewardsService {
   constructor(
@@ -125,13 +141,26 @@ export class RewardsService {
     const { quests, questProgress } = schema;
     const now = new Date();
     const todayKey = now.toISOString().slice(0, 10);
-    const weekStart = new Date(now);
-    weekStart.setDate(now.getDate() - now.getDay() + 1);
+    const weekStart = startOfWeekUTC(now);
     const weekKey = weekStart.toISOString().slice(0, 10);
-    const activeQuests = await this.db.select().from(quests).where(eq(quests.isActive, 1));
+    const monthStart = startOfMonthUTC(now);
+    const monthKey = monthStart.toISOString().slice(0, 7);
+    const rows = await this.db.select().from(quests).where(eq(quests.isActive, 1));
     const result: QuestResponseDto[] = [];
-    for (const q of activeQuests) {
-      const periodKey = q.period === 'daily' ? todayKey : weekKey;
+    for (const q of rows) {
+      if (!isQuestInActiveWindow(q.activeFrom as Date | null, q.activeUntil as Date | null, now)) {
+        continue;
+      }
+      const periodKey =
+        q.isOneTime === 1
+          ? 'once'
+          : q.period === 'daily'
+            ? todayKey
+            : q.period === 'weekly'
+              ? weekKey
+              : q.period === 'monthly'
+                ? monthKey
+                : todayKey;
       const config = (q.conditionConfig as { total?: number }) ?? {};
       const total = config.total ?? 1;
       const prog = await this.db
@@ -152,6 +181,7 @@ export class RewardsService {
       dto.name = q.name;
       dto.description = q.description;
       dto.period = q.period;
+      dto.isOneTime = q.isOneTime === 1;
       dto.progress = progress;
       dto.total = total;
       dto.reward = q.rewardCoins;
@@ -376,17 +406,41 @@ export class RewardsService {
     const weekStart = startOfWeekUTC(now);
     const weekEnd = new Date(weekStart);
     weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+    const monthStart = startOfMonthUTC(now);
+    const nextMonthStart = new Date(Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 1));
     const todayKey = todayStart.toISOString().slice(0, 10);
     const weekKey = weekStart.toISOString().slice(0, 10);
+    const monthKey = monthStart.toISOString().slice(0, 7);
 
-    const activeQuests = await this.db
-      .select()
-      .from(quests)
-      .where(eq(quests.isActive, 1));
-    for (const q of activeQuests) {
-      const periodKey = q.period === 'daily' ? todayKey : weekKey;
-      const periodStart = q.period === 'daily' ? todayStart : weekStart;
-      const periodEnd = q.period === 'daily' ? tomorrowStart : weekEnd;
+    const rows = await this.db.select().from(quests).where(eq(quests.isActive, 1));
+    for (const q of rows) {
+      if (!isQuestInActiveWindow(q.activeFrom as Date | null, q.activeUntil as Date | null, now)) {
+        continue;
+      }
+      const period =
+        q.period === 'daily'
+          ? 'daily'
+          : q.period === 'weekly'
+            ? 'weekly'
+            : q.period === 'monthly'
+              ? 'monthly'
+              : 'daily';
+      let periodKey: string;
+      let periodStart: Date;
+      let periodEnd: Date;
+      if (period === 'daily') {
+        periodKey = q.isOneTime === 1 ? 'once' : todayKey;
+        periodStart = todayStart;
+        periodEnd = tomorrowStart;
+      } else if (period === 'weekly') {
+        periodKey = q.isOneTime === 1 ? 'once' : weekKey;
+        periodStart = weekStart;
+        periodEnd = weekEnd;
+      } else {
+        periodKey = q.isOneTime === 1 ? 'once' : monthKey;
+        periodStart = monthStart;
+        periodEnd = nextMonthStart;
+      }
       const config = (q.conditionConfig as { total?: number }) ?? {};
       const total = config.total ?? 1;
 

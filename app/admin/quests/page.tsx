@@ -43,6 +43,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 const PERIODS = [
   { value: "daily", label: "Ежедневный" },
   { value: "weekly", label: "Еженедельный" },
+  { value: "monthly", label: "Ежемесячный" },
 ] as const
 
 const CONDITION_TYPES = [
@@ -62,7 +63,11 @@ function conditionConfigToTotal(config: Record<string, unknown> | null): number 
   return Math.max(1, config.total)
 }
 
-const emptyForm: CreateQuestBody & { id?: number } = {
+const emptyForm: CreateQuestBody & {
+  id?: number
+  activeUntilEndOfPeriod?: boolean
+  conditionConfig?: { total?: number }
+} = {
   name: "",
   description: "",
   period: "daily",
@@ -71,6 +76,8 @@ const emptyForm: CreateQuestBody & { id?: number } = {
   rewardCoins: 10,
   icon: "target",
   isActive: 1,
+  isOneTime: 0,
+  activeUntilEndOfPeriod: false,
   targetType: "all",
   targetGroupId: null,
 }
@@ -108,15 +115,21 @@ export default function AdminQuestsPage() {
   const openEdit = (quest: AdminQuest) => {
     setEditingQuest(quest)
     const total = conditionConfigToTotal(quest.conditionConfig)
+    const period = (quest.period === "daily" || quest.period === "weekly" || quest.period === "monthly")
+      ? quest.period
+      : "daily"
     setForm({
       name: quest.name,
       description: quest.description ?? "",
-      period: quest.period as "daily" | "weekly",
+      period,
       conditionType: quest.conditionType,
       conditionConfig: { total },
       rewardCoins: quest.rewardCoins,
       icon: (quest.icon ?? "target") as "target" | "star" | "zap" | "trophy" | "gift",
       isActive: quest.isActive,
+      isOneTime: quest.isOneTime ?? 0,
+      activeFrom: quest.activeFrom ?? undefined,
+      activeUntil: quest.activeUntil ?? undefined,
       targetType: (quest.targetType ?? "all") as "all" | "group",
       targetGroupId: quest.targetGroupId,
     })
@@ -133,7 +146,7 @@ export default function AdminQuestsPage() {
       return
     }
     const total = Math.max(1, Number((form.conditionConfig as { total?: number })?.total) || 1)
-    const body: CreateQuestBody = {
+    const body: CreateQuestBody & { activeUntilEndOfPeriod?: boolean } = {
       name: form.name.trim(),
       description: form.description?.trim() || undefined,
       period: form.period,
@@ -142,14 +155,20 @@ export default function AdminQuestsPage() {
       rewardCoins: Number(form.rewardCoins) || 0,
       icon: form.icon,
       isActive: form.isActive ? 1 : 0,
+      isOneTime: form.isOneTime ? 1 : 0,
       targetType: form.targetType,
       targetGroupId: form.targetGroupId ?? null,
     }
+    if (!editingQuest && form.activeUntilEndOfPeriod) {
+      (body as { activeUntilEndOfPeriod?: boolean }).activeUntilEndOfPeriod = true
+    }
+    if (form.activeFrom) (body as CreateQuestBody).activeFrom = form.activeFrom
+    if (form.activeUntil) (body as CreateQuestBody).activeUntil = form.activeUntil
     setSaving(true)
     setError(null)
     const promise = editingQuest
       ? adminUpdateQuest(editingQuest.id, body)
-      : adminCreateQuest(body)
+      : adminCreateQuest(body as CreateQuestBody)
     promise
       .then(() => {
         setDialogOpen(false)
@@ -198,8 +217,19 @@ export default function AdminQuestsPage() {
                   <div className="min-w-0">
                     <p className="font-medium truncate">{q.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {q.period === "daily" ? "Ежедневный" : "Еженедельный"} · {q.conditionType} (цель: {total}) · {q.rewardCoins} монет
+                      {q.period === "daily"
+                        ? "Ежедневный"
+                        : q.period === "weekly"
+                          ? "Еженедельный"
+                          : q.period === "monthly"
+                            ? "Ежемесячный"
+                            : q.period}{" "}
+                      {q.isOneTime === 1 && "· единоразовый "}
+                      · {q.conditionType} (цель: {total}) · {q.rewardCoins} монет
                       {q.isActive === 0 && " · отключён"}
+                      {q.activeUntil && (
+                        <> · до {new Date(q.activeUntil).toLocaleString("ru", { dateStyle: "short", timeStyle: "short" })}</>
+                      )}
                     </p>
                     {q.description && (
                       <p className="text-xs text-muted-foreground truncate mt-0.5">
@@ -262,7 +292,7 @@ export default function AdminQuestsPage() {
               <Select
                 value={form.period}
                 onValueChange={(v) =>
-                  setForm((f) => ({ ...f, period: v as "daily" | "weekly" }))
+                  setForm((f) => ({ ...f, period: v as "daily" | "weekly" | "monthly" }))
                 }
               >
                 <SelectTrigger>
@@ -397,6 +427,56 @@ export default function AdminQuestsPage() {
               <Label htmlFor="quest-active" className="font-normal">
                 Квест активен (отображается в дашборде)
               </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="quest-once"
+                checked={!!form.isOneTime}
+                onCheckedChange={(checked) =>
+                  setForm((f) => ({ ...f, isOneTime: checked ? 1 : 0 }))
+                }
+              />
+              <Label htmlFor="quest-once" className="font-normal">
+                Единоразовый (пользователь может выполнить только один раз)
+              </Label>
+            </div>
+            {!editingQuest && (
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="quest-end-of-period"
+                  checked={!!form.activeUntilEndOfPeriod}
+                  onCheckedChange={(checked) =>
+                    setForm((f) => ({ ...f, activeUntilEndOfPeriod: !!checked }))
+                  }
+                />
+                <Label htmlFor="quest-end-of-period" className="font-normal">
+                  Отключить в конце текущего периода ({form.period === "daily" ? "дня" : form.period === "weekly" ? "недели" : "месяца"})
+                </Label>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="activeFrom">Активен с (необяз.)</Label>
+                <Input
+                  id="activeFrom"
+                  type="datetime-local"
+                  value={form.activeFrom ? form.activeFrom.slice(0, 16) : ""}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, activeFrom: e.target.value ? new Date(e.target.value).toISOString() : undefined }))
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="activeUntil">Активен до (необяз.)</Label>
+                <Input
+                  id="activeUntil"
+                  type="datetime-local"
+                  value={form.activeUntil ? form.activeUntil.slice(0, 16) : ""}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, activeUntil: e.target.value ? new Date(e.target.value).toISOString() : undefined }))
+                  }
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
