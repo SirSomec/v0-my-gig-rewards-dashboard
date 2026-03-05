@@ -1,10 +1,18 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ShutdownSignal, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { runMigrations } from './infra/db/drizzle/run-migrations';
 
 async function bootstrap() {
+  const databaseUrl = process.env['DATABASE_URL'] ?? process.env['PG_CONNECTION'];
+  if (databaseUrl) {
+    const migrationsFolder = process.env['MIGRATIONS_PATH'] ?? './migrations';
+    await runMigrations(databaseUrl, migrationsFolder);
+  }
+
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({ origin: true }); // разрешаем запросы с любого origin (фронт на другом порту/домене)
