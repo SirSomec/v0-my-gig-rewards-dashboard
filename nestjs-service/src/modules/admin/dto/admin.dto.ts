@@ -38,6 +38,8 @@ export class UpdateLevelDto {
   strikeLimitPerMonth?: number | null;
   perks?: Array<{ title: string; description?: string }>;
   sortOrder?: number;
+  /** Дополнительный множитель бонусов за смену для уровня (по умолчанию 1) */
+  bonusMultiplier?: number;
 }
 
 export class CreateQuestDto {

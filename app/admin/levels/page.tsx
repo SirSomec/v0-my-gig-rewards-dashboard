@@ -52,6 +52,7 @@ export default function AdminLevelsPage() {
     strikeLimitPerWeek: "" as number | "",
     strikeLimitPerMonth: "" as number | "",
     sortOrder: 0,
+    bonusMultiplier: "1",
     perksJson: "[]",
   })
   const [saving, setSaving] = useState(false)
@@ -77,6 +78,8 @@ export default function AdminLevelsPage() {
       strikeLimitPerWeek: level.strikeLimitPerWeek ?? "",
       strikeLimitPerMonth: level.strikeLimitPerMonth ?? "",
       sortOrder: level.sortOrder,
+      bonusMultiplier:
+        level.bonusMultiplier != null ? String(level.bonusMultiplier) : "1",
       perksJson: perksToJson(level.perks ?? []),
     })
     setDialogOpen(true)
@@ -99,6 +102,7 @@ export default function AdminLevelsPage() {
       strikeLimitPerWeek: form.strikeLimitPerWeek === "" ? null : Number(form.strikeLimitPerWeek),
       strikeLimitPerMonth: form.strikeLimitPerMonth === "" ? null : Number(form.strikeLimitPerMonth),
       sortOrder: Number(form.sortOrder) ?? 0,
+      bonusMultiplier: Number(form.bonusMultiplier) || 1,
       perks,
     }
     setSaving(true)
@@ -130,7 +134,7 @@ export default function AdminLevelsPage() {
                 <div className="min-w-0">
                   <p className="font-medium">{l.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    Смен до уровня: {l.shiftsRequired} · Лимит штрафов: неделя {l.strikeLimitPerWeek ?? "—"}, месяц {l.strikeLimitPerMonth ?? "—"} · #{l.sortOrder}
+                    Смен до уровня: {l.shiftsRequired} · Лимит штрафов: неделя {l.strikeLimitPerWeek ?? "—"}, месяц {l.strikeLimitPerMonth ?? "—"} · Множитель бонусов: {l.bonusMultiplier ?? 1} · #{l.sortOrder}
                   </p>
                   {l.perks?.length ? (
                     <p className="text-xs text-muted-foreground mt-1">
@@ -232,6 +236,22 @@ export default function AdminLevelsPage() {
                   }))
                 }
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="bonusMultiplier">Множитель бонусов за смену</Label>
+              <Input
+                id="bonusMultiplier"
+                type="number"
+                min={0}
+                step={0.1}
+                value={form.bonusMultiplier}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, bonusMultiplier: e.target.value }))
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Дополнительный множитель для этого уровня (1 = без доп. множителя; 1.5 = +50% к бонусу за смену)
+              </p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="perksJson">Перки (JSON)</Label>

@@ -61,6 +61,8 @@ export interface AdminLevel {
   strikeLimitPerWeek: number | null;
   strikeLimitPerMonth: number | null;
   sortOrder: number;
+  /** Дополнительный множитель бонусов за смену для уровня (по умолчанию 1) */
+  bonusMultiplier?: number;
   perks?: Array<{ title: string; description?: string }>;
 }
 
@@ -102,6 +104,8 @@ export type UpdateLevelBody = {
   strikeLimitPerMonth?: number | null;
   perks?: Array<{ title: string; description?: string }>;
   sortOrder?: number;
+  /** Дополнительный множитель бонусов за смену для уровня */
+  bonusMultiplier?: number;
 };
 
 export interface AdminQuest {
@@ -264,6 +268,21 @@ export async function adminUpdateLevel(
   });
 }
 
+export async function adminGetBonusSettings(): Promise<{
+  shiftBonusDefaultMultiplier: number;
+}> {
+  return fetchAdmin("/v1/admin/settings/bonus");
+}
+
+export async function adminUpdateBonusSettings(body: {
+  shiftBonusDefaultMultiplier: number;
+}): Promise<{ shiftBonusDefaultMultiplier: number }> {
+  return fetchAdmin("/v1/admin/settings/bonus", {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function adminListQuests(): Promise<AdminQuest[]> {
   return fetchAdmin<AdminQuest[]>("/v1/admin/quests");
 }
@@ -295,7 +314,7 @@ export async function adminDeleteQuest(id: number): Promise<{ id: number }> {
 
 export async function adminRecordShift(body: {
   userId: number;
-  coins: number;
+  coins?: number;
   title?: string;
   location?: string;
   clientId?: string;

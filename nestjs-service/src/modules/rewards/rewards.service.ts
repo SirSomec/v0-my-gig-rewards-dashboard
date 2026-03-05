@@ -454,7 +454,8 @@ export class RewardsService {
 
   /**
    * Засчитать завершённую смену: начисление монет, транзакция, +1 к shifts_completed, пересчёт уровня.
-   * Для вызова из админки/dev или из webhook при интеграции.
+   * Если переданы hours — бонус считается автоматически: ceil(hours) * множитель_по_умолчанию * множитель_уровня.
+   * Иначе используется переданное coins (ручной ввод).
    */
   async recordShiftCompleted(
     userId: number,
@@ -465,38 +466,68 @@ export class RewardsService {
     category?: string,
     hours?: number,
   ): Promise<{ transactionId: number }> {
-    const { users, transactions } = schema;
-    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const { users, transactions, levels } = schema;
+    const [user] = await this.db
+      .select({ user: users, level: levels })
+      .from(users)
+      .innerJoin(levels, eq(users.levelId, levels.id))
+      .where(eq(users.id, userId))
+      .limit(1);
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    if (coins < 0) {
+    let amount = coins;
+    const hoursNum = hours != null ? Number(hours) : undefined;
+    if (hoursNum != null && !Number.isNaN(hoursNum) && hoursNum > 0) {
+      const defaultMult = await this.getDefaultShiftBonusMultiplier();
+      const levelMult = Number(user.level.bonusMultiplier ?? 1);
+      const hoursRoundedUp = Math.ceil(hoursNum);
+      amount = Math.round(hoursRoundedUp * defaultMult * levelMult);
+    } else if (amount < 0) {
       throw new NotFoundException('coins must be >= 0');
     }
     const [tx] = await this.db
       .insert(transactions)
       .values({
         userId,
-        amount: coins,
+        amount,
         type: 'shift',
         title: title ?? 'Смена',
         location: location ?? undefined,
         clientId: clientId ?? undefined,
         category: category ?? undefined,
-        hours: hours != null ? hours : undefined,
+        hours: hoursNum != null ? hoursNum : undefined,
       })
       .returning({ id: transactions.id });
     if (!tx) throw new Error('Failed to create transaction');
     await this.db
       .update(users)
       .set({
-        balance: user.balance + coins,
-        shiftsCompleted: user.shiftsCompleted + 1,
+        balance: user.user.balance + amount,
+        shiftsCompleted: user.user.shiftsCompleted + 1,
       })
       .where(eq(users.id, userId));
     await this.recalcUserLevel(userId);
     await this.recalcQuestProgressForUser(userId);
     return { transactionId: tx.id };
+  }
+
+  /** Множитель бонусов за смену по умолчанию (монет за 1 час) из system_settings */
+  private async getDefaultShiftBonusMultiplier(): Promise<number> {
+    const { systemSettings } = schema;
+    const [row] = await this.db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'shift_bonus_default_multiplier'))
+      .limit(1);
+    if (!row) return 10;
+    const v = row.value;
+    if (typeof v === 'number' && !Number.isNaN(v)) return v;
+    if (typeof v === 'object' && v != null && typeof (v as { value?: number }).value === 'number') {
+      return (v as { value: number }).value;
+    }
+    const parsed = Number(v);
+    return Number.isNaN(parsed) ? 10 : parsed;
   }
 
   /**

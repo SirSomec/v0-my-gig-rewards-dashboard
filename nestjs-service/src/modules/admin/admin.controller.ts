@@ -157,6 +157,22 @@ export class AdminController {
     return this.admin.listLevels();
   }
 
+  @Get('settings/bonus')
+  @ApiOperation({ summary: 'Настройки бонусов за смену: множитель по умолчанию' })
+  async getBonusSettings() {
+    return this.admin.getBonusSettings();
+  }
+
+  @Patch('settings/bonus')
+  @ApiOperation({ summary: 'Обновить настройки бонусов за смену (множитель по умолчанию)' })
+  async updateBonusSettings(@Body() body: { shiftBonusDefaultMultiplier: number }) {
+    if (body.shiftBonusDefaultMultiplier == null || typeof body.shiftBonusDefaultMultiplier !== 'number') {
+      throw new Error('shiftBonusDefaultMultiplier required');
+    }
+    await this.admin.updateBonusSettings(body);
+    return this.admin.getBonusSettings();
+  }
+
   @Patch('levels/:id')
   @ApiOperation({ summary: 'Обновить уровень' })
   async updateLevel(@Param('id') id: string, @Body() body: UpdateLevelDto) {
@@ -197,12 +213,12 @@ export class AdminController {
   }
 
   @Post('shifts/complete')
-  @ApiOperation({ summary: '[Мок] Засчитать смену для пользователя' })
+  @ApiOperation({ summary: '[Мок] Засчитать смену для пользователя. При указании hours бонус считается автоматически.' })
   async recordShift(
     @Body()
     body: {
       userId: number;
-      coins: number;
+      coins?: number;
       title?: string;
       location?: string;
       clientId?: string;
@@ -210,9 +226,21 @@ export class AdminController {
       hours?: number;
     },
   ) {
-    const { userId, coins, title, location, clientId, category, hours } = body;
-    if (userId == null || typeof coins !== 'number') throw new Error('userId and coins required');
-    return this.rewards.recordShiftCompleted(userId, coins, title, location, clientId, category, hours);
+    const { userId, hours } = body;
+    const coins = body.coins ?? 0;
+    if (userId == null) throw new Error('userId required');
+    if (hours == null && (typeof coins !== 'number' || coins < 0)) {
+      throw new Error('coins required when hours not provided (must be >= 0)');
+    }
+    return this.rewards.recordShiftCompleted(
+      userId,
+      coins,
+      body.title,
+      body.location,
+      body.clientId,
+      body.category,
+      hours,
+    );
   }
 
   @Post('strikes')

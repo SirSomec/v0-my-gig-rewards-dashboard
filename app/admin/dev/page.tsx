@@ -43,19 +43,27 @@ export default function AdminDevPage() {
 
   const handleRecordShift = () => {
     const uid = Number(userId)
-    const c = Number(coins)
-    if (Number.isNaN(uid) || Number.isNaN(c) || c < 0) {
-      toast({ title: "Укажите userId и кол-во монет", variant: "destructive" })
+    const h = shiftHours ? Number(shiftHours) : undefined
+    const c = coins.trim() === "" ? undefined : Number(coins)
+    if (Number.isNaN(uid)) {
+      toast({ title: "Укажите пользователя", variant: "destructive" })
+      return
+    }
+    if (h == null && (c == null || Number.isNaN(c) || c < 0)) {
+      toast({
+        title: "Укажите часы (бонус посчитается сам) или количество монет",
+        variant: "destructive",
+      })
       return
     }
     setSubmittingShift(true)
     adminRecordShift({
       userId: uid,
-      coins: c,
+      ...(c != null && !Number.isNaN(c) ? { coins: c } : {}),
       title: shiftTitle || undefined,
       clientId: shiftClientId.trim() || undefined,
       category: shiftCategory.trim() || undefined,
-      hours: shiftHours ? Number(shiftHours) : undefined,
+      hours: h,
     })
       .then(() => {
         toast({ title: "Смена засчитана" })
@@ -116,13 +124,27 @@ export default function AdminDevPage() {
         <CardHeader className="py-2 text-sm font-medium">Записать смену</CardHeader>
         <CardContent className="space-y-3">
           <div>
-            <Label>Монеты за смену</Label>
+            <Label>Часы смены</Label>
+            <Input
+              type="number"
+              min={0}
+              step={0.5}
+              value={shiftHours}
+              onChange={(e) => setShiftHours(e.target.value)}
+              placeholder="8"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              При указании часов бонус считается автоматически: ceil(часы) × множитель по умолчанию × множитель уровня
+            </p>
+          </div>
+          <div>
+            <Label>Монеты за смену (если часы не указаны)</Label>
             <Input
               type="number"
               min={0}
               value={coins}
               onChange={(e) => setCoins(e.target.value)}
-              placeholder="50"
+              placeholder="Укажите часы или введите вручную"
             />
           </div>
           <div>
@@ -147,17 +169,6 @@ export default function AdminDevPage() {
               value={shiftCategory}
               onChange={(e) => setShiftCategory(e.target.value)}
               placeholder="Например: курьер"
-            />
-          </div>
-          <div>
-            <Label>Часы (опционально)</Label>
-            <Input
-              type="number"
-              min={0}
-              step={0.5}
-              value={shiftHours}
-              onChange={(e) => setShiftHours(e.target.value)}
-              placeholder="8"
             />
           </div>
           <Button

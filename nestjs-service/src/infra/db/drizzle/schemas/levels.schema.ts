@@ -1,4 +1,4 @@
-import { integer, jsonb, pgTable, varchar } from 'drizzle-orm/pg-core';
+import { integer, jsonb, pgTable, real, varchar } from 'drizzle-orm/pg-core';
 import { timestamps } from './base.schema';
 
 export const levels = pgTable('levels', {
@@ -12,5 +12,7 @@ export const levels = pgTable('levels', {
   strikeLimitPerMonth: integer('strike_limit_per_month'),
   perks: jsonb('perks').$type<Array<{ title: string; description?: string }>>().default([]),
   sortOrder: integer('sort_order').notNull().default(0),
+  /** Дополнительный множитель бонусов за смену для данного уровня (по умолчанию 1) */
+  bonusMultiplier: real('bonus_multiplier').notNull().default(1),
   ...timestamps,
 });

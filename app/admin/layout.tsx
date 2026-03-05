@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Users, ShoppingBag, Gift, Layers, Zap, Target, Wallet, FileText, LayoutDashboard } from "lucide-react"
+import { Users, ShoppingBag, Gift, Layers, Zap, Target, Wallet, FileText, LayoutDashboard, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const nav = [
@@ -12,6 +12,7 @@ const nav = [
   { href: "/admin/store", label: "Магазин", icon: ShoppingBag },
   { href: "/admin/quests", label: "Квесты", icon: Target },
   { href: "/admin/levels", label: "Уровни", icon: Layers },
+  { href: "/admin/settings", label: "Настройки", icon: Settings },
   { href: "/admin/balance", label: "Ручные начисления", icon: Wallet },
   { href: "/admin/audit", label: "Аудит", icon: FileText },
   { href: "/admin/dev", label: "Мок: смены и штрафы", icon: Zap },

@@ -305,6 +305,45 @@ export class AdminService {
     return this.db.select().from(levels).orderBy(levels.sortOrder);
   }
 
+  /** Настройки бонусов: множитель по умолчанию (монет за 1 час смены) */
+  async getBonusSettings(): Promise<{ shiftBonusDefaultMultiplier: number }> {
+    const { systemSettings } = schema;
+    const [row] = await this.db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'shift_bonus_default_multiplier'))
+      .limit(1);
+    let value = 10;
+    if (row?.value != null) {
+      const v = row.value;
+      if (typeof v === 'number' && !Number.isNaN(v)) value = v;
+      else if (typeof v === 'object' && typeof (v as { value?: number }).value === 'number') {
+        value = (v as { value: number }).value;
+      } else {
+        const n = Number(v);
+        if (!Number.isNaN(n)) value = n;
+      }
+    }
+    return { shiftBonusDefaultMultiplier: value };
+  }
+
+  async updateBonusSettings(dto: { shiftBonusDefaultMultiplier: number }): Promise<void> {
+    const { systemSettings } = schema;
+    const value = Number(dto.shiftBonusDefaultMultiplier);
+    if (Number.isNaN(value) || value < 0) throw new Error('shiftBonusDefaultMultiplier must be a non-negative number');
+    const now = new Date();
+    await this.db
+      .insert(systemSettings)
+      .values({
+        key: 'shift_bonus_default_multiplier',
+        value: value,
+      })
+      .onConflictDoUpdate({
+        target: systemSettings.key,
+        set: { value: value, updatedAt: now },
+      });
+  }
+
   async updateLevel(id: number, dto: UpdateLevelDto) {
     const { levels } = schema;
     const [existing] = await this.db.select().from(levels).where(eq(levels.id, id)).limit(1);
@@ -316,6 +355,7 @@ export class AdminService {
     if (dto.strikeLimitPerMonth !== undefined) updates.strikeLimitPerMonth = dto.strikeLimitPerMonth;
     if (dto.perks !== undefined) updates.perks = dto.perks;
     if (dto.sortOrder !== undefined) updates.sortOrder = dto.sortOrder;
+    if (dto.bonusMultiplier !== undefined) updates.bonusMultiplier = dto.bonusMultiplier;
     if (Object.keys(updates).length === 0) return { id };
     await this.db.update(levels).set(updates).where(eq(levels.id, id));
     return { id };

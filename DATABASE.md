@@ -166,6 +166,7 @@ erDiagram
 | `strike_limit_per_month` | int | Макс. штрафов за месяц; при превышении — понижение на 1 уровень (null = не понижаем) |
 | `perks`               | jsonb   | Массив бонусов: `[{ title, description? }]` |
 | `sort_order`          | int     | Порядок отображения (по умолчанию 0) |
+| `bonus_multiplier`    | real    | Дополнительный множитель бонусов за смену для уровня (по умолчанию 1) |
 | `created_at`, `updated_at`, `deleted_at` | timestamp | Общие метки времени |
 
 **Связи:** один уровень — много пользователей (`users.level_id` → `levels.id`).
@@ -347,6 +348,20 @@ erDiagram
 
 ---
 
+### 10. `system_settings` — настройки системы
+
+Ключ-значение настроек, редактируемых в админ-панели (например, множитель бонусов за смену по умолчанию).
+
+| Столбец       | Тип     | Описание |
+|---------------|---------|----------|
+| `key`         | varchar(64) PK | Ключ настройки (например, `shift_bonus_default_multiplier`) |
+| `value`       | jsonb   | Значение (число, строка, объект) |
+| `created_at`, `updated_at`, `deleted_at` | timestamp | Общие метки времени |
+
+**Назначение:** ключ `shift_bonus_default_multiplier` — множитель по умолчанию (монет за 1 час смены). Итоговый бонус за смену = ceil(часы) × множитель по умолчанию × множитель уровня лояльности (`levels.bonus_multiplier`).
+
+---
+
 ## Сводка связей
 
 | Таблица         | Зависит от                    | От неё зависят                          |
@@ -360,6 +375,7 @@ erDiagram
 | `redemptions`   | `users`, `store_items`        | —                                       |
 | `strikes`       | `users`                       | —                                       |
 | `audit_log`     | — (опционально `admin_id`)    | —                                       |
+| `system_settings` | —                            | —                                       |
 
 ---
 
@@ -371,5 +387,6 @@ erDiagram
 - **Магазин:** `store_items` — каталог; `redemptions` — заявки на обмен; списание при выкупе — транзакция `type = redemption`.
 - **Дисциплина:** `strikes` — штрафы; используются в логике уровней (`strike_limit_per_week` / `strike_limit_per_month`).
 - **Аудит:** `audit_log` — кто, когда и что изменил по сущностям системы.
+- **Настройки:** `system_settings` — множитель бонусов за смену по умолчанию; для каждого уровня в `levels.bonus_multiplier` задаётся дополнительный множитель бонусов.
 
 Файлы схем Drizzle: `nestjs-service/src/infra/db/drizzle/schemas/*.schema.ts`.
