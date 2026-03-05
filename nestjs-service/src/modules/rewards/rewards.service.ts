@@ -8,6 +8,7 @@ import type { Envs } from '../../shared/env.validation-schema';
 import { MeResponseDto } from './dto/me.dto';
 import { QuestResponseDto } from './dto/quest.dto';
 import { StoreItemResponseDto } from './dto/store.dto';
+import { StrikeResponseDto } from './dto/strike.dto';
 import { TransactionResponseDto } from './dto/transaction.dto';
 
 /** Начало дня (00:00:00) в UTC для даты */
@@ -27,6 +28,19 @@ function startOfWeekUTC(d: Date): Date {
 /** Первый день текущего месяца (00:00 UTC) */
 function startOfMonthUTC(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+}
+
+/** Конец текущей недели (понедельник следующей недели 00:00 UTC) */
+function endOfWeekUTC(d: Date): Date {
+  const start = startOfWeekUTC(d);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 7);
+  return end;
+}
+
+/** Первый день следующего месяца (00:00 UTC) */
+function startOfNextMonthUTC(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
 }
 
 /** Квест активен в момент now с учётом activeFrom/activeUntil */
@@ -108,19 +122,50 @@ export class RewardsService {
       throw new NotFoundException('User not found');
     }
     const { user, level } = row;
-    const thirtyDaysAgo = new Date();
+    const now = new Date();
+    const weekStart = startOfWeekUTC(now);
+    const weekEnd = endOfWeekUTC(now);
+    const monthStart = startOfMonthUTC(now);
+    const nextMonthStart = startOfNextMonthUTC(now);
+    const thirtyDaysAgo = new Date(now);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const strikesCount = await this.db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(strikes)
-      .where(
-        and(
-          eq(strikes.userId, userId),
-          gte(strikes.occurredAt, thirtyDaysAgo),
-          isNull(strikes.removedAt),
+    const [count30, countWeek, countMonth] = await Promise.all([
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(strikes)
+        .where(
+          and(
+            eq(strikes.userId, userId),
+            gte(strikes.occurredAt, thirtyDaysAgo),
+            isNull(strikes.removedAt),
+          ),
         ),
-      );
-    const count = strikesCount[0]?.count ?? 0;
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(strikes)
+        .where(
+          and(
+            eq(strikes.userId, userId),
+            gte(strikes.occurredAt, weekStart),
+            lt(strikes.occurredAt, weekEnd),
+            isNull(strikes.removedAt),
+          ),
+        ),
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(strikes)
+        .where(
+          and(
+            eq(strikes.userId, userId),
+            gte(strikes.occurredAt, monthStart),
+            lt(strikes.occurredAt, nextMonthStart),
+            isNull(strikes.removedAt),
+          ),
+        ),
+    ]);
+    const count = count30[0]?.count ?? 0;
+    const countWeekVal = countWeek[0]?.count ?? 0;
+    const countMonthVal = countMonth[0]?.count ?? 0;
     const nextLevelRows = await this.db
       .select()
       .from(levels)
@@ -140,7 +185,30 @@ export class RewardsService {
     dto.shiftsRequired = level.shiftsRequired;
     dto.strikesCount = count;
     dto.strikesThreshold = level.strikeThreshold;
+    dto.strikesCountWeek = countWeekVal;
+    dto.strikesCountMonth = countMonthVal;
+    dto.strikesLimitPerWeek = level.strikeLimitPerWeek ?? null;
+    dto.strikesLimitPerMonth = level.strikeLimitPerMonth ?? null;
     return dto;
+  }
+
+  async getStrikes(userId: number, limit = 50): Promise<StrikeResponseDto[]> {
+    const { strikes } = schema;
+    const rows = await this.db
+      .select()
+      .from(strikes)
+      .where(eq(strikes.userId, userId))
+      .orderBy(desc(strikes.occurredAt))
+      .limit(limit);
+    return rows.map((r) => {
+      const dto = new StrikeResponseDto();
+      dto.id = r.id;
+      dto.type = r.type;
+      dto.shiftExternalId = r.shiftExternalId;
+      dto.occurredAt = (r.occurredAt as Date).toISOString();
+      dto.removedAt = r.removedAt != null ? (r.removedAt as Date).toISOString() : null;
+      return dto;
+    });
   }
 
   async getTransactions(userId: number, limit = 50): Promise<TransactionResponseDto[]> {
@@ -334,26 +402,44 @@ export class RewardsService {
   }
 
   /**
-   * Пересчёт уровня с учётом штрафов: уровень по сменам, затем понижение при достижении порога штрафов за 30 дней.
+   * Пересчёт уровня с учётом штрафов: уровень по сменам, затем понижение при превышении лимита штрафов за неделю или месяц.
    * Вызывается после снятия штрафа (6.7).
    */
   async recalcUserLevelConsideringStrikes(userId: number): Promise<void> {
     const { users, levels, strikes } = schema;
     const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user) return;
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const countResult = await this.db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(strikes)
-      .where(
-        and(
-          eq(strikes.userId, userId),
-          gte(strikes.occurredAt, thirtyDaysAgo),
-          isNull(strikes.removedAt),
+    const now = new Date();
+    const weekStart = startOfWeekUTC(now);
+    const weekEnd = endOfWeekUTC(now);
+    const monthStart = startOfMonthUTC(now);
+    const nextMonthStart = startOfNextMonthUTC(now);
+    const [countWeekRes, countMonthRes] = await Promise.all([
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(strikes)
+        .where(
+          and(
+            eq(strikes.userId, userId),
+            gte(strikes.occurredAt, weekStart),
+            lt(strikes.occurredAt, weekEnd),
+            isNull(strikes.removedAt),
+          ),
         ),
-      );
-    const strikeCount = countResult[0]?.count ?? 0;
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(strikes)
+        .where(
+          and(
+            eq(strikes.userId, userId),
+            gte(strikes.occurredAt, monthStart),
+            lt(strikes.occurredAt, nextMonthStart),
+            isNull(strikes.removedAt),
+          ),
+        ),
+    ]);
+    const countWeek = countWeekRes[0]?.count ?? 0;
+    const countMonth = countMonthRes[0]?.count ?? 0;
     const [levelByShifts] = await this.db
       .select()
       .from(levels)
@@ -362,10 +448,12 @@ export class RewardsService {
       .limit(1);
     if (!levelByShifts) return;
     let targetLevel = levelByShifts;
-    while (
-      targetLevel.strikeThreshold != null &&
-      strikeCount >= targetLevel.strikeThreshold
-    ) {
+    while (true) {
+      const exceedWeek =
+        targetLevel.strikeLimitPerWeek != null && countWeek > targetLevel.strikeLimitPerWeek;
+      const exceedMonth =
+        targetLevel.strikeLimitPerMonth != null && countMonth > targetLevel.strikeLimitPerMonth;
+      if (!exceedWeek && !exceedMonth) break;
       const [prevLevel] = await this.db
         .select()
         .from(levels)
@@ -427,7 +515,7 @@ export class RewardsService {
   }
 
   /**
-   * Зарегистрировать штраф (no_show / late_cancel). Запись в strikes, при достижении порога уровня — понижение на 1.
+   * Зарегистрировать штраф (no_show / late_cancel). Запись в strikes; при превышении лимита за неделю или месяц — понижение на 1 уровень.
    */
   async registerStrike(
     userId: number,
@@ -440,6 +528,10 @@ export class RewardsService {
       throw new NotFoundException('User not found');
     }
     const now = new Date();
+    const weekStart = startOfWeekUTC(now);
+    const weekEnd = endOfWeekUTC(now);
+    const monthStart = startOfMonthUTC(now);
+    const nextMonthStart = startOfNextMonthUTC(now);
     const [strike] = await this.db
       .insert(strikes)
       .values({
@@ -450,26 +542,43 @@ export class RewardsService {
       })
       .returning({ id: strikes.id });
     if (!strike) throw new Error('Failed to create strike');
-    const thirtyDaysAgo = new Date(now);
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const countResult = await this.db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(strikes)
-      .where(
-        and(
-          eq(strikes.userId, userId),
-          gte(strikes.occurredAt, thirtyDaysAgo),
-          isNull(strikes.removedAt),
+    const [countWeekRes, countMonthRes] = await Promise.all([
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(strikes)
+        .where(
+          and(
+            eq(strikes.userId, userId),
+            gte(strikes.occurredAt, weekStart),
+            lt(strikes.occurredAt, weekEnd),
+            isNull(strikes.removedAt),
+          ),
         ),
-      );
-    const count = countResult[0]?.count ?? 0;
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(strikes)
+        .where(
+          and(
+            eq(strikes.userId, userId),
+            gte(strikes.occurredAt, monthStart),
+            lt(strikes.occurredAt, nextMonthStart),
+            isNull(strikes.removedAt),
+          ),
+        ),
+    ]);
+    const countWeek = countWeekRes[0]?.count ?? 0;
+    const countMonth = countMonthRes[0]?.count ?? 0;
     const [currentLevel] = await this.db
       .select()
       .from(levels)
       .where(eq(levels.id, user.levelId))
       .limit(1);
     let levelDemoted = false;
-    if (currentLevel?.strikeThreshold != null && count >= currentLevel.strikeThreshold) {
+    const exceedWeek =
+      currentLevel?.strikeLimitPerWeek != null && countWeek > currentLevel.strikeLimitPerWeek;
+    const exceedMonth =
+      currentLevel?.strikeLimitPerMonth != null && countMonth > currentLevel.strikeLimitPerMonth;
+    if (currentLevel && (exceedWeek || exceedMonth)) {
       const [prevLevel] = await this.db
         .select()
         .from(levels)

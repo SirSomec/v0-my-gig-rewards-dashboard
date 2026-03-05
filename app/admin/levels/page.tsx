@@ -50,6 +50,8 @@ export default function AdminLevelsPage() {
     name: "",
     shiftsRequired: 0,
     strikeThreshold: "" as number | "",
+    strikeLimitPerWeek: "" as number | "",
+    strikeLimitPerMonth: "" as number | "",
     sortOrder: 0,
     perksJson: "[]",
   })
@@ -74,6 +76,8 @@ export default function AdminLevelsPage() {
       name: level.name,
       shiftsRequired: level.shiftsRequired,
       strikeThreshold: level.strikeThreshold ?? "",
+      strikeLimitPerWeek: level.strikeLimitPerWeek ?? "",
+      strikeLimitPerMonth: level.strikeLimitPerMonth ?? "",
       sortOrder: level.sortOrder,
       perksJson: perksToJson(level.perks ?? []),
     })
@@ -95,6 +99,8 @@ export default function AdminLevelsPage() {
       name: form.name.trim(),
       shiftsRequired: Number(form.shiftsRequired) ?? 0,
       strikeThreshold: form.strikeThreshold === "" ? null : Number(form.strikeThreshold),
+      strikeLimitPerWeek: form.strikeLimitPerWeek === "" ? null : Number(form.strikeLimitPerWeek),
+      strikeLimitPerMonth: form.strikeLimitPerMonth === "" ? null : Number(form.strikeLimitPerMonth),
       sortOrder: Number(form.sortOrder) ?? 0,
       perks,
     }
@@ -127,8 +133,8 @@ export default function AdminLevelsPage() {
                 <div className="min-w-0">
                   <p className="font-medium">{l.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    Смен до уровня: {l.shiftsRequired} · Порог штрафов:{" "}
-                    {l.strikeThreshold ?? "—"} · #{l.sortOrder}
+                    Смен до уровня: {l.shiftsRequired} · Порог штрафов (30 д):{" "}
+                    {l.strikeThreshold ?? "—"} · Неделя: {l.strikeLimitPerWeek ?? "—"} · Месяц: {l.strikeLimitPerMonth ?? "—"} · #{l.sortOrder}
                   </p>
                   {l.perks?.length ? (
                     <p className="text-xs text-muted-foreground mt-1">
@@ -165,24 +171,24 @@ export default function AdminLevelsPage() {
                 placeholder="Название уровня"
               />
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="shiftsRequired">Порог смен</Label>
+              <Input
+                id="shiftsRequired"
+                type="number"
+                min={0}
+                value={form.shiftsRequired}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    shiftsRequired: Number(e.target.value) || 0,
+                  }))
+                }
+              />
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="shiftsRequired">Порог смен</Label>
-                <Input
-                  id="shiftsRequired"
-                  type="number"
-                  min={0}
-                  value={form.shiftsRequired}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      shiftsRequired: Number(e.target.value) || 0,
-                    }))
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="strikeThreshold">Порог штрафов (пусто = не понижаем)</Label>
+                <Label htmlFor="strikeThreshold">Порог штрафов за 30 д (устар., пусто = не понижаем)</Label>
                 <Input
                   id="strikeThreshold"
                   type="number"
@@ -193,6 +199,40 @@ export default function AdminLevelsPage() {
                     setForm((f) => ({
                       ...f,
                       strikeThreshold: v === "" ? "" : Number(v),
+                    }))
+                  }}
+                  placeholder="—"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="strikeLimitPerWeek">Лимит штрафов за неделю</Label>
+                <Input
+                  id="strikeLimitPerWeek"
+                  type="number"
+                  min={0}
+                  value={form.strikeLimitPerWeek}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setForm((f) => ({
+                      ...f,
+                      strikeLimitPerWeek: v === "" ? "" : Number(v),
+                    }))
+                  }}
+                  placeholder="—"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="strikeLimitPerMonth">Лимит штрафов за месяц</Label>
+                <Input
+                  id="strikeLimitPerMonth"
+                  type="number"
+                  min={0}
+                  value={form.strikeLimitPerMonth}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setForm((f) => ({
+                      ...f,
+                      strikeLimitPerMonth: v === "" ? "" : Number(v),
                     }))
                   }}
                   placeholder="—"

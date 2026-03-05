@@ -12,10 +12,18 @@ interface LevelProgressProps {
   shiftsCompleted: number
   shiftsRequired: number
   shiftsRemaining: number
-  /** Штрафы за 30 дней (для отображения «N/M до понижения») */
+  /** Штрафы за 30 дней (устаревший счётчик) */
   strikesCount?: number
-  /** Порог штрафов для понижения уровня; null = бронза, понижение не применяется */
+  /** Порог штрафов за 30 дней (устаревший); null = бронза */
   strikesThreshold?: number | null
+  /** Штрафов за текущую неделю */
+  strikesCountWeek?: number
+  /** Штрафов за текущий месяц */
+  strikesCountMonth?: number
+  /** Лимит штрафов за неделю для уровня (при превышении — понижение) */
+  strikesLimitPerWeek?: number | null
+  /** Лимит штрафов за месяц для уровня (при превышении — понижение) */
+  strikesLimitPerMonth?: number | null
 }
 
 const benefits: Record<string, { icon: React.ReactNode; label: string; description: string }[]> = {
@@ -40,10 +48,16 @@ export function LevelProgress({
   shiftsRemaining,
   strikesCount = 0,
   strikesThreshold,
+  strikesCountWeek = 0,
+  strikesCountMonth = 0,
+  strikesLimitPerWeek,
+  strikesLimitPerMonth,
 }: LevelProgressProps) {
   const [showBenefits, setShowBenefits] = useState(false)
   const progress = shiftsRequired > 0 ? (shiftsCompleted / shiftsRequired) * 100 : 0
-  const showStrikes = strikesThreshold != null && strikesThreshold > 0
+  const hasWeekLimit = strikesLimitPerWeek != null && strikesLimitPerWeek > 0
+  const hasMonthLimit = strikesLimitPerMonth != null && strikesLimitPerMonth > 0
+  const showStrikes = hasWeekLimit || hasMonthLimit || (strikesThreshold != null && strikesThreshold > 0)
 
   const currentBenefits = benefits[currentLevel] || benefits["Серебряный партнёр"]
 
@@ -94,11 +108,36 @@ export function LevelProgress({
 
         {showStrikes && (
           <p className="text-xs text-muted-foreground mb-4">
-            {strikesCount}/{strikesThreshold} штрафов за 30 дней
-            {strikesCount >= strikesThreshold ? (
-              <span className="text-destructive font-medium"> (до понижения)</span>
-            ) : (
-              <span> (до понижения)</span>
+            {hasWeekLimit && (
+              <span>
+                {strikesCountWeek}/{strikesLimitPerWeek} штрафов за неделю
+                {strikesCountWeek > (strikesLimitPerWeek ?? 0) ? (
+                  <span className="text-destructive font-medium"> (превышен лимит)</span>
+                ) : (
+                  <span> (до понижения)</span>
+                )}
+              </span>
+            )}
+            {hasWeekLimit && hasMonthLimit && " · "}
+            {hasMonthLimit && (
+              <span>
+                {strikesCountMonth}/{strikesLimitPerMonth} штрафов за месяц
+                {strikesCountMonth > (strikesLimitPerMonth ?? 0) ? (
+                  <span className="text-destructive font-medium"> (превышен лимит)</span>
+                ) : (
+                  <span> (до понижения)</span>
+                )}
+              </span>
+            )}
+            {!hasWeekLimit && !hasMonthLimit && strikesThreshold != null && strikesThreshold > 0 && (
+              <span>
+                {strikesCount}/{strikesThreshold} штрафов за 30 дней
+                {strikesCount >= strikesThreshold ? (
+                  <span className="text-destructive font-medium"> (до понижения)</span>
+                ) : (
+                  <span> (до понижения)</span>
+                )}
+              </span>
             )}
           </p>
         )}

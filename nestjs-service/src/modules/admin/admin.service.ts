@@ -313,6 +313,8 @@ export class AdminService {
     if (dto.name !== undefined) updates.name = dto.name;
     if (dto.shiftsRequired !== undefined) updates.shiftsRequired = dto.shiftsRequired;
     if (dto.strikeThreshold !== undefined) updates.strikeThreshold = dto.strikeThreshold;
+    if (dto.strikeLimitPerWeek !== undefined) updates.strikeLimitPerWeek = dto.strikeLimitPerWeek;
+    if (dto.strikeLimitPerMonth !== undefined) updates.strikeLimitPerMonth = dto.strikeLimitPerMonth;
     if (dto.perks !== undefined) updates.perks = dto.perks;
     if (dto.sortOrder !== undefined) updates.sortOrder = dto.sortOrder;
     if (Object.keys(updates).length === 0) return { id };

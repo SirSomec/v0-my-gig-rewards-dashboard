@@ -59,6 +59,8 @@ export interface AdminLevel {
   name: string;
   shiftsRequired: number;
   strikeThreshold: number | null;
+  strikeLimitPerWeek: number | null;
+  strikeLimitPerMonth: number | null;
   sortOrder: number;
   perks?: Array<{ title: string; description?: string }>;
 }
@@ -98,6 +100,8 @@ export type UpdateLevelBody = {
   name?: string;
   shiftsRequired?: number;
   strikeThreshold?: number | null;
+  strikeLimitPerWeek?: number | null;
+  strikeLimitPerMonth?: number | null;
   perks?: Array<{ title: string; description?: string }>;
   sortOrder?: number;
 };

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import {
   fetchMe,
   fetchTransactions,
+  fetchStrikes,
   fetchQuests,
   fetchStore,
   createRedemption as apiCreateRedemption,
@@ -13,6 +14,7 @@ import {
   clearToken,
   type MeResponse,
   type TransactionResponse,
+  type StrikeResponse,
   type QuestResponse,
   type StoreItemResponse,
 } from "@/lib/rewards-api"
@@ -33,6 +35,10 @@ export interface DashboardUser {
   avatarUrl?: string
   strikesCount: number
   strikesThreshold: number | null
+  strikesCountWeek: number
+  strikesCountMonth: number
+  strikesLimitPerWeek: number | null
+  strikesLimitPerMonth: number | null
 }
 
 function mapMe(m: MeResponse): DashboardUser {
@@ -47,6 +53,10 @@ function mapMe(m: MeResponse): DashboardUser {
     avatarUrl: m.avatarUrl ?? undefined,
     strikesCount: m.strikesCount,
     strikesThreshold: m.strikesThreshold,
+    strikesCountWeek: m.strikesCountWeek ?? 0,
+    strikesCountMonth: m.strikesCountMonth ?? 0,
+    strikesLimitPerWeek: m.strikesLimitPerWeek ?? null,
+    strikesLimitPerMonth: m.strikesLimitPerMonth ?? null,
   }
 }
 
@@ -55,23 +65,45 @@ function mapType(t: string): "shift" | "bonus" | "quest" | "redemption" {
   return "bonus"
 }
 
-function formatTransactionDate(iso: string): string {
-  const d = new Date(iso)
-  if (isToday(d)) return "Сегодня"
-  if (isYesterday(d)) return "Вчера"
-  return format(d, "d MMM", { locale: ru })
-}
-
-function mapTransaction(t: TransactionResponse): EarningEntry {
+function mapTransaction(t: TransactionResponse): EarningEntry & { _sortAt?: string } {
   const isRedemption = t.type === "redemption"
   return {
-    id: String(t.id),
+    id: `tx-${t.id}`,
     title: t.title ?? (isRedemption ? "Покупка в магазине" : "Начисление"),
     location: t.location ?? "—",
     date: formatTransactionDate(t.createdAt),
     amount: t.amount,
     type: mapType(t.type),
+    _sortAt: t.createdAt,
   }
+}
+
+function mapStrike(s: StrikeResponse): EarningEntry & { _sortAt?: string } {
+  const typeLabel = s.type === "no_show" ? "Прогул" : s.type === "late_cancel" ? "Поздняя отмена" : s.type
+  const shiftPart = s.shiftExternalId ? ` (смена #${s.shiftExternalId})` : ""
+  return {
+    id: `strike-${s.id}`,
+    title: `Штраф: ${typeLabel}${shiftPart}`,
+    location: "—",
+    date: formatTransactionDate(s.occurredAt),
+    amount: 0,
+    type: "strike",
+    shiftExternalId: s.shiftExternalId,
+    _sortAt: s.occurredAt,
+  }
+}
+
+function mergeAndSortHistory(
+  txEntries: (EarningEntry & { _sortAt?: string })[],
+  strikeEntries: (EarningEntry & { _sortAt?: string })[]
+): EarningEntry[] {
+  const merged = [...txEntries, ...strikeEntries]
+  merged.sort((a, b) => {
+    const tA = a._sortAt ? new Date(a._sortAt).getTime() : 0
+    const tB = b._sortAt ? new Date(b._sortAt).getTime() : 0
+    return tB - tA
+  })
+  return merged.map(({ _sortAt: _, ...e }) => e)
 }
 
 const questIconMap: Record<string, Quest["icon"]> = {
@@ -151,14 +183,19 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
     setError(null)
     setLoading(true)
     try {
-      const [meRes, transactionsRes, questsRes, storeRes] = await Promise.all([
+      const [meRes, transactionsRes, strikesRes, questsRes, storeRes] = await Promise.all([
         fetchMe(),
         fetchTransactions(),
+        fetchStrikes(),
         fetchQuests(),
         fetchStore(),
       ])
       setUser(mapMe(meRes))
-      setTransactions(transactionsRes.map(mapTransaction))
+      const txEntries = transactionsRes.map(mapTransaction)
+      const strikeEntries = strikesRes
+        .filter((s) => !s.removedAt)
+        .map(mapStrike)
+      setTransactions(mergeAndSortHistory(txEntries, strikeEntries))
       setQuests(questsRes.map(mapQuest))
       setStoreItems(storeRes.map(mapStoreItem))
     } catch (e) {

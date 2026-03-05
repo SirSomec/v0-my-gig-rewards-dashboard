@@ -91,6 +91,10 @@ export interface MeResponse {
   shiftsRequired: number;
   strikesCount: number;
   strikesThreshold: number | null;
+  strikesCountWeek: number;
+  strikesCountMonth: number;
+  strikesLimitPerWeek: number | null;
+  strikesLimitPerMonth: number | null;
 }
 
 export interface TransactionResponse {
@@ -166,6 +170,19 @@ export async function fetchMe(): Promise<MeResponse> {
 export async function fetchTransactions(limit = 50): Promise<TransactionResponse[]> {
   const url = buildUrl("/v1/rewards/transactions", { limit: String(limit) });
   return fetchApi<TransactionResponse[]>(url);
+}
+
+export interface StrikeResponse {
+  id: number;
+  type: string;
+  shiftExternalId: string | null;
+  occurredAt: string;
+  removedAt: string | null;
+}
+
+export async function fetchStrikes(limit = 50): Promise<StrikeResponse[]> {
+  const url = buildUrl("/v1/rewards/strikes", { limit: String(limit) });
+  return fetchApi<StrikeResponse[]>(url);
 }
 
 export async function fetchQuests(): Promise<QuestResponse[]> {

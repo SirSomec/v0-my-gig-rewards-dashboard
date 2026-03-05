@@ -15,6 +15,7 @@ import { CreateRedemptionRequestDto } from './dto/store.dto';
 import { RecordShiftCompleteRequestDto, RegisterStrikeRequestDto } from './dto/shifts.dto';
 import { MeResponseDto } from './dto/me.dto';
 import { TransactionResponseDto } from './dto/transaction.dto';
+import { StrikeResponseDto } from './dto/strike.dto';
 import { QuestResponseDto } from './dto/quest.dto';
 import { StoreItemResponseDto } from './dto/store.dto';
 
@@ -54,6 +55,17 @@ export class RewardsController {
   ): Promise<TransactionResponseDto[]> {
     const id = this.getUserId(req, userId);
     return this.rewards.getTransactions(id, limit ? parseInt(limit, 10) : 50);
+  }
+
+  @Get('strikes')
+  @ApiOperation({ summary: 'История штрафов пользователя (с привязкой к смене shift_external_id)' })
+  async getStrikes(
+    @Req() req: RequestWithUser,
+    @Query('userId') userId?: string,
+    @Query('limit') limit?: string,
+  ): Promise<StrikeResponseDto[]> {
+    const id = this.getUserId(req, userId);
+    return this.rewards.getStrikes(id, limit ? parseInt(limit, 10) : 50);
   }
 
   @Get('quests')
