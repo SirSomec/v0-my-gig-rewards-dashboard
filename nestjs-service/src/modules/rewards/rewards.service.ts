@@ -387,18 +387,27 @@ export class RewardsService {
   /**
    * Пересчёт уровня пользователя по числу завершённых смен.
    * Уровень = максимальный по shifts_required такой, что shifts_required <= user.shifts_completed.
+   * Обновляем только при повышении (по sortOrder), чтобы не затирать ручное назначение админом.
+   * При автоматическом переходе: счётчик смен сбрасывается в 0, новый уровень сохраняется и далее не понижается.
    */
   async recalcUserLevel(userId: number): Promise<void> {
     const { users, levels } = schema;
-    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
-    if (!user) return;
+    const [row] = await this.db
+      .select({ user: users, currentLevel: levels })
+      .from(users)
+      .innerJoin(levels, eq(users.levelId, levels.id))
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!row) return;
+    const { user, currentLevel } = row;
     const [newLevel] = await this.db
       .select()
       .from(levels)
       .where(lte(levels.shiftsRequired, user.shiftsCompleted))
       .orderBy(desc(levels.shiftsRequired))
       .limit(1);
-    if (newLevel && newLevel.id !== user.levelId) {
+    const isUpgrade = newLevel && newLevel.sortOrder > currentLevel.sortOrder;
+    if (isUpgrade) {
       await this.db
         .update(users)
         .set({ levelId: newLevel.id, shiftsCompleted: 0 })
