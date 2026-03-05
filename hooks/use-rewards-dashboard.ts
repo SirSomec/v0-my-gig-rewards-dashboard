@@ -65,6 +65,13 @@ function mapType(t: string): "shift" | "bonus" | "quest" | "redemption" {
   return "bonus"
 }
 
+function formatTransactionDate(iso: string): string {
+  const d = new Date(iso)
+  if (isToday(d)) return "Сегодня"
+  if (isYesterday(d)) return "Вчера"
+  return format(d, "d MMM", { locale: ru })
+}
+
 function mapTransaction(t: TransactionResponse): EarningEntry & { _sortAt?: string } {
   const isRedemption = t.type === "redemption"
   return {
