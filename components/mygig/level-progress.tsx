@@ -70,7 +70,7 @@ export function LevelProgress({
   const progress = shiftsRequired > 0 ? (shiftsCompleted / shiftsRequired) * 100 : 0
   const hasWeekLimit = strikesLimitPerWeek != null && strikesLimitPerWeek > 0
   const hasMonthLimit = strikesLimitPerMonth != null && strikesLimitPerMonth > 0
-  const showStrikes = hasWeekLimit || hasMonthLimit
+  const showStrikesSection = true
 
   const hardcodedBenefits = benefits[currentLevel] || benefits["Серебряный партнёр"]
   const useApiPerks = currentLevelPerksFromApi != null && currentLevelPerksFromApi.length > 0
@@ -118,7 +118,7 @@ export function LevelProgress({
           />
         </div>
 
-        <div className={`flex items-center justify-between ${showStrikes ? "mb-2" : "mb-4"}`}>
+        <div className={`flex items-center justify-between ${showStrikesSection ? "mb-2" : "mb-4"}`}>
           <span className="text-xs text-muted-foreground">
             {shiftsCompleted}/{shiftsRequired} смен
           </span>
@@ -127,20 +127,24 @@ export function LevelProgress({
           </span>
         </div>
 
-        {showStrikes && (
+        {showStrikesSection && (
           <div className="mb-4 space-y-3">
             <p className="text-xs text-muted-foreground">
               При превышении количества штрафов за неделю или за месяц уровень будет понижен на один шаг. Следите за счётчиками ниже.
             </p>
-            {hasWeekLimit && (
-              <div>
-                <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                  <span>Штрафы за неделю</span>
+            <div>
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>Штрафы за неделю</span>
+                {hasWeekLimit ? (
                   <span className={strikesCountWeek > (strikesLimitPerWeek ?? 0) ? "font-medium text-destructive" : ""}>
                     {strikesCountWeek}/{strikesLimitPerWeek}
                     {strikesCountWeek > (strikesLimitPerWeek ?? 0) ? " — превышен лимит" : ""}
                   </span>
-                </div>
+                ) : (
+                  <span>{strikesCountWeek}{strikesCountWeek > 0 ? " — лимит не задан" : ""}</span>
+                )}
+              </div>
+              {hasWeekLimit ? (
                 <div className="relative h-2 bg-secondary rounded-full overflow-hidden">
                   <motion.div
                     className={`absolute inset-y-0 left-0 rounded-full ${strikesCountWeek > (strikesLimitPerWeek ?? 0) ? "bg-destructive/90" : "bg-amber-500/80"}`}
@@ -151,17 +155,21 @@ export function LevelProgress({
                     transition={{ duration: 0.5, ease: "easeOut" }}
                   />
                 </div>
-              </div>
-            )}
-            {hasMonthLimit && (
-              <div>
-                <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                  <span>Штрафы за месяц</span>
+              ) : null}
+            </div>
+            <div>
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>Штрафы за месяц</span>
+                {hasMonthLimit ? (
                   <span className={strikesCountMonth > (strikesLimitPerMonth ?? 0) ? "font-medium text-destructive" : ""}>
                     {strikesCountMonth}/{strikesLimitPerMonth}
                     {strikesCountMonth > (strikesLimitPerMonth ?? 0) ? " — превышен лимит" : ""}
                   </span>
-                </div>
+                ) : (
+                  <span>{strikesCountMonth}{strikesCountMonth > 0 ? " — лимит не задан" : ""}</span>
+                )}
+              </div>
+              {hasMonthLimit ? (
                 <div className="relative h-2 bg-secondary rounded-full overflow-hidden">
                   <motion.div
                     className={`absolute inset-y-0 left-0 rounded-full ${strikesCountMonth > (strikesLimitPerMonth ?? 0) ? "bg-destructive/90" : "bg-amber-500/80"}`}
@@ -172,8 +180,8 @@ export function LevelProgress({
                     transition={{ duration: 0.5, ease: "easeOut" }}
                   />
                 </div>
-              </div>
-            )}
+              ) : null}
+            </div>
           </div>
         )}
 
