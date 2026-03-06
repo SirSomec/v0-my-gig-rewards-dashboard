@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, desc, eq, gte, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../../infra/db/drizzle/schemas';
 import { drizzleProvider } from '../../infra/db/drizzle/drizzle.module';
@@ -387,6 +387,7 @@ export class RewardsService {
   /**
    * Пересчёт уровня пользователя по числу завершённых смен.
    * Уровень = максимальный по shifts_required такой, что shifts_required <= user.shifts_completed.
+   * Базовый уровень (минимальный sort_order) назначается изначально без условий — если ни один уровень не подошёл по сменам, ставим базовый.
    * Обновляем только при повышении (по sortOrder), чтобы не затирать ручное назначение админом.
    * При автоматическом переходе: счётчик смен сбрасывается в 0, новый уровень сохраняется и далее не понижается.
    */
@@ -400,17 +401,34 @@ export class RewardsService {
       .limit(1);
     if (!row) return;
     const { user, currentLevel } = row;
-    const [newLevel] = await this.db
+    let [newLevel] = await this.db
       .select()
       .from(levels)
       .where(lte(levels.shiftsRequired, user.shiftsCompleted))
       .orderBy(desc(levels.shiftsRequired))
       .limit(1);
-    const isUpgrade = newLevel && newLevel.sortOrder > currentLevel.sortOrder;
-    if (isUpgrade) {
+    let usedBaseFallback = false;
+    if (!newLevel) {
+      const [baseLevel] = await this.db
+        .select()
+        .from(levels)
+        .orderBy(asc(levels.sortOrder))
+        .limit(1);
+      if (baseLevel) {
+        newLevel = baseLevel;
+        usedBaseFallback = true;
+      }
+    }
+    if (!newLevel) return;
+    const isUpgrade = newLevel.sortOrder > currentLevel.sortOrder;
+    const assignBaseInitially = usedBaseFallback && user.levelId !== newLevel.id;
+    if (isUpgrade || assignBaseInitially) {
       await this.db
         .update(users)
-        .set({ levelId: newLevel.id, shiftsCompleted: 0 })
+        .set({
+          levelId: newLevel.id,
+          shiftsCompleted: assignBaseInitially ? user.shiftsCompleted : 0,
+        })
         .where(eq(users.id, userId));
     }
   }
