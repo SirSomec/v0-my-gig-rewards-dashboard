@@ -106,7 +106,7 @@ export default function MyGigRewards() {
                 currentLevel={user.level}
                 nextLevel={user.nextLevel}
                 shiftsCompleted={user.shiftsCompleted}
-                shiftsRequired={user.shiftsRequired}
+                shiftsRequired={user.nextLevelShiftsRequired ?? user.shiftsRequired}
                 shiftsRemaining={user.shiftsRemaining}
                 strikesCountWeek={user.strikesCountWeek}
                 strikesCountMonth={user.strikesCountMonth}

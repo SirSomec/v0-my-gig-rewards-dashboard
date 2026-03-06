@@ -26,7 +26,9 @@ interface LevelProgressProps {
   currentLevel: string
   nextLevel: string
   shiftsCompleted: number
+  /** Порог смен следующего уровня (сколько всего нужно для перехода). Для прогресса и отображения X/Y. */
   shiftsRequired: number
+  /** Сколько ещё смен до перехода на следующий уровень */
   shiftsRemaining: number
   /** Штрафов за текущую неделю */
   strikesCountWeek?: number
@@ -67,7 +69,9 @@ export function LevelProgress({
   currentLevelPerks: currentLevelPerksFromApi,
 }: LevelProgressProps) {
   const [showBenefits, setShowBenefits] = useState(false)
-  const progress = shiftsRequired > 0 ? (shiftsCompleted / shiftsRequired) * 100 : 0
+  const isMaxLevel = nextLevel === "—"
+  const targetShifts = shiftsRequired > 0 ? shiftsRequired : 1
+  const progress = isMaxLevel ? 100 : Math.min(100, (shiftsCompleted / targetShifts) * 100)
   const hasWeekLimit = strikesLimitPerWeek != null && strikesLimitPerWeek > 0
   const hasMonthLimit = strikesLimitPerMonth != null && strikesLimitPerMonth > 0
   const showStrikesSection = true
@@ -120,10 +124,10 @@ export function LevelProgress({
 
         <div className={`flex items-center justify-between ${showStrikesSection ? "mb-2" : "mb-4"}`}>
           <span className="text-xs text-muted-foreground">
-            {shiftsCompleted}/{shiftsRequired} смен
+            {shiftsCompleted}/{isMaxLevel ? shiftsCompleted : shiftsRequired} смен
           </span>
           <span className="text-xs font-medium text-primary">
-            Ещё {shiftsRemaining} до {nextLevel}
+            {isMaxLevel ? "Максимальный уровень" : `Ещё ${shiftsRemaining} до ${nextLevel}`}
           </span>
         </div>
 

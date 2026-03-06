@@ -170,6 +170,7 @@ export class RewardsService {
     dto.levelId = level.id;
     dto.levelName = level.name;
     dto.nextLevelName = nextLevel?.name ?? null;
+    dto.nextLevelShiftsRequired = nextLevel?.shiftsRequired ?? null;
     dto.shiftsCompleted = user.shiftsCompleted;
     dto.shiftsRequired = level.shiftsRequired;
     dto.strikesCountWeek = countWeekVal;

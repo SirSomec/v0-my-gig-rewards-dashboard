@@ -87,7 +87,9 @@ export function LevelsView({ currentLevelName, shiftsCompleted = 0 }: LevelsView
                     </span>
                   )}
                 </div>
-                <span className="text-[11px] text-muted-foreground">{level.shiftsRequired} смен</span>
+                <span className="text-[11px] text-muted-foreground">
+                  {level.shiftsRequired === 0 ? "базовый уровень" : `для перехода: ${level.shiftsRequired} смен`}
+                </span>
               </div>
                 <div className="flex flex-wrap gap-1">
                   {level.perks.map((perk, j) => (

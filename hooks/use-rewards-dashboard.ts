@@ -32,7 +32,11 @@ export interface DashboardUser {
   nextLevel: string
   balance: number
   shiftsCompleted: number
+  /** Порог смен текущего уровня */
   shiftsRequired: number
+  /** Порог смен следующего уровня (для перехода). null = максимальный уровень */
+  nextLevelShiftsRequired: number | null
+  /** Сколько ещё смен до перехода на следующий уровень */
   shiftsRemaining: number
   avatarUrl?: string
   strikesCountWeek: number
@@ -42,6 +46,8 @@ export interface DashboardUser {
 }
 
 function mapMe(m: MeResponse): DashboardUser {
+  const nextTarget = m.nextLevelShiftsRequired ?? null
+  const shiftsRemaining = nextTarget != null ? Math.max(0, nextTarget - m.shiftsCompleted) : 0
   return {
     name: m.name ?? "Пользователь",
     level: m.levelName,
@@ -49,7 +55,8 @@ function mapMe(m: MeResponse): DashboardUser {
     balance: m.balance,
     shiftsCompleted: m.shiftsCompleted,
     shiftsRequired: m.shiftsRequired,
-    shiftsRemaining: Math.max(0, m.shiftsRequired - m.shiftsCompleted),
+    nextLevelShiftsRequired: nextTarget,
+    shiftsRemaining,
     avatarUrl: m.avatarUrl ?? undefined,
     strikesCountWeek: m.strikesCountWeek ?? 0,
     strikesCountMonth: m.strikesCountMonth ?? 0,

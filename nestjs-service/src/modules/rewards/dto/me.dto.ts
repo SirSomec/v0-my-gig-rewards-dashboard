@@ -7,6 +7,8 @@ export class MeResponseDto {
   levelId!: number;
   levelName!: string;
   nextLevelName!: string | null;
+  /** Порог смен следующего уровня (сколько всего смен нужно для перехода). null = следующего уровня нет (макс. уровень). */
+  nextLevelShiftsRequired!: number | null;
   shiftsCompleted!: number;
   shiftsRequired!: number;
   /** Штрафов за текущую неделю */

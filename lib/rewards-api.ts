@@ -87,6 +87,8 @@ export interface MeResponse {
   levelId: number;
   levelName: string;
   nextLevelName: string | null;
+  /** Порог смен следующего уровня (для перехода). null = максимальный уровень. */
+  nextLevelShiftsRequired: number | null;
   shiftsCompleted: number;
   shiftsRequired: number;
   strikesCountWeek: number;
