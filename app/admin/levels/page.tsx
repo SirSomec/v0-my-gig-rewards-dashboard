@@ -103,6 +103,11 @@ export default function AdminLevelsPage() {
       setError("Порог смен не может быть отрицательным")
       return
     }
+    const isFirstLevel = levels.length > 0 && editingLevel.sortOrder === Math.min(...levels.map((l) => l.sortOrder))
+    if (isFirstLevel && form.shiftsRequired !== 0) {
+      setError("У базового (первого) уровня порог смен должен быть 0 — он выдаётся изначально без условий.")
+      return
+    }
     const perks = parsePerksJson(form.perksJson)
     const body: UpdateLevelBody = {
       name: form.name.trim(),
@@ -193,6 +198,11 @@ export default function AdminLevelsPage() {
                   }))
                 }
               />
+              {editingLevel && levels.length > 0 && editingLevel.sortOrder === Math.min(...levels.map((l) => l.sortOrder)) && (
+                <p className="text-xs text-muted-foreground">
+                  У базового (первого) уровня порог должен быть 0 — он выдаётся изначально без условий.
+                </p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">

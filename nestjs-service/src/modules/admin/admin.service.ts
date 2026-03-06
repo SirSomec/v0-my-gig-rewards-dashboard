@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq, ilike, isNull, or, sql } from 'drizzle-orm';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { and, asc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../../infra/db/drizzle/schemas';
 import { drizzleProvider } from '../../infra/db/drizzle/drizzle.module';
@@ -348,6 +348,18 @@ export class AdminService {
     const { levels } = schema;
     const [existing] = await this.db.select().from(levels).where(eq(levels.id, id)).limit(1);
     if (!existing) throw new NotFoundException('Level not found');
+    if (dto.shiftsRequired !== undefined && dto.shiftsRequired !== 0) {
+      const [firstLevel] = await this.db
+        .select({ id: levels.id })
+        .from(levels)
+        .orderBy(asc(levels.sortOrder))
+        .limit(1);
+      if (firstLevel && firstLevel.id === id) {
+        throw new BadRequestException(
+          'У базового (первого) уровня лояльности порог смен должен быть 0 — он выдаётся изначально без условий.',
+        );
+      }
+    }
     const updates: Partial<typeof levels.$inferInsert> = {};
     if (dto.name !== undefined) updates.name = dto.name;
     if (dto.shiftsRequired !== undefined) updates.shiftsRequired = dto.shiftsRequired;
