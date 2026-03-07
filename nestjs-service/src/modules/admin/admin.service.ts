@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { and, asc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import type { Envs } from '../../shared/env.validation-schema';
 import * as schema from '../../infra/db/drizzle/schemas';
 import { drizzleProvider } from '../../infra/db/drizzle/drizzle.module';
 import { Inject } from '@nestjs/common';
@@ -13,6 +15,7 @@ export class AdminService {
     @Inject(drizzleProvider)
     private readonly db: PostgresJsDatabase<typeof schema>,
     private readonly rewards: RewardsService,
+    private readonly config: ConfigService<Envs, true>,
   ) {}
 
   async listUsers(search?: string, limit = 50) {
@@ -612,5 +615,69 @@ export class AdminService {
       .limit(pageSize)
       .offset((page - 1) * pageSize);
     return { items, total, page, pageSize };
+  }
+
+  /** Проверка: настроен ли мок TOJ (для отображения в админке). */
+  getMockTojConfig(): { configured: boolean } {
+    const url = this.config.get('MOCK_TOJ_URL', { infer: true });
+    const key = this.config.get('MOCK_TOJ_ADMIN_KEY', { infer: true });
+    return { configured: !!(url?.trim() && key?.trim()) };
+  }
+
+  /**
+   * Запросить у мок-сервиса TOJ генерацию смен для выбранного пользователя (по external_id).
+   * Требует MOCK_TOJ_URL и MOCK_TOJ_ADMIN_KEY в env.
+   */
+  async mockTojGenerate(params: {
+    userId?: number;
+    workerIds?: string[];
+    count: number;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<{ generated: number }> {
+    const baseUrl = this.config.get('MOCK_TOJ_URL', { infer: true })?.replace(/\/$/, '');
+    const adminKey = this.config.get('MOCK_TOJ_ADMIN_KEY', { infer: true });
+    if (!baseUrl || !adminKey) {
+      throw new BadRequestException('Mock TOJ not configured (MOCK_TOJ_URL, MOCK_TOJ_ADMIN_KEY)');
+    }
+    let workerIds = params.workerIds;
+    if (params.userId != null) {
+      const [row] = await this.db
+        .select({ externalId: schema.users.externalId })
+        .from(schema.users)
+        .where(eq(schema.users.id, params.userId))
+        .limit(1);
+      if (!row?.externalId?.trim()) {
+        throw new BadRequestException(
+          `User ${params.userId} has no external_id. Set external_id in admin to link to TOJ worker.`,
+        );
+      }
+      workerIds = [row.externalId.trim()];
+    }
+    if (!workerIds?.length) {
+      throw new BadRequestException('Provide userId or workerIds');
+    }
+    const count = Math.min(Math.max(Number(params.count) || 10, 1), 500);
+    const url = `${baseUrl}/admin/generate-jobs`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Key': adminKey,
+      },
+      body: JSON.stringify({
+        count,
+        workerIds,
+        dateFrom: params.dateFrom || undefined,
+        dateTo: params.dateTo || undefined,
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new BadRequestException(`Mock TOJ: ${res.status} ${text || res.statusText}`);
+    }
+    const data = (await res.json()) as { data?: { generated?: number } };
+    const generated = data?.data?.generated ?? 0;
+    return { generated };
   }
 }

@@ -52,6 +52,9 @@ services:
       - ETL_PASSWORD=${ETL_PASSWORD:-}
       - ETL_DATABASE=${ETL_DATABASE:-}
       - ETL_SSL_ROOT_CERT=${ETL_SSL_ROOT_CERT:-}
+      # Мок TOJ: URL и ключ для эндпоинта генерации из админки
+      - MOCK_TOJ_URL=${MOCK_TOJ_URL:-http://mock-toj:3010}
+      - MOCK_TOJ_ADMIN_KEY=${MOCK_TOJ_ADMIN_KEY:-mock-admin-key}
     volumes:
       # Монтируем .env в контейнер — NestJS читает его при старте (ConfigModule envFilePath).
       # На хосте выполните: chmod 644 .env — иначе apiuser в контейнере не прочитает файл и контейнер будет перезапускаться.
@@ -59,6 +62,20 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
+
+  # Мок TOJ (смены) для разработки. В prod не использовать.
+  mock-toj:
+    build:
+      context: ./mock-toj-service
+      dockerfile: Dockerfile
+    ports:
+      - "3010:3010"
+    environment:
+      - PORT=3010
+      - MOCK_TOJ_USER=${MOCK_TOJ_USER:-mock}
+      - MOCK_TOJ_PASSWORD=${MOCK_TOJ_PASSWORD:-mock}
+      - MOCK_TOJ_ADMIN_KEY=${MOCK_TOJ_ADMIN_KEY:-mock-admin-key}
     restart: unless-stopped
 
   # БД PostgreSQL в отдельном контейнере; порт 5432 не проброшен наружу (доступ только из api).

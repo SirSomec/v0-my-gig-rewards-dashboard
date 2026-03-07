@@ -301,4 +301,31 @@ export class AdminController {
     if (entityType !== undefined) opts.entityType = entityType;
     return this.admin.listAuditLog(opts);
   }
+
+  @Get('mock-toj/status')
+  @ApiOperation({ summary: 'Настроен ли мок TOJ (MOCK_TOJ_URL, MOCK_TOJ_ADMIN_KEY)' })
+  getMockTojStatus() {
+    return this.admin.getMockTojConfig();
+  }
+
+  @Post('mock-toj/generate')
+  @ApiOperation({ summary: 'Сгенерировать мок-смены в сервисе TOJ для выбранного пользователя (по external_id)' })
+  async mockTojGenerate(
+    @Body()
+    body: {
+      userId: number;
+      count?: number;
+      dateFrom?: string;
+      dateTo?: string;
+    },
+  ) {
+    const userId = body?.userId;
+    if (userId == null) throw new BadRequestException('userId required');
+    return this.admin.mockTojGenerate({
+      userId,
+      count: Math.min(Math.max(Number(body?.count) || 10, 1), 500),
+      dateFrom: body?.dateFrom?.trim() || undefined,
+      dateTo: body?.dateTo?.trim() || undefined,
+    });
+  }
 }

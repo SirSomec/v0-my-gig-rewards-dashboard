@@ -470,3 +470,21 @@ export async function adminEtlExplorerQuery(sql: string): Promise<{
     body: JSON.stringify({ sql }),
   });
 }
+
+// --- Mock TOJ (мок смен для разработки) ---
+
+export async function adminMockTojStatus(): Promise<{ configured: boolean }> {
+  return fetchAdmin("/v1/admin/mock-toj/status");
+}
+
+export async function adminMockTojGenerate(body: {
+  userId: number;
+  count?: number;
+  dateFrom?: string;
+  dateTo?: string;
+}): Promise<{ generated: number }> {
+  return fetchAdmin("/v1/admin/mock-toj/generate", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}

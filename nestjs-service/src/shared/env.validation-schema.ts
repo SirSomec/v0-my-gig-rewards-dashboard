@@ -19,6 +19,9 @@ export interface Envs {
   ETL_PASSWORD?: string;
   ETL_DATABASE?: string;
   ETL_SSL_ROOT_CERT?: string;
+  /** Мок TOJ: URL сервиса (например http://mock-toj:3010) и ключ для эндпоинта генерации */
+  MOCK_TOJ_URL?: string;
+  MOCK_TOJ_ADMIN_KEY?: string;
   SERVICE_USERNAME?: string;
   SERVICE_PASSWORD?: string;
   DOC_RELATIVE_PATH?: string;
@@ -50,6 +53,8 @@ export const EnvValidationSchema = Joi.object<Envs, true>({
   ETL_PASSWORD: Joi.string().optional().allow(''),
   ETL_DATABASE: Joi.string().optional().allow(''),
   ETL_SSL_ROOT_CERT: Joi.string().optional().allow(''),
+  MOCK_TOJ_URL: Joi.string().optional().allow(''),
+  MOCK_TOJ_ADMIN_KEY: Joi.string().optional().allow(''),
   DOC_RELATIVE_PATH: Joi.string().optional(),
   LOG_PRETTY: Joi.string().optional(),
   LOG_BODY: Joi.string().optional(),
