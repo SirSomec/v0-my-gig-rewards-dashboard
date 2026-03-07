@@ -202,19 +202,18 @@ export class TojSyncService {
       );
     }
 
-    return {
+    const result: TojSyncResult = {
       processed,
       skipped,
-      skippedReasons:
-        skipped > 0
-          ? {
-              noUser: skippedReasons.noUser || undefined,
-              jobBeforeUser: skippedReasons.jobBeforeUser || undefined,
-              alreadySynced: skippedReasons.alreadySynced || undefined,
-            }
-          : undefined,
       errors,
       watermark: maxUpdatedAt,
     };
+    if (skipped > 0) {
+      result.skippedReasons = {};
+      if (skippedReasons.noUser > 0) result.skippedReasons.noUser = skippedReasons.noUser;
+      if (skippedReasons.jobBeforeUser > 0) result.skippedReasons.jobBeforeUser = skippedReasons.jobBeforeUser;
+      if (skippedReasons.alreadySynced > 0) result.skippedReasons.alreadySynced = skippedReasons.alreadySynced;
+    }
+    return result;
   }
 }

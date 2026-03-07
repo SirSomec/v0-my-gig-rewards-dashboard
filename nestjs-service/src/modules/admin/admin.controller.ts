@@ -389,13 +389,16 @@ export class AdminController {
     if (!jobId?.trim() || !workerId?.trim() || !jobStart?.trim() || !cancelledAt?.trim()) {
       throw new BadRequestException('jobId, workerId, jobStart, cancelledAt обязательны');
     }
-    return this.admin.processTojLateCancel({
+    const params: Parameters<AdminService['processTojLateCancel']>[0] = {
       jobId: jobId.trim(),
       workerId: workerId.trim(),
       jobStart: jobStart.trim(),
       cancelledAt: cancelledAt.trim(),
-      initiatorType: initiatorType?.trim(),
-      initiator: initiator?.trim(),
-    });
+    };
+    const t = initiatorType?.trim();
+    if (t !== undefined && t !== '') params.initiatorType = t;
+    const i = initiator?.trim();
+    if (i !== undefined && i !== '') params.initiator = i;
+    return this.admin.processTojLateCancel(params);
   }
 }

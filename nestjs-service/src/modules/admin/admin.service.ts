@@ -583,14 +583,15 @@ export class AdminService {
     initiatorType?: string;
     initiator?: string;
   }): Promise<{ applied: boolean; strikeId?: number; reason?: string }> {
-    const result = await this.rewards.processLateCancelIfEligible({
+    const payload: Parameters<RewardsService['processLateCancelIfEligible']>[0] = {
       jobId: params.jobId,
       workerId: params.workerId,
       jobStartIso: params.jobStart,
       cancelledAtIso: params.cancelledAt,
-      initiatorType: params.initiatorType,
-      initiator: params.initiator,
-    });
+    };
+    if (params.initiatorType != null && params.initiatorType !== '') payload.initiatorType = params.initiatorType;
+    if (params.initiator != null && params.initiator !== '') payload.initiator = params.initiator;
+    const result = await this.rewards.processLateCancelIfEligible(payload);
     if (result.applied && result.strikeId != null) {
       await this.logAudit('late_cancel_applied', 'strike', String(result.strikeId), undefined, {
         jobId: params.jobId,
