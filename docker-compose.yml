@@ -53,7 +53,8 @@ services:
       - ETL_DATABASE=${ETL_DATABASE:-}
       - ETL_SSL_ROOT_CERT=${ETL_SSL_ROOT_CERT:-}
     volumes:
-      # Монтируем .env в контейнер — NestJS читает его при старте (ConfigModule envFilePath)
+      # Монтируем .env в контейнер — NestJS читает его при старте (ConfigModule envFilePath).
+      # На хосте выполните: chmod 644 .env — иначе apiuser в контейнере не прочитает файл и контейнер будет перезапускаться.
       - ./.env:/app/.env:ro
     depends_on:
       db:
