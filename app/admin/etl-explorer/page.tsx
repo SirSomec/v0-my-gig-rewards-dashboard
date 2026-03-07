@@ -338,7 +338,6 @@ export default function AdminEtlExplorerPage() {
                           </Table>
                           <ScrollBar orientation="horizontal" />
                         </ScrollArea>
-                      </ScrollArea>
                     </div>
                   )}
                 </div>
