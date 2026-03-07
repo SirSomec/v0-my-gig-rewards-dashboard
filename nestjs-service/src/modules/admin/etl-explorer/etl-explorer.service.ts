@@ -7,23 +7,28 @@ import type { Envs } from '../../../shared/env.validation-schema';
 const PREVIEW_LIMIT = 100;
 const CUSTOM_QUERY_LIMIT = 200;
 
+/** Читает переменную из ConfigService или напрямую из process.env (для Docker env_file). */
+function getEtlEnv(config: ConfigService<Envs, true>, key: keyof Envs): string | undefined {
+  const v = config.get<string>(key);
+  if (v != null && String(v).trim() !== '') return String(v).trim();
+  const raw = process.env[key];
+  return raw != null && String(raw).trim() !== '' ? String(raw).trim() : undefined;
+}
+
 @Injectable()
 export class EtlExplorerService {
   constructor(private readonly config: ConfigService<Envs, true>) {}
 
   isConfigured(): boolean {
-    const host = this.config.get<string>('ETL_HOST');
-    const user = this.config.get<string>('ETL_USER');
-    const password = this.config.get<string>('ETL_PASSWORD');
+    const host = getEtlEnv(this.config, 'ETL_HOST');
+    const user = getEtlEnv(this.config, 'ETL_USER');
+    const password = getEtlEnv(this.config, 'ETL_PASSWORD');
     return !!(host && user && password);
   }
 
   /** Для диагностики: какие переменные ETL заданы (значения не возвращаем). */
   getEnvStatus(): { ETL_HOST: boolean; ETL_PORT: boolean; ETL_USER: boolean; ETL_PASSWORD: boolean; ETL_DATABASE: boolean; ETL_SSL_ROOT_CERT: boolean } {
-    const get = (key: keyof Envs) => {
-      const v = this.config.get<string>(key);
-      return v != null && String(v).trim() !== '';
-    };
+    const get = (key: keyof Envs) => !!getEtlEnv(this.config, key);
     return {
       ETL_HOST: get('ETL_HOST'),
       ETL_PORT: get('ETL_PORT'),
@@ -35,12 +40,16 @@ export class EtlExplorerService {
   }
 
   private buildConnection(): { client: Sql; end: () => Promise<void> } {
-    const host = this.config.getOrThrow<string>('ETL_HOST');
-    const port = this.config.get<string>('ETL_PORT') || '5432';
-    const user = this.config.getOrThrow<string>('ETL_USER');
-    const password = this.config.getOrThrow<string>('ETL_PASSWORD');
-    const database = this.config.get<string>('ETL_DATABASE') || user;
-    const sslRootCert = this.config.get<string>('ETL_SSL_ROOT_CERT');
+    const host = getEtlEnv(this.config, 'ETL_HOST');
+    const port = getEtlEnv(this.config, 'ETL_PORT') || '5432';
+    const user = getEtlEnv(this.config, 'ETL_USER');
+    const password = getEtlEnv(this.config, 'ETL_PASSWORD');
+    const database = getEtlEnv(this.config, 'ETL_DATABASE') || user;
+    const sslRootCert = getEtlEnv(this.config, 'ETL_SSL_ROOT_CERT');
+
+    if (!host || !user || !password) {
+      throw new Error('ETL_HOST, ETL_USER and ETL_PASSWORD are required');
+    }
 
     const url = new URL('postgres://');
     url.hostname = host;
