@@ -378,3 +378,46 @@ export async function adminListAuditLog(params?: {
   const q = searchParams.toString();
   return fetchAdmin(`/v1/admin/audit-log${q ? `?${q}` : ""}`);
 }
+
+// --- ETL Explorer (обзор данных и таблиц ETL) ---
+
+export async function adminEtlExplorerStatus(): Promise<{ configured: boolean }> {
+  return fetchAdmin("/v1/admin/etl-explorer/status");
+}
+
+export async function adminEtlExplorerSchemas(): Promise<{ schema_name: string }[]> {
+  return fetchAdmin("/v1/admin/etl-explorer/schemas");
+}
+
+export async function adminEtlExplorerTables(schema: string): Promise<{ table_name: string }[]> {
+  const q = new URLSearchParams({ schema });
+  return fetchAdmin(`/v1/admin/etl-explorer/tables?${q}`);
+}
+
+export async function adminEtlExplorerColumns(
+  schema: string,
+  table: string
+): Promise<{ column_name: string; data_type: string; is_nullable: string }[]> {
+  const q = new URLSearchParams({ schema, table });
+  return fetchAdmin(`/v1/admin/etl-explorer/columns?${q}`);
+}
+
+export async function adminEtlExplorerPreview(
+  schema: string,
+  table: string,
+  limit?: number
+): Promise<Record<string, unknown>[]> {
+  const params = new URLSearchParams({ schema, table });
+  if (limit != null) params.set("limit", String(limit));
+  return fetchAdmin(`/v1/admin/etl-explorer/preview?${params}`);
+}
+
+export async function adminEtlExplorerQuery(sql: string): Promise<{
+  rows: Record<string, unknown>[];
+  limited: boolean;
+}> {
+  return fetchAdmin("/v1/admin/etl-explorer/query", {
+    method: "POST",
+    body: JSON.stringify({ sql }),
+  });
+}

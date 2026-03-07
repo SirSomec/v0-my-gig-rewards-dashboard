@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Users, ShoppingBag, Gift, Layers, Zap, Target, Wallet, FileText, LayoutDashboard, Settings } from "lucide-react"
+import { Users, ShoppingBag, Gift, Layers, Zap, Target, Wallet, FileText, LayoutDashboard, Settings, Database } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const nav = [
@@ -15,6 +15,7 @@ const nav = [
   { href: "/admin/settings", label: "Настройки", icon: Settings },
   { href: "/admin/balance", label: "Ручные начисления", icon: Wallet },
   { href: "/admin/audit", label: "Аудит", icon: FileText },
+  { href: "/admin/etl-explorer", label: "Данные ETL", icon: Database },
   { href: "/admin/dev", label: "Мок: смены и штрафы", icon: Zap },
 ]
 

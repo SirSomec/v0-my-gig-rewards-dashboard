@@ -12,6 +12,13 @@ export interface Envs {
   REDIS_HOST?: string;
   REDIS_PORT?: number;
   REDIS_PASSWORD?: string;
+  /** ETL (MVP): хост источника данных */
+  ETL_HOST?: string;
+  ETL_PORT?: string;
+  ETL_USER?: string;
+  ETL_PASSWORD?: string;
+  ETL_DATABASE?: string;
+  ETL_SSL_ROOT_CERT?: string;
   SERVICE_USERNAME?: string;
   SERVICE_PASSWORD?: string;
   DOC_RELATIVE_PATH?: string;
@@ -37,6 +44,12 @@ export const EnvValidationSchema = Joi.object<Envs, true>({
   REDIS_HOST: Joi.string().optional(),
   REDIS_PORT: Joi.number().optional(),
   REDIS_PASSWORD: Joi.string().optional(),
+  ETL_HOST: Joi.string().optional(),
+  ETL_PORT: Joi.string().optional(),
+  ETL_USER: Joi.string().optional(),
+  ETL_PASSWORD: Joi.string().optional(),
+  ETL_DATABASE: Joi.string().optional(),
+  ETL_SSL_ROOT_CERT: Joi.string().optional(),
   DOC_RELATIVE_PATH: Joi.string().optional(),
   LOG_PRETTY: Joi.string().optional(),
   LOG_BODY: Joi.string().optional(),
