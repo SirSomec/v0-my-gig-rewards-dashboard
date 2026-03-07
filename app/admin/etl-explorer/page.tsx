@@ -221,8 +221,9 @@ export default function AdminEtlExplorerPage() {
               )}
               <p className="text-xs text-muted-foreground">
                 Если всё «нет» или ключи не найдены: .env должен быть в корне проекта (рядом с docker-compose.yml).
-                Запускайте из этой папки: <code className="bg-muted px-1 rounded">docker compose up -d api</code>.
-                Имена переменных строго: ETL_HOST, ETL_USER, ETL_PASSWORD (регистр важен). Перезапустите контейнер после правки .env.
+                Переменные подхватываются только при создании контейнера — после правки .env выполните:{" "}
+                <code className="bg-muted px-1 rounded">docker compose up -d --force-recreate api</code>.
+                Имена переменных строго: ETL_HOST, ETL_USER, ETL_PASSWORD (регистр важен).
               </p>
             </CardContent>
           </Card>

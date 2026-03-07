@@ -15,7 +15,7 @@
 | `ETL_USER` | Имя пользователя |
 | `ETL_PASSWORD` | Пароль |
 | `ETL_DATABASE` | (опционально) Имя БД |
-| `ETL_SSL_ROOT_CERT` | (опционально) Путь к CA для TLS, например `./certs/YandexCloudCA.pem` |
+| `ETL_SSL_ROOT_CERT` | (опционально) Путь к CA для TLS. В Docker не задавайте — сертификат Yandex Cloud уже есть в образе по умолчанию. |
 
 Пример в `.env`:
 
@@ -25,18 +25,21 @@ ETL_PORT=5432
 ETL_USER=mygig_ro
 ETL_PASSWORD=secret
 ETL_DATABASE=etl_db
-ETL_SSL_ROOT_CERT=./certs/YandexCloudCA.pem
+# ETL_SSL_ROOT_CERT — не нужна в Docker (сертификат уже в образе). Для локального запуска укажите путь к PEM при необходимости.
 ```
 
-**Проверка на сервере (Docker):** после правки `.env` перезапустите api и проверьте, что переменные попали в контейнер:
+**В Docker** образ API при сборке сам скачивает корневой и промежуточный CA Yandex Cloud в `/app/certs/YandexCloudCA.pem`. Переменная `ETL_SSL_ROOT_CERT` не нужна — при подключении к ETL используется этот файл, если путь не задан.
+
+**Проверка на сервере (Docker):** переменные из `.env` попадают в контейнер **только при его создании**. Если вы изменили `.env` после того, как контейнер уже был запущен, пересоздайте контейнер api:
+
 ```bash
 cd /opt/v0-my-gig-rewards-dashboard   # или ваш путь к проекту
-docker compose up -d api
+docker compose up -d --force-recreate api
 docker compose exec api env | grep ETL
 ```
-Должны появиться строки `ETL_HOST=...`, `ETL_USER=...`, `ETL_PASSWORD=...`. Если их нет — .env не в корне проекта или контейнер запущен из другой папки. Имена переменных должны быть **строго** в верхнем регистре: `ETL_HOST`, а не `etl_host`.
+Должны появиться строки `ETL_HOST=...`, `ETL_USER=...`, `ETL_PASSWORD=...`. Обычный `docker compose restart api` **не** подхватывает новый .env — нужен именно `--force-recreate`. Имена переменных должны быть **строго** в верхнем регистре: `ETL_HOST`, а не `etl_host`.
 
-Строку подключения (URL) при необходимости собирают из этих переменных в коде; сертификат по `ETL_SSL_ROOT_CERT` используется для проверки TLS при подключении к ETL.
+Строку подключения собирают из переменных в коде; для TLS используется сертификат из `ETL_SSL_ROOT_CERT` или (в Docker) из `/app/certs/YandexCloudCA.pem` по умолчанию.
 
 ## Зачем нужны сертификаты
 

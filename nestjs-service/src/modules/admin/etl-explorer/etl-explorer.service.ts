@@ -7,6 +7,9 @@ import type { Envs } from '../../../shared/env.validation-schema';
 const PREVIEW_LIMIT = 100;
 const CUSTOM_QUERY_LIMIT = 200;
 
+/** Путь к CA в образе Docker (сертификаты Yandex Cloud загружаются при сборке). */
+const ETL_DEFAULT_CA_PATH = '/app/certs/YandexCloudCA.pem';
+
 /** Читает переменную из ConfigService или напрямую из process.env (для Docker env_file). */
 function getEtlEnv(config: ConfigService<Envs, true>, key: keyof Envs): string | undefined {
   const v = config.get<string>(key);
@@ -55,7 +58,9 @@ export class EtlExplorerService {
 
     const port = getEtlEnv(this.config, 'ETL_PORT') || '5432';
     const database = getEtlEnv(this.config, 'ETL_DATABASE') || user;
-    const sslRootCert = getEtlEnv(this.config, 'ETL_SSL_ROOT_CERT');
+    const sslRootCert =
+      getEtlEnv(this.config, 'ETL_SSL_ROOT_CERT') ||
+      (existsSync(ETL_DEFAULT_CA_PATH) ? ETL_DEFAULT_CA_PATH : undefined);
 
     const url = new URL('postgres://');
     url.hostname = host;

@@ -28,6 +28,14 @@ COPY --from=builder /app/migrations ./migrations
 COPY --from=builder /app/scripts/docker-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# Сертификаты Yandex Cloud для ETL (подключение к БД/источникам в Yandex Cloud)
+RUN apk add --no-cache wget \
+  && mkdir -p /app/certs \
+  && wget -q -O /app/certs/RootCA.pem "https://storage.yandexcloud.net/cloud-certs/RootCA.pem" \
+  && wget -q -O /app/certs/IntermediateCA.pem "https://storage.yandexcloud.net/cloud-certs/IntermediateCA.pem" \
+  && cat /app/certs/RootCA.pem /app/certs/IntermediateCA.pem > /app/certs/YandexCloudCA.pem \
+  && chown -R apiuser:nodejs /app/certs
+
 USER apiuser
 
 EXPOSE 3001
