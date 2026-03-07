@@ -169,6 +169,22 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/v1/rewards/me?userI
 
 Сайт доступен по адресу `http://ВАШ_IP:3000`, API — по `http://ВАШ_IP:3001`.
 
+**Синхронизация смен из TOJ (мок).** Если используете мок TOJ для смен:
+
+1. **Запустите сервис мока** (вместе с app, api, db):  
+   `docker compose up -d mock-toj`  
+   Или при старте всех сервисов: `docker compose up -d` (в compose описан сервис `mock-toj`).
+
+2. **В `.env` не используйте `localhost` для TOJ.** Контейнер API обращается к моку по сети Docker: имя хоста должен быть **`mock-toj`** (имя сервиса в docker-compose). Иначе в логах API появится `ECONNREFUSED 127.0.0.1:3010` — контейнер пытается подключиться к порту 3010 на самом себе.
+
+   Задайте в `.env` (или не задавайте — в compose стоят дефолты):
+   - `TOJ_BASE_URL=http://mock-toj:3010`
+   - `MOCK_TOJ_URL=http://mock-toj:3010`
+
+   После смены перезапустите API: `docker compose restart api`.
+
+3. Проверка: `docker compose ps` — сервис `mock-toj` в состоянии running; в админке раздел «Мок TOJ» должен показывать смены после генерации.
+
 **Если в логах API ошибка** `Config validation error: "MONGO_CONNECTION" is required...`:
 
 1. На сервере проверьте, что в коде схема с опциональными полями:  

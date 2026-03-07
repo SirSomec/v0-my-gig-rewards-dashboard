@@ -529,6 +529,7 @@ export async function adminTojSyncStatus(): Promise<{
 export async function adminTojSyncRun(): Promise<{
   processed: number;
   skipped: number;
+  skippedReasons?: { noUser?: number; jobBeforeUser?: number; alreadySynced?: number };
   errors: string[];
   watermark?: string;
 }> {

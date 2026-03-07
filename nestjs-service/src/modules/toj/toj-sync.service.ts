@@ -14,6 +14,8 @@ const WATERMARK_KEY = 'toj_sync_last_updated_at';
 export interface TojSyncResult {
   processed: number;
   skipped: number;
+  /** Причины пропуска: счётчики по коду причины */
+  skippedReasons?: { noUser?: number; jobBeforeUser?: number; alreadySynced?: number };
   errors: string[];
   watermark?: string;
 }
@@ -116,6 +118,11 @@ export class TojSyncService {
 
     let processed = 0;
     let skipped = 0;
+    const skippedReasons: { noUser: number; jobBeforeUser: number; alreadySynced: number } = {
+      noUser: 0,
+      jobBeforeUser: 0,
+      alreadySynced: 0,
+    };
     const errors: string[] = [];
     let maxUpdatedAt = watermark;
 
@@ -142,11 +149,13 @@ export class TojSyncService {
           const user = job.workerId ? userByWorkerId.get(String(job.workerId).trim()) : undefined;
           if (!user) {
             skipped++;
+            skippedReasons.noUser++;
             continue;
           }
           const jobDate = job.start || job.createdAt;
           if (jobDate && user.createdAt && new Date(jobDate) < new Date(user.createdAt)) {
             skipped++;
+            skippedReasons.jobBeforeUser++;
             continue;
           }
           const [existing] = await this.db
@@ -158,6 +167,7 @@ export class TojSyncService {
             .limit(1);
           if (existing) {
             skipped++;
+            skippedReasons.alreadySynced++;
             continue;
           }
           try {
@@ -192,6 +202,19 @@ export class TojSyncService {
       );
     }
 
-    return { processed, skipped, errors, watermark: maxUpdatedAt };
+    return {
+      processed,
+      skipped,
+      skippedReasons:
+        skipped > 0
+          ? {
+              noUser: skippedReasons.noUser || undefined,
+              jobBeforeUser: skippedReasons.jobBeforeUser || undefined,
+              alreadySynced: skippedReasons.alreadySynced || undefined,
+            }
+          : undefined,
+      errors,
+      watermark: maxUpdatedAt,
+    };
   }
 }

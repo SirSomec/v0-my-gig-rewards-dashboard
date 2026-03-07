@@ -69,6 +69,7 @@ export default function AdminMockTojPage() {
   const [syncResult, setSyncResult] = useState<{
     processed: number
     skipped: number
+    skippedReasons?: { noUser?: number; jobBeforeUser?: number; alreadySynced?: number }
     errors: string[]
     watermark?: string
   } | null>(null)
@@ -219,6 +220,27 @@ export default function AdminMockTojPage() {
           {syncResult && (
             <div className="text-xs text-muted-foreground space-y-1">
               <p>Обработано: {syncResult.processed}, пропущено: {syncResult.skipped}</p>
+              {syncResult.skippedReasons &&
+                (syncResult.skippedReasons.noUser > 0 ||
+                  syncResult.skippedReasons.jobBeforeUser > 0 ||
+                  syncResult.skippedReasons.alreadySynced > 0) && (
+                  <p className="text-amber-600 dark:text-amber-500">
+                    Причины пропуска:{" "}
+                    {[
+                      syncResult.skippedReasons.noUser
+                        ? `нет пользователя с external_id = workerId смены (${syncResult.skippedReasons.noUser})`
+                        : null,
+                      syncResult.skippedReasons.jobBeforeUser
+                        ? `дата смены раньше регистрации пользователя (${syncResult.skippedReasons.jobBeforeUser})`
+                        : null,
+                      syncResult.skippedReasons.alreadySynced
+                        ? `уже учтена ранее (${syncResult.skippedReasons.alreadySynced})`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join("; ")}
+                  </p>
+                )}
               {syncResult.watermark && (
                 <p>Watermark: {syncResult.watermark}</p>
               )}
