@@ -244,6 +244,27 @@ export class EtlExplorerService {
     return { connectionInfo, databases, schemas };
   }
 
+  /**
+   * Данные пользователя из ETL (таблица etl.mg_users): _id, firstname, lastname.
+   * Используется при создании пользователя в админке для подстановки имени в личный кабинет.
+   */
+  async getMgUserByExternalId(externalId: string): Promise<{ _id: string; firstname: string; lastname: string } | null> {
+    if (!externalId?.trim()) return null;
+    if (!this.isClickHouse()) return null;
+    const escaped = String(externalId).trim().replace(/'/g, "''");
+    const rows = await this.clickHouseRequest<{ _id: string; firstname: string; lastname: string }>(
+      `SELECT \`_id\`, \`firstname\`, \`lastname\` FROM \`etl\`.\`mg_users\` WHERE \`_id\` = '${escaped}' LIMIT 1`,
+      'etl',
+    );
+    const r = rows[0];
+    if (!r || r._id == null) return null;
+    return {
+      _id: String(r._id),
+      firstname: r.firstname != null ? String(r.firstname) : '',
+      lastname: r.lastname != null ? String(r.lastname) : '',
+    };
+  }
+
   private async runWithClient<T>(fn: (sql: Sql) => Promise<T>): Promise<T> {
     const { client, end } = this.buildConnection();
     try {

@@ -22,6 +22,7 @@ export class AdminService {
         id: users.id,
         name: users.name,
         email: users.email,
+        externalId: users.externalId,
         balance: users.balance,
         shiftsCompleted: users.shiftsCompleted,
         levelId: users.levelId,
@@ -37,10 +38,41 @@ export class AdminService {
           sql`${users.id}::text LIKE ${term}`,
           ilike(users.name, term),
           ilike(users.email, term),
+          ilike(users.externalId, term),
         ),
       ) as typeof query;
     }
     return query;
+  }
+
+  /** Создание пользователя по ID основной системы; имя отображается в личном кабинете (имя + фамилия из ETL). */
+  async createUser(externalId: string, name: string): Promise<{ id: number }> {
+    const { users, levels } = schema;
+    const extId = externalId?.trim();
+    const nameVal = name?.trim() || '';
+    if (!extId) throw new BadRequestException('externalId is required');
+    const [existing] = await this.db.select({ id: users.id }).from(users).where(eq(users.externalId, extId)).limit(1);
+    if (existing) throw new BadRequestException(`Пользователь с external_id "${extId}" уже существует (id=${existing.id})`);
+    const [baseLevel] = await this.db
+      .select({ id: levels.id })
+      .from(levels)
+      .orderBy(asc(levels.sortOrder))
+      .limit(1);
+    if (!baseLevel) throw new BadRequestException('В системе нет ни одного уровня. Создайте уровень в админке.');
+    const [row] = await this.db
+      .insert(users)
+      .values({
+        externalId: extId,
+        name: nameVal || null,
+        email: null,
+        avatarUrl: null,
+        balance: 0,
+        levelId: baseLevel.id,
+        shiftsCompleted: 0,
+      })
+      .returning({ id: users.id });
+    if (!row) throw new Error('Insert user failed');
+    return { id: row.id };
   }
 
   async getUserDetail(userId: number) {

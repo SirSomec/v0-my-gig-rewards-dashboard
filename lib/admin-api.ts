@@ -35,6 +35,7 @@ export interface AdminUser {
   id: number;
   name: string | null;
   email: string | null;
+  externalId?: string | null;
   balance: number;
   shiftsCompleted: number;
   levelId: number;
@@ -163,6 +164,31 @@ export async function adminUpdateUserLevel(
   return fetchAdmin(`/v1/admin/users/${id}`, {
     method: "PATCH",
     body: JSON.stringify({ levelId }),
+  });
+}
+
+export interface EtlMgUser {
+  _id: string;
+  firstname: string;
+  lastname: string;
+}
+
+export async function adminGetEtlUserByExternalId(
+  externalId: string
+): Promise<EtlMgUser> {
+  const params = new URLSearchParams({ externalId });
+  return fetchAdmin<EtlMgUser>(`/v1/admin/etl-explorer/user-by-id?${params}`);
+}
+
+export async function adminCreateUser(body: {
+  externalId: string;
+  name?: string;
+  firstname?: string;
+  lastname?: string;
+}): Promise<{ id: number }> {
+  return fetchAdmin("/v1/admin/users", {
+    method: "POST",
+    body: JSON.stringify(body),
   });
 }
 

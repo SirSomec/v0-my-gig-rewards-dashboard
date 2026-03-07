@@ -63,6 +63,21 @@ export class AdminController {
     return this.admin.updateUserLevel(userId, levelId);
   }
 
+  @Post('users')
+  @ApiOperation({ summary: 'Создать пользователя по ID основной системы; имя отображается в личном кабинете' })
+  async createUser(
+    @Body() body: { externalId: string; name?: string; firstname?: string; lastname?: string },
+  ) {
+    const { externalId, name, firstname, lastname } = body ?? {};
+    let displayName = name?.trim();
+    if (displayName === undefined || displayName === '') {
+      const fn = (firstname ?? '').trim();
+      const ln = (lastname ?? '').trim();
+      displayName = [fn, ln].filter(Boolean).join(' ') || '';
+    }
+    return this.admin.createUser((externalId ?? '').trim(), displayName);
+  }
+
   @Post('transactions')
   @ApiOperation({ summary: 'Ручное начисление или списание монет (6.6)' })
   async manualCreditDebit(

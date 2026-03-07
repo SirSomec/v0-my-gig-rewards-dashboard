@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  NotFoundException,
   Post,
   Query,
   ServiceUnavailableException,
@@ -75,6 +76,16 @@ export class EtlExplorerController {
   async getSchemas(): Promise<{ schema_name: string }[]> {
     this.ensureConfigured();
     return this.etl.getSchemas();
+  }
+
+  @Get('user-by-id')
+  @ApiOperation({ summary: 'Данные пользователя из ETL (etl.mg_users): _id, firstname, lastname — для подстановки при создании пользователя' })
+  async getMgUserByExternalId(@Query('externalId') externalId: string): Promise<{ _id: string; firstname: string; lastname: string }> {
+    this.ensureConfigured();
+    if (!externalId?.trim()) throw new BadRequestException('externalId is required');
+    const user = await this.etl.getMgUserByExternalId(externalId.trim());
+    if (!user) throw new NotFoundException('Пользователь не найден в ETL (таблица etl.mg_users) или ETL не является ClickHouse');
+    return user;
   }
 
   @Get('tables')
