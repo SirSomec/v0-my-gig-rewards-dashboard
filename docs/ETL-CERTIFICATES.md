@@ -28,6 +28,14 @@ ETL_DATABASE=etl_db
 ETL_SSL_ROOT_CERT=./certs/YandexCloudCA.pem
 ```
 
+**Проверка на сервере (Docker):** после правки `.env` перезапустите api и проверьте, что переменные попали в контейнер:
+```bash
+cd /opt/v0-my-gig-rewards-dashboard   # или ваш путь к проекту
+docker compose up -d api
+docker compose exec api env | grep ETL
+```
+Должны появиться строки `ETL_HOST=...`, `ETL_USER=...`, `ETL_PASSWORD=...`. Если их нет — .env не в корне проекта или контейнер запущен из другой папки. Имена переменных должны быть **строго** в верхнем регистре: `ETL_HOST`, а не `etl_host`.
+
 Строку подключения (URL) при необходимости собирают из этих переменных в коде; сертификат по `ETL_SSL_ROOT_CERT` используется для проверки TLS при подключении к ETL.
 
 ## Зачем нужны сертификаты

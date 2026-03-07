@@ -39,6 +39,11 @@ export class EtlExplorerService {
     };
   }
 
+  /** Ключи с префиксом ETL_ в process.env (для диагностики: видит ли контейнер переменные). */
+  getProcessEnvEtlKeys(): string[] {
+    return Object.keys(process.env).filter((k) => k.startsWith('ETL_'));
+  }
+
   private buildConnection(): { client: Sql; end: () => Promise<void> } {
     const host = getEtlEnv(this.config, 'ETL_HOST');
     const user = getEtlEnv(this.config, 'ETL_USER');

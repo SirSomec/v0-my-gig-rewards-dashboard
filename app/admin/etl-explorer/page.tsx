@@ -78,6 +78,7 @@ function QueryResultTable({
 export default function AdminEtlExplorerPage() {
   const [configured, setConfigured] = useState<boolean | null>(null)
   const [envStatus, setEnvStatus] = useState<Record<string, boolean> | null>(null)
+  const [processEnvEtlKeys, setProcessEnvEtlKeys] = useState<string[] | null>(null)
   const [schemas, setSchemas] = useState<{ schema_name: string }[]>([])
   const [tables, setTables] = useState<{ table_name: string }[]>([])
   const [columns, setColumns] = useState<{ column_name: string; data_type: string; is_nullable: string }[]>([])
@@ -100,6 +101,7 @@ export default function AdminEtlExplorerPage() {
       .then((r) => {
         setConfigured(r.configured)
         setEnvStatus(r.env ?? null)
+        setProcessEnvEtlKeys(r.processEnvEtlKeys ?? null)
         if (r.configured) loadSchemas()
       })
       .catch(() => {
@@ -212,9 +214,15 @@ export default function AdminEtlExplorerPage() {
                   )
                 )}
               </div>
+              {processEnvEtlKeys && (
+                <p className="text-xs text-muted-foreground">
+                  В process.env контейнера найдены ключи ETL_*: {processEnvEtlKeys.length ? processEnvEtlKeys.join(", ") : "ни одного"}.
+                </p>
+              )}
               <p className="text-xs text-muted-foreground">
-                Для Docker: .env должен быть в корне проекта (рядом с docker-compose.yml), в api добавлен env_file: .env.
-                Перезапустите контейнер: docker compose up -d api
+                Если всё «нет» или ключи не найдены: .env должен быть в корне проекта (рядом с docker-compose.yml).
+                Запускайте из этой папки: <code className="bg-muted px-1 rounded">docker compose up -d api</code>.
+                Имена переменных строго: ETL_HOST, ETL_USER, ETL_PASSWORD (регистр важен). Перезапустите контейнер после правки .env.
               </p>
             </CardContent>
           </Card>

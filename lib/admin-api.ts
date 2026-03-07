@@ -384,6 +384,7 @@ export async function adminListAuditLog(params?: {
 export async function adminEtlExplorerStatus(): Promise<{
   configured: boolean;
   env?: Record<string, boolean>;
+  processEnvEtlKeys?: string[];
 }> {
   return fetchAdmin("/v1/admin/etl-explorer/status");
 }
