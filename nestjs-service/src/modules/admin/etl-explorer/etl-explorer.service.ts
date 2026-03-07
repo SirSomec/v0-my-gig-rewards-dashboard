@@ -18,6 +18,22 @@ export class EtlExplorerService {
     return !!(host && user && password);
   }
 
+  /** Для диагностики: какие переменные ETL заданы (значения не возвращаем). */
+  getEnvStatus(): { ETL_HOST: boolean; ETL_PORT: boolean; ETL_USER: boolean; ETL_PASSWORD: boolean; ETL_DATABASE: boolean; ETL_SSL_ROOT_CERT: boolean } {
+    const get = (key: string) => {
+      const v = this.config.get<string>(key);
+      return v != null && String(v).trim() !== '';
+    };
+    return {
+      ETL_HOST: get('ETL_HOST'),
+      ETL_PORT: get('ETL_PORT'),
+      ETL_USER: get('ETL_USER'),
+      ETL_PASSWORD: get('ETL_PASSWORD'),
+      ETL_DATABASE: get('ETL_DATABASE'),
+      ETL_SSL_ROOT_CERT: get('ETL_SSL_ROOT_CERT'),
+    };
+  }
+
   private buildConnection(): { client: Sql; end: () => Promise<void> } {
     const host = this.config.getOrThrow<string>('ETL_HOST');
     const port = this.config.get<string>('ETL_PORT') || '5432';

@@ -381,7 +381,10 @@ export async function adminListAuditLog(params?: {
 
 // --- ETL Explorer (обзор данных и таблиц ETL) ---
 
-export async function adminEtlExplorerStatus(): Promise<{ configured: boolean }> {
+export async function adminEtlExplorerStatus(): Promise<{
+  configured: boolean;
+  env?: Record<string, boolean>;
+}> {
   return fetchAdmin("/v1/admin/etl-explorer/status");
 }
 

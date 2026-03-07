@@ -77,6 +77,7 @@ function QueryResultTable({
 
 export default function AdminEtlExplorerPage() {
   const [configured, setConfigured] = useState<boolean | null>(null)
+  const [envStatus, setEnvStatus] = useState<Record<string, boolean> | null>(null)
   const [schemas, setSchemas] = useState<{ schema_name: string }[]>([])
   const [tables, setTables] = useState<{ table_name: string }[]>([])
   const [columns, setColumns] = useState<{ column_name: string; data_type: string; is_nullable: string }[]>([])
@@ -98,9 +99,13 @@ export default function AdminEtlExplorerPage() {
     adminEtlExplorerStatus()
       .then((r) => {
         setConfigured(r.configured)
+        setEnvStatus(r.env ?? null)
         if (r.configured) loadSchemas()
       })
-      .catch(() => setConfigured(false))
+      .catch(() => {
+        setConfigured(false)
+        setEnvStatus(null)
+      })
       .finally(() => setLoadingStatus(false))
   }, [])
 
@@ -191,6 +196,29 @@ export default function AdminEtlExplorerPage() {
             (и при необходимости ETL_DATABASE, ETL_SSL_ROOT_CERT). Перезапустите бэкенд и обновите страницу.
           </AlertDescription>
         </Alert>
+        {envStatus && (
+          <Card>
+            <CardHeader className="py-2 text-sm font-medium">Что видит бэкенд (переменные заданы?)</CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex flex-wrap gap-4 text-sm">
+                {(["ETL_HOST", "ETL_PORT", "ETL_USER", "ETL_PASSWORD", "ETL_DATABASE", "ETL_SSL_ROOT_CERT"] as const).map(
+                  (key) => (
+                    <span
+                      key={key}
+                      className={envStatus[key] ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}
+                    >
+                      {key}: {envStatus[key] ? "да" : "нет"}
+                    </span>
+                  )
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Для Docker: .env должен быть в корне проекта (рядом с docker-compose.yml), в api добавлен env_file: .env.
+                Перезапустите контейнер: docker compose up -d api
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     )
   }

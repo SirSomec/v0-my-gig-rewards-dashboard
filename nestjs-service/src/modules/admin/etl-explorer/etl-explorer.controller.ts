@@ -28,8 +28,10 @@ export class EtlExplorerController {
 
   @Get('status')
   @ApiOperation({ summary: 'Проверка: настроено ли подключение к ETL' })
-  getStatus(): { configured: boolean } {
-    return { configured: this.etl.isConfigured() };
+  getStatus(): { configured: boolean; env?: Record<string, boolean> } {
+    const configured = this.etl.isConfigured();
+    const env = this.etl.getEnvStatus();
+    return { configured, env };
   }
 
   @Get('schemas')
