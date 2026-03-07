@@ -516,3 +516,21 @@ export async function adminMockTojGenerate(body: {
     body: JSON.stringify(body),
   });
 }
+
+// --- TOJ Sync (синхронизация смен из TOJ) ---
+
+export async function adminTojSyncStatus(): Promise<{
+  configured: boolean;
+  syncEnabled: boolean;
+}> {
+  return fetchAdmin("/v1/admin/toj-sync/status");
+}
+
+export async function adminTojSyncRun(): Promise<{
+  processed: number;
+  skipped: number;
+  errors: string[];
+  watermark?: string;
+}> {
+  return fetchAdmin("/v1/admin/toj-sync/run", { method: "POST" });
+}

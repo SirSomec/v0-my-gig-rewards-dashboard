@@ -55,6 +55,13 @@ services:
       # Мок TOJ: URL и ключ для эндпоинта генерации из админки
       - MOCK_TOJ_URL=${MOCK_TOJ_URL:-http://mock-toj:3010}
       - MOCK_TOJ_ADMIN_KEY=${MOCK_TOJ_ADMIN_KEY:-mock-admin-key}
+      # TOJ: источник смен для синхронизации (в dev — мок)
+      - TOJ_BASE_URL=${TOJ_BASE_URL:-http://mock-toj:3010}
+      - TOJ_USER=${TOJ_USER:-mock}
+      - TOJ_PASSWORD=${TOJ_PASSWORD:-mock}
+      - TOJ_SYNC_ENABLED=${TOJ_SYNC_ENABLED:-true}
+      - TOJ_SYNC_MAX_JOBS_PER_RUN=${TOJ_SYNC_MAX_JOBS_PER_RUN:-1000}
+      - TOJ_SYNC_INITIAL_DAYS_AGO=${TOJ_SYNC_INITIAL_DAYS_AGO:-7}
     volumes:
       # Монтируем .env в контейнер — NestJS читает его при старте (ConfigModule envFilePath).
       # На хосте выполните: chmod 644 .env — иначе apiuser в контейнере не прочитает файл и контейнер будет перезапускаться.

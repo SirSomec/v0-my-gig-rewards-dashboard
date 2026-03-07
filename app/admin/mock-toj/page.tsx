@@ -5,6 +5,8 @@ import {
   adminMockTojStatus,
   adminMockTojGenerate,
   adminMockTojListJobs,
+  adminTojSyncStatus,
+  adminTojSyncRun,
   adminListUsers,
 } from "@/lib/admin-api"
 import type { AdminUser, MockTojJob } from "@/lib/admin-api"
@@ -29,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { RefreshCw } from "lucide-react"
+import { RefreshCw, Play } from "lucide-react"
 
 function formatDate(iso: string | undefined): string {
   if (!iso) return "—"
@@ -59,6 +61,17 @@ export default function AdminMockTojPage() {
   const [jobs, setJobs] = useState<MockTojJob[]>([])
   const [jobsTotal, setJobsTotal] = useState(0)
   const [jobsLoading, setJobsLoading] = useState(false)
+  const [syncStatus, setSyncStatus] = useState<{
+    configured: boolean
+    syncEnabled: boolean
+  } | null>(null)
+  const [syncRunning, setSyncRunning] = useState(false)
+  const [syncResult, setSyncResult] = useState<{
+    processed: number
+    skipped: number
+    errors: string[]
+    watermark?: string
+  } | null>(null)
   const { toast } = useToast()
 
   const loadJobs = useCallback(() => {
@@ -80,6 +93,12 @@ export default function AdminMockTojPage() {
     adminMockTojStatus()
       .then((r) => setConfigured(r.configured))
       .catch(() => setConfigured(false))
+  }, [])
+
+  useEffect(() => {
+    adminTojSyncStatus()
+      .then(setSyncStatus)
+      .catch(() => setSyncStatus(null))
   }, [])
 
   useEffect(() => {
@@ -130,6 +149,23 @@ export default function AdminMockTojPage() {
       .finally(() => setSubmitting(false))
   }
 
+  const handleSyncRun = () => {
+    setSyncRunning(true)
+    setSyncResult(null)
+    adminTojSyncRun()
+      .then((r) => {
+        setSyncResult(r)
+        toast({
+          title: `Обработано: ${r.processed}, пропущено: ${r.skipped}`,
+          variant: r.errors.length ? "destructive" : "default",
+        })
+      })
+      .catch((e) => {
+        toast({ title: e instanceof Error ? e.message : "Ошибка", variant: "destructive" })
+      })
+      .finally(() => setSyncRunning(false))
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-lg font-semibold">Мок TOJ (смены)</h1>
@@ -143,6 +179,42 @@ export default function AdminMockTojPage() {
           </AlertDescription>
         </Alert>
       )}
+
+      <Card>
+        <CardHeader className="py-2 text-sm font-medium">
+          Синхронизация смен из TOJ
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {syncStatus && (
+            <p className="text-xs text-muted-foreground">
+              TOJ настроен: {syncStatus.configured ? "да" : "нет"}. Синхронизация
+              включена: {syncStatus.syncEnabled ? "да" : "нет"} (
+              TOJ_SYNC_ENABLED=true).
+            </p>
+          )}
+          <Button
+            onClick={handleSyncRun}
+            disabled={syncRunning || !syncStatus?.configured || !syncStatus?.syncEnabled}
+          >
+            <Play size={14} className="mr-1" />
+            {syncRunning ? "Синхронизация…" : "Синхронизировать смены"}
+          </Button>
+          {syncResult && (
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p>Обработано: {syncResult.processed}, пропущено: {syncResult.skipped}</p>
+              {syncResult.watermark && (
+                <p>Watermark: {syncResult.watermark}</p>
+              )}
+              {syncResult.errors.length > 0 && (
+                <p className="text-destructive">
+                  Ошибки: {syncResult.errors.slice(0, 5).join("; ")}
+                  {syncResult.errors.length > 5 && " …"}
+                </p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="py-2 text-sm font-medium">

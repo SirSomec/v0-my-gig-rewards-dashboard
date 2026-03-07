@@ -507,6 +507,7 @@ export class RewardsService {
    * Засчитать завершённую смену: начисление монет, транзакция, +1 к shifts_completed, пересчёт уровня.
    * Если переданы hours — бонус считается автоматически: ceil(hours) * множитель_по_умолчанию * множитель_уровня.
    * Иначе используется переданное coins (ручной ввод).
+   * Если передан sourceRef — идемпотентность: при существующей транзакции type=shift с таким source_ref возвращаем её id.
    */
   async recordShiftCompleted(
     userId: number,
@@ -516,8 +517,21 @@ export class RewardsService {
     clientId?: string,
     category?: string,
     hours?: number,
+    sourceRef?: string,
   ): Promise<{ transactionId: number }> {
     const { users, transactions, levels } = schema;
+    if (sourceRef != null && sourceRef !== '') {
+      const [existing] = await this.db
+        .select({ id: transactions.id })
+        .from(transactions)
+        .where(
+          and(eq(transactions.type, 'shift'), eq(transactions.sourceRef, sourceRef)),
+        )
+        .limit(1);
+      if (existing) {
+        return { transactionId: existing.id };
+      }
+    }
     const [user] = await this.db
       .select({ user: users, level: levels })
       .from(users)
@@ -543,6 +557,7 @@ export class RewardsService {
         userId,
         amount,
         type: 'shift',
+        sourceRef: sourceRef ?? undefined,
         title: title ?? 'Смена',
         location: location ?? undefined,
         clientId: clientId ?? undefined,

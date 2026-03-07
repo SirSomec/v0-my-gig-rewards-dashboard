@@ -9,7 +9,7 @@
 - **Отдельный сервис** `mock-toj-service/` (Express), порт 3010. Запуск: `docker-compose up mock-toj` или из папки `mock-toj-service` — `npm start`.
 - **Эндпоинты TOJ:** `POST /job.find-many.query`, `POST /job.count.query`, `POST /job.find-by-id.query` — Basic Auth из env (`MOCK_TOJ_USER`, `MOCK_TOJ_PASSWORD`).
 - **Генерация из админки:** `POST /admin/generate-jobs` (защита по `X-Admin-Key` = `MOCK_TOJ_ADMIN_KEY`). Бэкенд проксирует вызов: `POST /v1/admin/mock-toj/generate` с телом `{ userId, count?, dateFrom?, dateTo? }` — подставляется `external_id` выбранного пользователя.
-- **Админка:** раздел «Мок TOJ (смены)» — выбор пользователя (из списка с external_id), количество смен, период, кнопка «Сгенерировать смены».
+- **Админка:** раздел «Мок TOJ (смены)» — выбор пользователя (из списка с external_id), количество смен, период, кнопка «Сгенерировать смены»; блок «Сгенерированные смены» — таблица с просмотром списка (эндпоинт `GET /admin/jobs` в моке, проксируется через `GET /v1/admin/mock-toj/jobs`); блок «Синхронизация смен из TOJ» — запуск синхронизации из админки (см. [TOJ-SYNC-PLAN.md](./TOJ-SYNC-PLAN.md)).
 - Переменные окружения: см. `.env.example` (MOCK_TOJ_*, в api — MOCK_TOJ_URL, MOCK_TOJ_ADMIN_KEY).
 
 ---

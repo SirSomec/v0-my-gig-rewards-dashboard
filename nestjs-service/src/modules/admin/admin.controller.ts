@@ -15,6 +15,7 @@ import { AdminGuard } from './admin.guard';
 import { AdminService } from './admin.service';
 import { CreateQuestDto, CreateStoreItemDto, UpdateLevelDto, UpdateQuestDto, UpdateStoreItemDto } from './dto/admin.dto';
 import { RewardsService } from '../rewards/rewards.service';
+import { TojSyncService } from '../toj/toj-sync.service';
 
 @ApiTags('admin')
 @Controller({ path: 'admin', version: '1' })
@@ -23,6 +24,7 @@ export class AdminController {
   constructor(
     private readonly admin: AdminService,
     private readonly rewards: RewardsService,
+    private readonly tojSync: TojSyncService,
   ) {}
 
   @Get('users')
@@ -342,5 +344,17 @@ export class AdminController {
     const to = body?.dateTo?.trim();
     if (to) params.dateTo = to;
     return this.admin.mockTojGenerate(params);
+  }
+
+  @Get('toj-sync/status')
+  @ApiOperation({ summary: 'Статус синхронизации смен из TOJ (настроен ли клиент, включена ли синхронизация)' })
+  getTojSyncStatus() {
+    return this.tojSync.getStatus();
+  }
+
+  @Post('toj-sync/run')
+  @ApiOperation({ summary: 'Запустить синхронизацию смен из TOJ' })
+  async runTojSync() {
+    return this.tojSync.runSync();
   }
 }

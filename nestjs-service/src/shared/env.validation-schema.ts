@@ -22,6 +22,15 @@ export interface Envs {
   /** Мок TOJ: URL сервиса (например http://mock-toj:3010) и ключ для эндпоинта генерации */
   MOCK_TOJ_URL?: string;
   MOCK_TOJ_ADMIN_KEY?: string;
+  /** TOJ API: источник смен (боевой или мок). Синхронизация смен из TOJ. */
+  TOJ_BASE_URL?: string;
+  TOJ_USER?: string;
+  TOJ_PASSWORD?: string;
+  TOJ_SYNC_ENABLED?: string;
+  TOJ_SYNC_MAX_JOBS_PER_RUN?: number;
+  TOJ_SYNC_INITIAL_DAYS_AGO?: number;
+  TOJ_SYNC_WORKER_BATCH_SIZE?: number;
+  TOJ_SYNC_PAGE_SIZE?: number;
   SERVICE_USERNAME?: string;
   SERVICE_PASSWORD?: string;
   DOC_RELATIVE_PATH?: string;
@@ -55,6 +64,14 @@ export const EnvValidationSchema = Joi.object<Envs, true>({
   ETL_SSL_ROOT_CERT: Joi.string().optional().allow(''),
   MOCK_TOJ_URL: Joi.string().optional().allow(''),
   MOCK_TOJ_ADMIN_KEY: Joi.string().optional().allow(''),
+  TOJ_BASE_URL: Joi.string().optional().allow(''),
+  TOJ_USER: Joi.string().optional().allow(''),
+  TOJ_PASSWORD: Joi.string().optional().allow(''),
+  TOJ_SYNC_ENABLED: Joi.string().optional().allow(''),
+  TOJ_SYNC_MAX_JOBS_PER_RUN: Joi.number().optional(),
+  TOJ_SYNC_INITIAL_DAYS_AGO: Joi.number().optional(),
+  TOJ_SYNC_WORKER_BATCH_SIZE: Joi.number().optional(),
+  TOJ_SYNC_PAGE_SIZE: Joi.number().optional(),
   DOC_RELATIVE_PATH: Joi.string().optional(),
   LOG_PRETTY: Joi.string().optional(),
   LOG_BODY: Joi.string().optional(),
