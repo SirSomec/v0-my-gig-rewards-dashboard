@@ -33,6 +33,48 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Textarea } from "@/components/ui/textarea"
 import { Database, Table as TableIcon, AlertCircle } from "lucide-react"
 
+function QueryResultTable({
+  result,
+}: {
+  result: { rows: Record<string, unknown>[]; limited: boolean }
+}) {
+  const keys = result.rows.length > 0 ? Object.keys(result.rows[0]) : []
+  return (
+    <div className="border rounded-md">
+      {result.limited && (
+        <p className="text-xs text-muted-foreground px-3 py-1 bg-muted">
+          Результат ограничен 200 строками.
+        </p>
+      )}
+      <ScrollArea className="w-full">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {keys.map((k) => (
+                <TableHead key={k} className="font-mono text-xs whitespace-nowrap">
+                  {k}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {result.rows.map((row, i) => (
+              <TableRow key={i}>
+                {keys.map((k) => (
+                  <TableCell key={k} className="text-xs max-w-[200px] truncate">
+                    {row[k] == null ? "NULL" : String(row[k])}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
+    </div>
+  )
+}
+
 export default function AdminEtlExplorerPage() {
   const [configured, setConfigured] = useState<boolean | null>(null)
   const [schemas, setSchemas] = useState<{ schema_name: string }[]>([])
@@ -306,40 +348,9 @@ export default function AdminEtlExplorerPage() {
                   <Button onClick={runCustomQuery} disabled={loadingQuery || !customSql.trim()}>
                     {loadingQuery ? "Выполняю…" : "Выполнить"}
                   </Button>
-                  {queryResult && (
-                    <div className="border rounded-md">
-                      {queryResult.limited && (
-                        <p className="text-xs text-muted-foreground px-3 py-1 bg-muted">
-                          Результат ограничен 200 строками.
-                        </p>
-                      )}
-                      <ScrollArea className="w-full">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              {queryResult.rows[0] &&
-                                Object.keys(queryResult.rows[0]).map((k) => (
-                                  <TableHead key={k} className="font-mono text-xs whitespace-nowrap">
-                                    {k}
-                                  </TableHead>
-                                ))}
-                            </TableHeader>
-                            <TableBody>
-                              {queryResult.rows.map((row, i) => (
-                                <TableRow key={i}>
-                                  {(queryResult.rows[0] ? Object.keys(queryResult.rows[0]) : []).map((k) => (
-                                    <TableCell key={k} className="text-xs max-w-[200px] truncate">
-                                      {row[k] == null ? "NULL" : String(row[k])}
-                                    </TableCell>
-                                  ))}
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                          <ScrollBar orientation="horizontal" />
-                        </ScrollArea>
-                    </div>
-                  )}
+                  {queryResult ? (
+                    <QueryResultTable result={queryResult} />
+                  ) : null}
                 </div>
               </TabsContent>
             </CardContent>
