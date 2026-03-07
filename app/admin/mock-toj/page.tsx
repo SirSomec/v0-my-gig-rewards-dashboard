@@ -71,7 +71,8 @@ export default function AdminMockTojPage() {
   const [syncResult, setSyncResult] = useState<{
     processed: number
     skipped: number
-    skippedReasons?: { noUser?: number; jobBeforeUser?: number; alreadySynced?: number }
+    lateCancelApplied?: number
+    skippedReasons?: { noUser?: number; jobBeforeUser?: number; alreadySynced?: number; wrongStatus?: number }
     errors: string[]
     watermark?: string
   } | null>(null)
@@ -172,7 +173,7 @@ export default function AdminMockTojPage() {
       .then((r) => {
         setSyncResult(r)
         toast({
-          title: `Обработано: ${r.processed}, пропущено: ${r.skipped}`,
+          title: `Обработано: ${r.processed}, пропущено: ${r.skipped}${r.lateCancelApplied != null && r.lateCancelApplied > 0 ? `, штрафов поздняя отмена: ${r.lateCancelApplied}` : ""}`,
           variant: r.errors.length ? "destructive" : "default",
         })
       })
@@ -234,11 +235,16 @@ export default function AdminMockTojPage() {
           </Button>
           {syncResult && (
             <div className="text-xs text-muted-foreground space-y-1">
-              <p>Обработано: {syncResult.processed}, пропущено: {syncResult.skipped}</p>
+              <p>Обработано: {syncResult.processed}, пропущено: {syncResult.skipped}
+                {syncResult.lateCancelApplied != null && syncResult.lateCancelApplied > 0 && (
+                  <>, штрафов «поздняя отмена»: {syncResult.lateCancelApplied}</>
+                )}
+              </p>
               {syncResult.skippedReasons &&
                 (syncResult.skippedReasons.noUser > 0 ||
                   syncResult.skippedReasons.jobBeforeUser > 0 ||
-                  syncResult.skippedReasons.alreadySynced > 0) && (
+                  syncResult.skippedReasons.alreadySynced > 0 ||
+                  syncResult.skippedReasons.wrongStatus > 0) && (
                   <p className="text-amber-600 dark:text-amber-500">
                     Причины пропуска:{" "}
                     {[
@@ -250,6 +256,9 @@ export default function AdminMockTojPage() {
                         : null,
                       syncResult.skippedReasons.alreadySynced
                         ? `уже учтена ранее (${syncResult.skippedReasons.alreadySynced})`
+                        : null,
+                      syncResult.skippedReasons.wrongStatus
+                        ? `другой статус / без действия (${syncResult.skippedReasons.wrongStatus})`
                         : null,
                     ]
                       .filter(Boolean)

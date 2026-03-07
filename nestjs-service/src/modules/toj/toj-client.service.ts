@@ -17,6 +17,9 @@ export interface TojJob {
   hours?: number;
   salaryPerHour?: number;
   paymentPerHour?: number;
+  /** Мок: инициатор последней смены статуса (как meta в TOJ job.update.command) */
+  statusChangeMeta?: { initiatorType?: string; initiator?: string; at?: string };
+  meta?: { initiatorType?: string; initiator?: string };
   [key: string]: unknown;
 }
 

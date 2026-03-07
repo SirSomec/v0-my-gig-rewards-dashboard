@@ -14,8 +14,10 @@ const WATERMARK_KEY = 'toj_sync_last_updated_at';
 export interface TojSyncResult {
   processed: number;
   skipped: number;
+  /** Штрафов «поздняя отмена» начислено за смены со статусом cancelled (initiator=worker, <24ч до начала) */
+  lateCancelApplied?: number;
   /** Причины пропуска: счётчики по коду причины */
-  skippedReasons?: { noUser?: number; jobBeforeUser?: number; alreadySynced?: number };
+  skippedReasons?: { noUser?: number; jobBeforeUser?: number; alreadySynced?: number; wrongStatus?: number };
   errors: string[];
   watermark?: string;
 }
@@ -118,30 +120,32 @@ export class TojSyncService {
 
     let processed = 0;
     let skipped = 0;
-    const skippedReasons: { noUser: number; jobBeforeUser: number; alreadySynced: number } = {
+    let lateCancelApplied = 0;
+    const skippedReasons: { noUser: number; jobBeforeUser: number; alreadySynced: number; wrongStatus: number } = {
       noUser: 0,
       jobBeforeUser: 0,
       alreadySynced: 0,
+      wrongStatus: 0,
     };
     const errors: string[] = [];
     let maxUpdatedAt = watermark;
 
+    // Запрашиваем смены со всеми статусами (без фильтра statuses), чтобы обрабатывать и confirmed, и cancelled
     for (let b = 0; b < workerIds.length; b += workerBatchSize) {
       const batch = workerIds.slice(b, b + workerBatchSize);
       let skip = 0;
       while (true) {
-        if (processed + skipped >= maxJobsPerRun) break;
+        if (processed + skipped + lateCancelApplied >= maxJobsPerRun) break;
         const { items } = await this.tojClient.findJobs(
           {
             workerIds: batch,
-            statuses: ['confirmed'],
             updatedAtGte: watermark,
           },
           { limit: pageSize, skip },
         );
         if (items.length === 0) break;
         for (const job of items) {
-          if (processed + skipped >= maxJobsPerRun) break;
+          if (processed + skipped + lateCancelApplied >= maxJobsPerRun) break;
           const jobUpdatedAt = job.updatedAt || job.createdAt;
           if (jobUpdatedAt && jobUpdatedAt > maxUpdatedAt) {
             maxUpdatedAt = jobUpdatedAt;
@@ -152,40 +156,81 @@ export class TojSyncService {
             skippedReasons.noUser++;
             continue;
           }
-          const jobDate = job.start || job.createdAt;
-          if (jobDate && user.createdAt && new Date(jobDate) < new Date(user.createdAt)) {
-            skipped++;
-            skippedReasons.jobBeforeUser++;
+
+          const status = (job.status ?? '').toLowerCase();
+
+          // Подтверждённая смена (только статус confirmed) — начисление
+          if (status === 'confirmed') {
+            const jobDate = job.start || job.createdAt;
+            if (jobDate && user.createdAt && new Date(jobDate) < new Date(user.createdAt)) {
+              skipped++;
+              skippedReasons.jobBeforeUser++;
+              continue;
+            }
+            const [existing] = await this.db
+              .select({ id: transactions.id })
+              .from(transactions)
+              .where(
+                and(eq(transactions.type, 'shift'), eq(transactions.sourceRef, String(job._id))),
+              )
+              .limit(1);
+            if (existing) {
+              skipped++;
+              skippedReasons.alreadySynced++;
+              continue;
+            }
+            try {
+              await this.rewards.recordShiftCompleted(
+                user.id,
+                0,
+                (job.customName as string) || (job.spec as string) || 'Смена',
+                undefined,
+                job.clientId as string | undefined,
+                job.spec as string | undefined,
+                typeof job.hours === 'number' ? job.hours : undefined,
+                String(job._id),
+              );
+              processed++;
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              errors.push(`Job ${job._id}: ${msg}`);
+            }
             continue;
           }
-          const [existing] = await this.db
-            .select({ id: transactions.id })
-            .from(transactions)
-            .where(
-              and(eq(transactions.type, 'shift'), eq(transactions.sourceRef, String(job._id))),
-            )
-            .limit(1);
-          if (existing) {
-            skipped++;
-            skippedReasons.alreadySynced++;
+
+          // Отменённая смена — штраф «поздняя отмена», если initiator=worker и <24ч до начала
+          if (status === 'cancelled') {
+            const meta = job.statusChangeMeta ?? job.meta;
+            const initiatorType = (meta?.initiatorType ?? (job as { initiatorType?: string }).initiatorType)?.trim?.();
+            const initiator = (meta?.initiator ?? (job as { initiator?: string }).initiator)?.trim?.();
+            const cancelledAt = (meta && 'at' in meta && typeof meta.at === 'string' ? meta.at : null) ?? job.updatedAt ?? job.createdAt;
+            const jobStart = job.start ?? job.createdAt;
+            if (!jobStart || !cancelledAt) {
+              skipped++;
+              skippedReasons.wrongStatus++;
+              continue;
+            }
+            const payload: Parameters<RewardsService['processLateCancelIfEligible']>[0] = {
+              jobId: String(job._id),
+              workerId: String(job.workerId ?? '').trim(),
+              jobStartIso: jobStart,
+              cancelledAtIso: cancelledAt,
+            };
+            if (initiatorType) payload.initiatorType = initiatorType;
+            if (initiator) payload.initiator = initiator;
+            try {
+              const result = await this.rewards.processLateCancelIfEligible(payload);
+              if (result.applied) lateCancelApplied++;
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              errors.push(`Job ${job._id} (late_cancel): ${msg}`);
+            }
             continue;
           }
-          try {
-            await this.rewards.recordShiftCompleted(
-              user.id,
-              0,
-              (job.customName as string) || (job.spec as string) || 'Смена',
-              undefined,
-              job.clientId as string | undefined,
-              job.spec as string | undefined,
-              typeof job.hours === 'number' ? job.hours : undefined,
-              String(job._id),
-            );
-            processed++;
-          } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            errors.push(`Job ${job._id}: ${msg}`);
-          }
+
+          // Остальные статусы — пока не обрабатываем
+          skipped++;
+          skippedReasons.wrongStatus++;
         }
         skip += items.length;
         if (items.length < pageSize) break;
@@ -196,9 +241,9 @@ export class TojSyncService {
       await this.setWatermark(maxUpdatedAt);
     }
 
-    if (processed === 0 && skipped === 0 && errors.length === 0) {
+    if (processed === 0 && skipped === 0 && lateCancelApplied === 0 && errors.length === 0) {
       errors.push(
-        'В TOJ не найдено смен со статусом confirmed для ваших работников (workerId = external_id). Сгенерируйте смены в разделе «Мок TOJ» выше, выбрав пользователя с external_id.',
+        'В TOJ не найдено смен для ваших работников (workerId = external_id) за период watermark. Сгенерируйте смены в разделе «Мок TOJ» или проверьте фильтры.',
       );
     }
 
@@ -208,11 +253,13 @@ export class TojSyncService {
       errors,
       watermark: maxUpdatedAt,
     };
+    if (lateCancelApplied > 0) result.lateCancelApplied = lateCancelApplied;
     if (skipped > 0) {
       result.skippedReasons = {};
       if (skippedReasons.noUser > 0) result.skippedReasons.noUser = skippedReasons.noUser;
       if (skippedReasons.jobBeforeUser > 0) result.skippedReasons.jobBeforeUser = skippedReasons.jobBeforeUser;
       if (skippedReasons.alreadySynced > 0) result.skippedReasons.alreadySynced = skippedReasons.alreadySynced;
+      if (skippedReasons.wrongStatus > 0) result.skippedReasons.wrongStatus = skippedReasons.wrongStatus;
     }
     return result;
   }

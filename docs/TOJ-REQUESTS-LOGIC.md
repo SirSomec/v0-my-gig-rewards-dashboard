@@ -24,6 +24,7 @@
 **Тайминги запросов:**
 
 - Запросы к TOJ выполняются **последовательно** в рамках одного прогона: батч workerIds → цикл страниц (limit/skip), затем следующий батч.
+- Фильтр по статусу **не передаётся** — загружаются смены со всеми статусами. Для каждой смены: **confirmed** → начисление (если ещё нет транзакции с таким source_ref); **cancelled** → при initiatorType/initiator = worker и отмена менее чем за 24 ч до начала — штраф «поздняя отмена»; остальные статусы — пропуск (причина wrongStatus).
 - Таймаутов и повторных попыток на уровне кода не задано — используется поведение `fetch` по умолчанию.
 - После успешного прогона watermark обновляется максимальным `updatedAt` среди обработанных смен (или остаётся прежним, если ничего не обработано).
 
@@ -53,12 +54,12 @@
 3. Выборка из БД: пользователи с непустым `external_id`; формирование списка `workerIds` и маппинга `workerId → { id, createdAt }`.
 4. Цикл по батчам `workerIds` (размер батча = `TOJ_SYNC_WORKER_BATCH_SIZE`):
    - Внутренний цикл по страницам (`skip = 0`, затем `skip += pageSize`):
-     - Если уже обработано + пропущено ≥ `TOJ_SYNC_MAX_JOBS_PER_RUN` — выход из циклов.
-     - Запрос к TOJ: `POST /job.find-many.query` с фильтрами (текущий батч `workerIds`, `statuses: ['confirmed']`, `updatedAt >= watermark`) и пагинацией (`limit`, `skip`).
-     - Для каждой смены в ответе: проверки (user по workerId, дата смены ≥ created_at пользователя, нет уже транзакции с таким `source_ref`); при успехе — начисление и учёт в счётчиках. Обновление `maxUpdatedAt` по полю смены.
+     - Если уже обработано + пропущено + штрафов поздняя отмена ≥ `TOJ_SYNC_MAX_JOBS_PER_RUN` — выход из циклов.
+     - Запрос к TOJ: `POST /job.find-many.query` с фильтрами (текущий батч `workerIds`, `updatedAt >= watermark`); **фильтр по статусу не передаётся** — загружаются смены со всеми статусами.
+     - Для каждой смены в ответе: поиск user по `workerId`; по статусу смены: **confirmed** — проверки (дата смены ≥ created_at пользователя, нет транзакции с таким `source_ref`), при успехе начисление; **cancelled** — при initiatorType/initiator = worker и отмена < 24 ч до начала вызов `processLateCancelIfEligible` (штраф «поздняя отмена»); остальные статусы — пропуск (wrongStatus). Обновление `maxUpdatedAt` по полю смены.
      - Если получено смен меньше, чем `pageSize`, выход из внутреннего цикла; иначе `skip += items.length` и следующая страница.
 5. Если `maxUpdatedAt` изменился — запись нового watermark в `system_settings`.
-6. Возврат результата: `{ processed, skipped, errors, watermark }`.
+6. Возврат результата: `{ processed, skipped, lateCancelApplied?, skippedReasons?, errors, watermark }`.
 
 ---
 
@@ -73,7 +74,6 @@
   "data": {
     "filters": {
       "workerIds": ["ext-1", "ext-2", "..."],
-      "statuses": ["confirmed"],
       "updatedAt": ["gte:2025-02-28T00:00:00.000Z"]
     },
     "projection": "",
@@ -97,7 +97,6 @@
   "data": {
     "filters": {
       "workerIds": ["ext-1", "ext-2", "..."],
-      "statuses": ["confirmed"],
       "updatedAt": ["gte:2025-02-28T00:00:00.000Z"]
     },
     "projection": "",
