@@ -310,13 +310,13 @@ export class EtlExplorerService {
     const schemaSafe = schema.replace(/`/g, '');
     const tableSafe = table.replace(/`/g, '');
     if (this.isClickHouse()) {
-      const rows = await this.clickHouseRequest<{ name: string; type: string; nullable: string }>(
-        `SELECT name, type, nullable FROM system.columns WHERE database = '${schemaSafe}' AND table = '${tableSafe}' ORDER BY position`,
+      const rows = await this.clickHouseRequest<{ name: string; type: string }>(
+        `SELECT name, type FROM system.columns WHERE database = '${schemaSafe}' AND table = '${tableSafe}' ORDER BY position`,
       );
       return rows.map((r) => ({
         column_name: r.name,
         data_type: r.type,
-        is_nullable: String(r.nullable) === '1' ? 'YES' : 'NO',
+        is_nullable: r.type.startsWith('Nullable(') ? 'YES' : 'NO',
       }));
     }
     return this.runWithClient(async (sql) => {
