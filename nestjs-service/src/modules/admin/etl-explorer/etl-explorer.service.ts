@@ -41,15 +41,16 @@ export class EtlExplorerService {
 
   private buildConnection(): { client: Sql; end: () => Promise<void> } {
     const host = getEtlEnv(this.config, 'ETL_HOST');
-    const port = getEtlEnv(this.config, 'ETL_PORT') || '5432';
     const user = getEtlEnv(this.config, 'ETL_USER');
     const password = getEtlEnv(this.config, 'ETL_PASSWORD');
-    const database = getEtlEnv(this.config, 'ETL_DATABASE') || user;
-    const sslRootCert = getEtlEnv(this.config, 'ETL_SSL_ROOT_CERT');
 
     if (!host || !user || !password) {
       throw new Error('ETL_HOST, ETL_USER and ETL_PASSWORD are required');
     }
+
+    const port = getEtlEnv(this.config, 'ETL_PORT') || '5432';
+    const database = getEtlEnv(this.config, 'ETL_DATABASE') || user;
+    const sslRootCert = getEtlEnv(this.config, 'ETL_SSL_ROOT_CERT');
 
     const url = new URL('postgres://');
     url.hostname = host;
