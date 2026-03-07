@@ -6,7 +6,7 @@ import * as schema from '../../infra/db/drizzle/schemas';
 import { drizzleProvider } from '../../infra/db/drizzle/drizzle.module';
 import { Inject } from '@nestjs/common';
 import type { Envs } from '../../shared/env.validation-schema';
-import { TojClientService, type TojJob } from './toj-client.service';
+import { TojClientService } from './toj-client.service';
 import { RewardsService } from '../rewards/rewards.service';
 
 const WATERMARK_KEY = 'toj_sync_last_updated_at';
