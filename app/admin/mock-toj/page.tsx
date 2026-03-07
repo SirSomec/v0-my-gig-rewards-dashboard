@@ -192,9 +192,26 @@ export default function AdminMockTojPage() {
               TOJ_SYNC_ENABLED=true).
             </p>
           )}
+          {!loading && syncStatus?.configured && usersWithExternalId.length === 0 && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                Нет пользователей с заполненным external_id. Синхронизация привязывает смены TOJ к пользователям по полю workerId = external_id. Добавьте external_id нужным пользователям (карточка пользователя или ETL) и сгенерируйте смены для них выше.
+              </AlertDescription>
+            </Alert>
+          )}
+          {!loading && syncStatus?.configured && usersWithExternalId.length > 0 && jobsTotal === 0 && (
+            <p className="text-xs text-amber-600 dark:text-amber-500">
+              В моке пока нет смен. Сначала нажмите «Сгенерировать смены» ниже (выберите пользователя с external_id).
+            </p>
+          )}
           <Button
             onClick={handleSyncRun}
-            disabled={syncRunning || !syncStatus?.configured || !syncStatus?.syncEnabled}
+            disabled={
+              syncRunning ||
+              !syncStatus?.configured ||
+              !syncStatus?.syncEnabled ||
+              (!loading && usersWithExternalId.length === 0)
+            }
           >
             <Play size={14} className="mr-1" />
             {syncRunning ? "Синхронизация…" : "Синхронизировать смены"}

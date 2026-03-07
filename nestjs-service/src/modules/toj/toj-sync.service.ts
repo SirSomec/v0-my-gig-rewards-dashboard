@@ -104,6 +104,16 @@ export class TojSyncService {
         ]),
     );
 
+    if (workerIds.length === 0) {
+      return {
+        processed: 0,
+        skipped: 0,
+        errors: [
+          'Нет пользователей с заполненным external_id. Добавьте external_id пользователям (в БД или через раздел «Пользователи» / ETL) и повторите синхронизацию.',
+        ],
+      };
+    }
+
     let processed = 0;
     let skipped = 0;
     const errors: string[] = [];
@@ -174,6 +184,12 @@ export class TojSyncService {
 
     if (maxUpdatedAt !== watermark) {
       await this.setWatermark(maxUpdatedAt);
+    }
+
+    if (processed === 0 && skipped === 0 && errors.length === 0) {
+      errors.push(
+        'В TOJ не найдено смен со статусом confirmed для ваших работников (workerId = external_id). Сгенерируйте смены в разделе «Мок TOJ» выше, выбрав пользователя с external_id.',
+      );
     }
 
     return { processed, skipped, errors, watermark: maxUpdatedAt };
