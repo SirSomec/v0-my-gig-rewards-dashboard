@@ -308,6 +308,18 @@ export class AdminController {
     return this.admin.getMockTojConfig();
   }
 
+  @Get('mock-toj/jobs')
+  @ApiOperation({ summary: 'Список сгенерированных мок-смен для просмотра' })
+  async mockTojListJobs(
+    @Query('limit') limit?: string,
+    @Query('skip') skip?: string,
+  ) {
+    const opts: { limit?: number; skip?: number } = {};
+    if (limit !== undefined) opts.limit = parseInt(limit, 10);
+    if (skip !== undefined) opts.skip = parseInt(skip, 10);
+    return this.admin.mockTojListJobs(opts);
+  }
+
   @Post('mock-toj/generate')
   @ApiOperation({ summary: 'Сгенерировать мок-смены в сервисе TOJ для выбранного пользователя (по external_id)' })
   async mockTojGenerate(

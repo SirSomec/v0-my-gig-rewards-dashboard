@@ -229,6 +229,15 @@ app.post('/admin/generate-jobs', adminKey, (req, res) => {
   res.json(wrap({ generated: total, count: total }));
 });
 
+// ——— List current mock jobs (admin only, for UI) ———
+app.get('/admin/jobs', adminKey, (req, res) => {
+  const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
+  const skip = Math.max(Number(req.query.skip) || 0, 0);
+  const total = jobs.length;
+  const items = jobs.slice(skip, skip + limit);
+  res.json(wrap({ items, total }));
+});
+
 // ——— Health (no auth) ———
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', jobsCount: jobs.length });

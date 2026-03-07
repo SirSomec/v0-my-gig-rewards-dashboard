@@ -22,6 +22,8 @@
   `POST /job.find-many.query`, `POST /job.count.query`, `POST /job.find-by-id.query` — формат по [TOJ-API.md](../docs/TOJ-API.md).
 - **Генерация (X-Admin-Key):**  
   `POST /admin/generate-jobs` — тело: `{ count, workerIds[], dateFrom?, dateTo? }`. Заменяет текущий список смен сгенерированными.
+- **Просмотр смен (X-Admin-Key):**  
+  `GET /admin/jobs?limit=&skip=` — возвращает `{ data: { items, total } }` (текущий список смен в памяти).
 - **Health:**  
   `GET /health` — без авторизации, возвращает `{ status: "ok", jobsCount: N }`.
 

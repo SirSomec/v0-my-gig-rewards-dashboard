@@ -680,4 +680,30 @@ export class AdminService {
     const generated = data?.data?.generated ?? 0;
     return { generated };
   }
+
+  /**
+   * Список сгенерированных смен из мок-сервиса (для просмотра в админке).
+   */
+  async mockTojListJobs(params?: { limit?: number; skip?: number }): Promise<{ items: unknown[]; total: number }> {
+    const baseUrl = this.config.get('MOCK_TOJ_URL', { infer: true })?.replace(/\/$/, '');
+    const adminKey = this.config.get('MOCK_TOJ_ADMIN_KEY', { infer: true });
+    if (!baseUrl || !adminKey) {
+      throw new BadRequestException('Mock TOJ not configured (MOCK_TOJ_URL, MOCK_TOJ_ADMIN_KEY)');
+    }
+    const limit = Math.min(Math.max(Number(params?.limit) || 100, 1), 500);
+    const skip = Math.max(Number(params?.skip) || 0, 0);
+    const url = `${baseUrl}/admin/jobs?limit=${limit}&skip=${skip}`;
+    const res = await fetch(url, {
+      headers: { 'X-Admin-Key': adminKey },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new BadRequestException(`Mock TOJ: ${res.status} ${text || res.statusText}`);
+    }
+    const data = (await res.json()) as { data?: { items?: unknown[]; total?: number } };
+    return {
+      items: data?.data?.items ?? [],
+      total: data?.data?.total ?? 0,
+    };
+  }
 }

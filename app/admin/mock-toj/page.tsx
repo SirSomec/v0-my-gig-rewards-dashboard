@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   adminMockTojStatus,
   adminMockTojGenerate,
+  adminMockTojListJobs,
   adminListUsers,
 } from "@/lib/admin-api"
-import type { AdminUser } from "@/lib/admin-api"
+import type { AdminUser, MockTojJob } from "@/lib/admin-api"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,6 +21,31 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { RefreshCw } from "lucide-react"
+
+function formatDate(iso: string | undefined): string {
+  if (!iso) return "—"
+  try {
+    const d = new Date(iso)
+    return d.toLocaleString("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  } catch {
+    return iso
+  }
+}
 
 export default function AdminMockTojPage() {
   const [configured, setConfigured] = useState<boolean | null>(null)
@@ -30,7 +56,25 @@ export default function AdminMockTojPage() {
   const [dateTo, setDateTo] = useState("")
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [jobs, setJobs] = useState<MockTojJob[]>([])
+  const [jobsTotal, setJobsTotal] = useState(0)
+  const [jobsLoading, setJobsLoading] = useState(false)
   const { toast } = useToast()
+
+  const loadJobs = useCallback(() => {
+    if (configured === false) return
+    setJobsLoading(true)
+    adminMockTojListJobs({ limit: 100, skip: 0 })
+      .then((r) => {
+        setJobs(r.items)
+        setJobsTotal(r.total)
+      })
+      .catch(() => {
+        setJobs([])
+        setJobsTotal(0)
+      })
+      .finally(() => setJobsLoading(false))
+  }, [configured])
 
   useEffect(() => {
     adminMockTojStatus()
@@ -44,6 +88,10 @@ export default function AdminMockTojPage() {
       .then(setUsers)
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    loadJobs()
+  }, [loadJobs])
 
   const usersWithExternalId = users.filter((u) => u.externalId?.trim())
   const selectedUser = users.find((u) => String(u.id) === userId)
@@ -71,6 +119,7 @@ export default function AdminMockTojPage() {
     })
       .then((r) => {
         toast({ title: `Сгенерировано смен: ${r.generated}` })
+        loadJobs()
       })
       .catch((e) =>
         toast({
@@ -182,6 +231,85 @@ export default function AdminMockTojPage() {
           >
             {submitting ? "Генерация..." : "Сгенерировать смены"}
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="py-2 flex flex-row items-center justify-between gap-2">
+          <span className="text-sm font-medium">Сгенерированные смены</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadJobs}
+            disabled={jobsLoading || configured === false}
+          >
+            <RefreshCw
+              size={14}
+              className={jobsLoading ? "animate-spin" : ""}
+            />
+            <span className="ml-1">Обновить</span>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {configured === false ? (
+            <p className="text-sm text-muted-foreground">
+              Мок не настроен — список недоступен.
+            </p>
+          ) : jobsLoading ? (
+            <p className="text-sm text-muted-foreground">Загрузка...</p>
+          ) : jobsTotal === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Смен нет. Сгенерируйте их выше.
+            </p>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground mb-3">
+                Показано {jobs.length} из {jobsTotal}
+              </p>
+              <div className="overflow-x-auto rounded-md border border-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[80px]">ID</TableHead>
+                      <TableHead>workerId</TableHead>
+                      <TableHead>Статус</TableHead>
+                      <TableHead>Название</TableHead>
+                      <TableHead>Начало</TableHead>
+                      <TableHead>Конец</TableHead>
+                      <TableHead className="text-right">Часы</TableHead>
+                      <TableHead className="text-right">Оплата/ч</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {jobs.map((job) => (
+                      <TableRow key={job._id}>
+                        <TableCell className="font-mono text-xs truncate max-w-[80px]" title={job._id}>
+                          {job._id?.slice(0, 8)}…
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {job.workerId ?? "—"}
+                        </TableCell>
+                        <TableCell>{job.status ?? "—"}</TableCell>
+                        <TableCell>{job.customName ?? job.spec ?? "—"}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                          {formatDate(job.start)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                          {formatDate(job.finish)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {job.hours ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {job.paymentPerHour ?? job.salaryPerHour ?? "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

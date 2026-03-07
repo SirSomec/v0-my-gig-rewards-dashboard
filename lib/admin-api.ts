@@ -477,6 +477,34 @@ export async function adminMockTojStatus(): Promise<{ configured: boolean }> {
   return fetchAdmin("/v1/admin/mock-toj/status");
 }
 
+export async function adminMockTojListJobs(params?: {
+  limit?: number;
+  skip?: number;
+}): Promise<{ items: MockTojJob[]; total: number }> {
+  const searchParams = new URLSearchParams();
+  if (params?.limit != null) searchParams.set("limit", String(params.limit));
+  if (params?.skip != null) searchParams.set("skip", String(params.skip));
+  const q = searchParams.toString();
+  return fetchAdmin(`/v1/admin/mock-toj/jobs${q ? `?${q}` : ""}`);
+}
+
+export interface MockTojJob {
+  _id: string;
+  status?: string;
+  workerId?: string;
+  customName?: string;
+  spec?: string;
+  start?: string;
+  finish?: string;
+  startFact?: string;
+  finishFact?: string;
+  hours?: number;
+  salaryPerHour?: number;
+  paymentPerHour?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export async function adminMockTojGenerate(body: {
   userId: number;
   count?: number;
