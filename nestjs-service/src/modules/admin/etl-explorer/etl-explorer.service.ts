@@ -316,7 +316,7 @@ export class EtlExplorerService {
       return rows.map((r) => ({
         column_name: r.name,
         data_type: r.type,
-        is_nullable: String(r.nullable) === '1' || r.nullable === true ? 'YES' : 'NO',
+        is_nullable: String(r.nullable) === '1' ? 'YES' : 'NO',
       }));
     }
     return this.runWithClient(async (sql) => {
