@@ -4,6 +4,8 @@
  */
 
 const TOKEN_STORAGE_KEY = "rewards_access_token";
+/** На время разработки: под каким пользователем открывать кабинет (выбор в админке). */
+const VIEW_AS_USER_ID_KEY = "rewards_dev_view_user_id";
 
 const getBaseUrl = (): string =>
   typeof window !== "undefined"
@@ -216,8 +218,26 @@ export async function createRedemption(storeItemId: number): Promise<CreateRedem
   });
 }
 
+/** ID пользователя для отображения кабинета: сначала из выбора в админке (localStorage), затем из env. */
 export function getDevUserId(): string | null {
+  if (typeof window !== "undefined") {
+    const viewAs = localStorage.getItem(VIEW_AS_USER_ID_KEY);
+    if (viewAs) return viewAs;
+  }
   return getDevUserIdEnv();
+}
+
+/** Установить/сбросить «просмотр кабинета от имени пользователя» (для разработки в админке). */
+export function setViewAsUserId(userId: number | null): void {
+  if (typeof window === "undefined") return;
+  if (userId == null) localStorage.removeItem(VIEW_AS_USER_ID_KEY);
+  else localStorage.setItem(VIEW_AS_USER_ID_KEY, String(userId));
+}
+
+/** Текущий выбранный «view as» id (только для отображения в UI). */
+export function getViewAsUserId(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(VIEW_AS_USER_ID_KEY);
 }
 
 export function isLoggedIn(): boolean {

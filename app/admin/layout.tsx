@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Users, ShoppingBag, Gift, Layers, Zap, Target, Wallet, FileText, LayoutDashboard, Settings, Database, Briefcase } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ViewAsUser } from "@/components/admin/view-as-user"
 
 const nav = [
   { href: "/admin", label: "Обзор", icon: LayoutDashboard },
@@ -63,7 +64,8 @@ export default function AdminLayout({
             )
           })}
         </nav>
-        <div className="shrink-0 border-t border-border p-3">
+        <div className="shrink-0 border-t border-border p-3 space-y-3">
+          <ViewAsUser />
           <Link
             href="/"
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition-colors"
@@ -106,6 +108,9 @@ export default function AdminLayout({
             )
           })}
         </nav>
+        <div className="mt-3 sm:hidden">
+          <ViewAsUser />
+        </div>
       </header>
 
       {/* Основной контент — адаптивный отступ слева на десктопе */}
