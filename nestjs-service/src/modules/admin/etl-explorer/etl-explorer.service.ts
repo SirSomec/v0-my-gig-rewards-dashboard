@@ -126,6 +126,9 @@ export class EtlExplorerService {
     url.username = encodeURIComponent(user);
     url.password = encodeURIComponent(password);
     url.pathname = `/${encodeURIComponent(database)}`;
+    if (sslRootCert && existsSync(sslRootCert)) {
+      url.searchParams.set('sslmode', 'verify-full');
+    }
 
     const opts: { max: number; ssl?: { ca: Buffer[] }; connection?: { application_name: string } } = {
       max: 1,

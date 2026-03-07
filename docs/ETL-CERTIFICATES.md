@@ -44,6 +44,14 @@ docker compose exec api env | grep ETL
 
 Строку подключения собирают из переменных в коде; для TLS используется сертификат из `ETL_SSL_ROOT_CERT` или (в Docker) из `/app/certs/YandexCloudCA.pem` по умолчанию.
 
+**Ошибка ECONNRESET при открытии «Данные ETL»:**  
+1) Пересоберите **оба** образа и перезапустите — фронт должен вызывать один запрос `intro`, а не четыре параллельных:
+   ```bash
+   docker compose build app api
+   docker compose up -d app api
+   ```
+2) В Yandex Managed PostgreSQL для защищённого подключения часто указывают порт **6432** (не 8443). Проверьте в консоли Yandex Cloud точный хост и порт кластера и при необходимости задайте в .env `ETL_PORT=6432`.
+
 ## Зачем нужны сертификаты
 
 Сервисы Yandex Cloud (в т.ч. ETL, БД) используют TLS, подписанный этими CA. Без добавления сертификатов клиент (Node.js, браузер, curl) может выдавать ошибки вида «self-signed certificate» или «unable to verify certificate».
