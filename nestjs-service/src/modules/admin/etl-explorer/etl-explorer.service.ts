@@ -56,6 +56,19 @@ export class EtlExplorerService {
     });
   }
 
+  /** Список баз данных в кластере ETL (для выбора ETL_DATABASE в .env). */
+  async getDatabases(): Promise<{ datname: string }[]> {
+    return this.runWithClient(async (sql) => {
+      const rows = await sql`
+        SELECT datname
+        FROM pg_catalog.pg_database
+        WHERE datistemplate = false
+        ORDER BY datname
+      `;
+      return rows as unknown as { datname: string }[];
+    });
+  }
+
   private buildConnection(): { client: Sql; end: () => Promise<void> } {
     const host = getEtlEnv(this.config, 'ETL_HOST');
     const user = getEtlEnv(this.config, 'ETL_USER');

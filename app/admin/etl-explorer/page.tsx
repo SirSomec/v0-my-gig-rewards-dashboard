@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import {
   adminEtlExplorerStatus,
   adminEtlExplorerConnectionInfo,
+  adminEtlExplorerDatabases,
   adminEtlExplorerSchemas,
   adminEtlExplorerTables,
   adminEtlExplorerColumns,
@@ -81,6 +82,7 @@ export default function AdminEtlExplorerPage() {
   const [envStatus, setEnvStatus] = useState<Record<string, boolean> | null>(null)
   const [processEnvEtlKeys, setProcessEnvEtlKeys] = useState<string[] | null>(null)
   const [connectionInfo, setConnectionInfo] = useState<{ database: string; user: string } | null>(null)
+  const [databases, setDatabases] = useState<{ datname: string }[]>([])
   const [schemas, setSchemas] = useState<{ schema_name: string }[]>([])
   const [tables, setTables] = useState<{ table_name: string }[]>([])
   const [columns, setColumns] = useState<{ column_name: string; data_type: string; is_nullable: string }[]>([])
@@ -92,6 +94,7 @@ export default function AdminEtlExplorerPage() {
   const [customSql, setCustomSql] = useState("")
   const [loadingStatus, setLoadingStatus] = useState(true)
   const [loadingSchemas, setLoadingSchemas] = useState(false)
+  const [loadingDatabases, setLoadingDatabases] = useState(false)
   const [loadingTables, setLoadingTables] = useState(false)
   const [loadingColumns, setLoadingColumns] = useState(false)
   const [loadingPreview, setLoadingPreview] = useState(false)
@@ -107,6 +110,11 @@ export default function AdminEtlExplorerPage() {
         if (r.configured) {
           loadSchemas()
           adminEtlExplorerConnectionInfo().then(setConnectionInfo).catch(() => setConnectionInfo(null))
+          setLoadingDatabases(true)
+          adminEtlExplorerDatabases()
+            .then(setDatabases)
+            .catch(() => setDatabases([]))
+            .finally(() => setLoadingDatabases(false))
         }
       })
       .catch(() => {
@@ -257,6 +265,21 @@ export default function AdminEtlExplorerPage() {
               <p className="text-xs text-muted-foreground font-normal mt-1">
                 Подключение: база <code className="bg-muted px-1 rounded">{connectionInfo.database}</code>, пользователь {connectionInfo.user}
               </p>
+            )}
+            {connectionInfo && (databases.length > 0 || loadingDatabases) && (
+              <div className="mt-2">
+                <p className="text-xs text-muted-foreground font-normal mb-1">Базы в кластере:</p>
+                {loadingDatabases ? (
+                  <Skeleton className="h-6 w-full" />
+                ) : (
+                  <p className="text-xs font-mono bg-muted/50 rounded px-2 py-1.5 break-all">
+                    {databases.map((d) => d.datname).join(", ")}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Чтобы подключиться к другой базе, задайте в .env <code>ETL_DATABASE=имя_базы</code> и перезапустите api.
+                </p>
+              </div>
             )}
             {connectionInfo && schemas.length === 0 && !loadingSchemas && (
               <p className="text-xs text-amber-600 dark:text-amber-400 font-normal mt-1">
