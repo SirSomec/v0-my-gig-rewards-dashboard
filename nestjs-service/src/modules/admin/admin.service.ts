@@ -570,6 +570,40 @@ export class AdminService {
     return { id: strikeId, userId: strike.userId };
   }
 
+  /**
+   * Обработка поздней отмены смены из TOJ: если meta.initiatorType=worker (или initiator=worker) и отмена
+   * менее чем за 24 ч до начала — начисляется штраф «поздняя отмена» и запись в активностях (strikes) и аудите.
+   */
+  async processTojLateCancel(params: {
+    jobId: string;
+    workerId: string;
+    jobStart: string;
+    cancelledAt: string;
+    /** meta.initiatorType из TOJ (job.update.command); при "worker" штраф применяется */
+    initiatorType?: string;
+    initiator?: string;
+  }): Promise<{ applied: boolean; strikeId?: number; reason?: string }> {
+    const result = await this.rewards.processLateCancelIfEligible({
+      jobId: params.jobId,
+      workerId: params.workerId,
+      jobStartIso: params.jobStart,
+      cancelledAtIso: params.cancelledAt,
+      initiatorType: params.initiatorType,
+      initiator: params.initiator,
+    });
+    if (result.applied && result.strikeId != null) {
+      await this.logAudit('late_cancel_applied', 'strike', String(result.strikeId), undefined, {
+        jobId: params.jobId,
+        workerId: params.workerId,
+        jobStart: params.jobStart,
+        cancelledAt: params.cancelledAt,
+        initiatorType: params.initiatorType,
+        initiator: params.initiator,
+      });
+    }
+    return result;
+  }
+
   /** Запись в журнал аудита (6.9) */
   async logAudit(
     action: string,
@@ -705,5 +739,40 @@ export class AdminService {
       items: data?.data?.items ?? [],
       total: data?.data?.total ?? 0,
     };
+  }
+
+  /**
+   * Изменить статус смены в моке TOJ с указанием инициатора (PATCH /admin/jobs/:id в моке).
+   */
+  async mockTojUpdateJobStatus(
+    jobId: string,
+    body: { status: string; initiatorType?: string; initiator?: string },
+  ): Promise<Record<string, unknown>> {
+    const baseUrl = this.config.get('MOCK_TOJ_URL', { infer: true })?.replace(/\/$/, '');
+    const adminKey = this.config.get('MOCK_TOJ_ADMIN_KEY', { infer: true });
+    if (!baseUrl || !adminKey) {
+      throw new BadRequestException('Mock TOJ not configured (MOCK_TOJ_URL, MOCK_TOJ_ADMIN_KEY)');
+    }
+    const id = jobId?.trim();
+    if (!id) throw new BadRequestException('jobId required');
+    const url = `${baseUrl}/admin/jobs/${encodeURIComponent(id)}`;
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Key': adminKey,
+      },
+      body: JSON.stringify({
+        status: body.status?.trim(),
+        initiatorType: body.initiatorType?.trim(),
+        initiator: body.initiator?.trim(),
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new BadRequestException(`Mock TOJ: ${res.status} ${text || res.statusText}`);
+    }
+    const data = (await res.json()) as { data?: Record<string, unknown> };
+    return data?.data ?? {};
   }
 }

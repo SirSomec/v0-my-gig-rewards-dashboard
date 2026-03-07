@@ -24,6 +24,8 @@
   `POST /admin/generate-jobs` — тело: `{ count, workerIds[], dateFrom?, dateTo? }`. Заменяет текущий список смен сгенерированными.
 - **Просмотр смен (X-Admin-Key):**  
   `GET /admin/jobs?limit=&skip=` — возвращает `{ data: { items, total } }` (текущий список смен в памяти).
+- **Смена статуса смены с инициатором (X-Admin-Key):**  
+  `PATCH /admin/jobs/:id` — тело: `{ status, initiatorType?, initiator? }`. Меняет статус смены (например на `cancelled`), записывает на смену `statusChangeMeta: { initiatorType, initiator, at }` (как `meta` в TOJ `job.update.command`). Для теста штрафа «поздняя отмена»: переведите смену в `cancelled` с `initiatorType: "worker"`, затем вызовите `POST /v1/admin/toj/process-late-cancel` с `jobId`, `workerId`, `jobStart`, `cancelledAt` (можно взять `statusChangeMeta.at` или `updatedAt` смены), `initiatorType: "worker"`.
 - **Health:**  
   `GET /health` — без авторизации, возвращает `{ status: "ok", jobsCount: N }`.
 

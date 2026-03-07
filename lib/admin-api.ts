@@ -503,6 +503,21 @@ export interface MockTojJob {
   paymentPerHour?: number;
   createdAt?: string;
   updatedAt?: string;
+  statusChangeMeta?: {
+    initiatorType?: string | null;
+    initiator?: string | null;
+    at?: string;
+  } | null;
+}
+
+export async function adminMockTojUpdateJobStatus(
+  jobId: string,
+  body: { status: string; initiatorType?: string; initiator?: string }
+): Promise<Record<string, unknown>> {
+  return fetchAdmin(`/v1/admin/mock-toj/jobs/${encodeURIComponent(jobId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
 }
 
 export async function adminMockTojGenerate(body: {

@@ -678,6 +678,67 @@ export class RewardsService {
   }
 
   /**
+   * Проверка и начисление штрафа за позднюю отмену: смена перешла в cancelled менее чем за 24 ч
+   * до начала, инициатор отмены — работник (worker). Используется meta.initiatorType из TOJ (job.update.command).
+   * Штраф отображается в активностях (strikes).
+   * @returns applied: true если штраф начислен; reason — причина пропуска при applied: false
+   */
+  async processLateCancelIfEligible(params: {
+    jobId: string;
+    workerId: string;
+    jobStartIso: string;
+    cancelledAtIso: string;
+    /** Тип инициатора из TOJ meta (например "worker"); при значении "worker" штраф применяется */
+    initiatorType?: string;
+    /** Идентификатор инициатора (для обратной совместимости и аудита); при "worker" тоже считается */
+    initiator?: string;
+  }): Promise<{ applied: boolean; strikeId?: number; reason?: string }> {
+    const { jobId, workerId, jobStartIso, cancelledAtIso, initiatorType, initiator } = params;
+    const { users, strikes } = schema;
+
+    const normalizedType = (initiatorType ?? '').toString().trim().toLowerCase();
+    const normalizedInitiator = (initiator ?? '').toString().trim().toLowerCase();
+    const isWorker = normalizedType === 'worker' || normalizedInitiator === 'worker';
+    if (!isWorker) {
+      return { applied: false, reason: 'initiator_not_worker' };
+    }
+
+    const [userRow] = await this.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.externalId, workerId.trim()))
+      .limit(1);
+    if (!userRow) {
+      return { applied: false, reason: 'user_not_found' };
+    }
+
+    const startMs = new Date(jobStartIso).getTime();
+    const cancelledMs = new Date(cancelledAtIso).getTime();
+    if (Number.isNaN(startMs) || Number.isNaN(cancelledMs)) {
+      return { applied: false, reason: 'invalid_dates' };
+    }
+    if (cancelledMs >= startMs) {
+      return { applied: false, reason: 'cancelled_after_or_at_start' };
+    }
+    const hoursBeforeStart = (startMs - cancelledMs) / (60 * 60 * 1000);
+    if (hoursBeforeStart >= 24) {
+      return { applied: false, reason: 'cancelled_24h_or_more_before_start' };
+    }
+
+    const [existing] = await this.db
+      .select({ id: strikes.id })
+      .from(strikes)
+      .where(eq(strikes.shiftExternalId, jobId))
+      .limit(1);
+    if (existing) {
+      return { applied: false, reason: 'strike_already_applied' };
+    }
+
+    const { strikeId } = await this.registerStrike(userRow.id, 'late_cancel', jobId);
+    return { applied: true, strikeId };
+  }
+
+  /**
    * Пересчёт прогресса по квестам пользователя после смены (или вручную).
    * Условие shifts_count: число транзакций type=shift за период (день/неделя). При достижении total — начисление награды.
    */

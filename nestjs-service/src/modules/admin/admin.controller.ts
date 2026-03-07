@@ -322,6 +322,16 @@ export class AdminController {
     return this.admin.mockTojListJobs(opts);
   }
 
+  @Patch('mock-toj/jobs/:id')
+  @ApiOperation({ summary: 'Изменить статус смены в моке TOJ с указанием инициатора (для теста поздней отмены)' })
+  async mockTojUpdateJobStatus(
+    @Param('id') id: string,
+    @Body() body: { status: string; initiatorType?: string; initiator?: string },
+  ) {
+    if (!body?.status?.trim()) throw new BadRequestException('status required');
+    return this.admin.mockTojUpdateJobStatus(id, body);
+  }
+
   @Post('mock-toj/generate')
   @ApiOperation({ summary: 'Сгенерировать мок-смены в сервисе TOJ для выбранного пользователя (по external_id)' })
   async mockTojGenerate(
@@ -356,5 +366,36 @@ export class AdminController {
   @ApiOperation({ summary: 'Запустить синхронизацию смен из TOJ' })
   async runTojSync() {
     return this.tojSync.runSync();
+  }
+
+  @Post('toj/process-late-cancel')
+  @ApiOperation({
+    summary:
+      'Обработать отмену смены из TOJ: при meta.initiatorType=worker и отмене менее чем за 24 ч до начала начисляется штраф «поздняя отмена» (отображается в активностях)',
+  })
+  async processTojLateCancel(
+    @Body()
+    body: {
+      jobId: string;
+      workerId: string;
+      jobStart: string;
+      cancelledAt: string;
+      /** meta.initiatorType из TOJ (job.update.command); при "worker" штраф применяется */
+      initiatorType?: string;
+      initiator?: string;
+    },
+  ) {
+    const { jobId, workerId, jobStart, cancelledAt, initiatorType, initiator } = body;
+    if (!jobId?.trim() || !workerId?.trim() || !jobStart?.trim() || !cancelledAt?.trim()) {
+      throw new BadRequestException('jobId, workerId, jobStart, cancelledAt обязательны');
+    }
+    return this.admin.processTojLateCancel({
+      jobId: jobId.trim(),
+      workerId: workerId.trim(),
+      jobStart: jobStart.trim(),
+      cancelledAt: cancelledAt.trim(),
+      initiatorType: initiatorType?.trim(),
+      initiator: initiator?.trim(),
+    });
   }
 }

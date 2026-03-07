@@ -13,6 +13,7 @@
 - **Админка:** на странице «Мок TOJ (смены)» блок «Синхронизация смен из TOJ» — статус, кнопка «Синхронизировать смены», отображение результата.
 - **Переменные окружения:** см. `.env.example` и docker-compose (TOJ_BASE_URL, TOJ_USER, TOJ_PASSWORD, TOJ_SYNC_ENABLED, TOJ_SYNC_MAX_JOBS_PER_RUN, TOJ_SYNC_INITIAL_DAYS_AGO, TOJ_SYNC_WORKER_BATCH_SIZE, TOJ_SYNC_PAGE_SIZE).
 - **Cron** не добавлен (при необходимости — `@nestjs/schedule` и вызов `TojSyncService.runSync()` по расписанию).
+- **Поздняя отмена (штраф):** если смена перешла в статус `cancelled` менее чем за 24 ч до начала и **инициатор отмены — работник** (`meta.initiatorType = "worker"` в TOJ `job.update.command`), начисляется штраф «поздняя отмена» (запись в `strikes`, тип `late_cancel`), он отображается в активностях пользователя. Эндпоинт `POST /v1/admin/toj/process-late-cancel` (body: `jobId`, `workerId`, `jobStart`, `cancelledAt`, `initiatorType?`, `initiator?`) — вызов из вебхука TOJ или при получении данных об отмене. Для проверки используется `initiatorType === "worker"` (или `initiator === "worker"` для совместимости). При начислении пишется запись в аудит (`late_cancel_applied`). Идемпотентность: повторный вызов для той же смены не создаёт второй штраф.
 
 ---
 
@@ -108,6 +109,14 @@
 
 - Env: `TOJ_SYNC_ENABLED` (true/false), `TOJ_BASE_URL`, `TOJ_USER`, `TOJ_PASSWORD`. При отсутствии URL или отключённом флаге джоба не выполняется и ручной запуск возвращает ошибку «не настроено».
 - Учётные данные TOJ только на бэкенде, не отдавать на фронт.
+
+### 5.6 Поздняя отмена смены (штраф за отмену менее чем за 24 ч до начала)
+
+**Правило:** если смена перешла в статус `cancelled` **менее чем за 24 часа до её начала** и при этом **инициатор отмены — работник** (`meta.initiatorType = "worker"` в TOJ при вызове `job.update.command`), в системе наград начисляется штраф «поздняя отмена» (`late_cancel`).
+
+- **Где отображается:** штраф попадает в таблицу `strikes` и выводится в **активностях** пользователя (история начислений и штрафов в личном кабинете) как «Штраф: Поздняя отмена (смена #…)».
+- **Источник данных:** в TOJ при обновлении смены (в т.ч. отмена) в теле `POST /job.update.command` передаётся объект `meta`: `initiatorType` (например `"worker"`, `"operator"`) и `initiator` (идентификатор). Для штрафа используется **initiatorType === "worker"**. Интеграция при получении события отмены (вебхук или опрос API) вызывает наш эндпоинт, передавая `initiatorType` из `meta`.
+- **Эндпоинт:** `POST /v1/admin/toj/process-late-cancel` (X-Admin-Key). Тело: `{ jobId, workerId, jobStart, cancelledAt, initiatorType?, initiator? }` (даты в ISO 8601). Условие «инициатор — работник» проверяется по `initiatorType === "worker"` (или `initiator === "worker"` для совместимости). При выполнении условий штраф создаётся один раз, в аудит пишется действие `late_cancel_applied`.
 
 ---
 

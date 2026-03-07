@@ -210,12 +210,16 @@ function generateJobs(count, workerIds, dateFrom, dateTo, statuses) {
       deleted: false,
       createdAt: startDate.toISOString(),
       updatedAt: endDate.toISOString(),
+      statusChangeMeta: null,
     };
     newJobs.push(job);
   }
   jobs = newJobs;
   return newJobs.length;
 }
+
+// ——— Allowed statuses for update (TOJ-like) ———
+const ALLOWED_STATUSES = ['booked', 'going', 'inprogress', 'completed', 'confirmed', 'cancelled', 'failed', 'delayed', 'waiting', 'expired'];
 
 app.post('/admin/generate-jobs', adminKey, (req, res) => {
   const body = req.body || {};
@@ -236,6 +240,33 @@ app.get('/admin/jobs', adminKey, (req, res) => {
   const total = jobs.length;
   const items = jobs.slice(skip, skip + limit);
   res.json(wrap({ items, total }));
+});
+
+// ——— Update job status with initiator (admin only, для теста поздней отмены) ———
+// PATCH /admin/jobs/:id — body: { status, initiatorType?, initiator? }
+// Меняет статус смены, записывает meta инициатора (как в TOJ job.update.command).
+app.patch('/admin/jobs/:id', adminKey, (req, res) => {
+  const id = req.params.id;
+  const body = req.body || {};
+  const job = jobs.find((j) => String(j._id) === String(id));
+  if (!job) {
+    return res.status(404).json(wrap(null, 'Job not found'));
+  }
+  const newStatus = typeof body.status === 'string' ? body.status.trim() : null;
+  if (newStatus && !ALLOWED_STATUSES.includes(newStatus)) {
+    return res.status(400).json(wrap(null, `Invalid status. Allowed: ${ALLOWED_STATUSES.join(', ')}`));
+  }
+  const now = new Date().toISOString();
+  if (newStatus) {
+    job.status = newStatus;
+    job.updatedAt = now;
+    job.statusChangeMeta = {
+      initiatorType: typeof body.initiatorType === 'string' ? body.initiatorType.trim() : null,
+      initiator: typeof body.initiator === 'string' ? body.initiator.trim() : null,
+      at: now,
+    };
+  }
+  res.json(wrap(job));
 });
 
 // ——— Health (no auth) ———

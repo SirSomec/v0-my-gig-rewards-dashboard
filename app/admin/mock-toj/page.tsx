@@ -5,6 +5,7 @@ import {
   adminMockTojStatus,
   adminMockTojGenerate,
   adminMockTojListJobs,
+  adminMockTojUpdateJobStatus,
   adminTojSyncStatus,
   adminTojSyncRun,
   adminListUsers,
@@ -61,6 +62,7 @@ export default function AdminMockTojPage() {
   const [jobs, setJobs] = useState<MockTojJob[]>([])
   const [jobsTotal, setJobsTotal] = useState(0)
   const [jobsLoading, setJobsLoading] = useState(false)
+  const [updatingJobId, setUpdatingJobId] = useState<string | null>(null)
   const [syncStatus, setSyncStatus] = useState<{
     configured: boolean
     syncEnabled: boolean
@@ -148,6 +150,19 @@ export default function AdminMockTojPage() {
         })
       )
       .finally(() => setSubmitting(false))
+  }
+
+  const handleUpdateJobStatus = (jobId: string, status: string, initiatorType?: string) => {
+    setUpdatingJobId(jobId)
+    adminMockTojUpdateJobStatus(jobId, { status, initiatorType })
+      .then(() => {
+        toast({ title: "Статус обновлён" })
+        loadJobs()
+      })
+      .catch((e) =>
+        toast({ title: e instanceof Error ? e.message : "Ошибка", variant: "destructive" })
+      )
+      .finally(() => setUpdatingJobId(null))
   }
 
   const handleSyncRun = () => {
@@ -384,11 +399,13 @@ export default function AdminMockTojPage() {
                       <TableHead className="w-[80px]">ID</TableHead>
                       <TableHead>workerId</TableHead>
                       <TableHead>Статус</TableHead>
+                      <TableHead>Инициатор</TableHead>
                       <TableHead>Название</TableHead>
                       <TableHead>Начало</TableHead>
                       <TableHead>Конец</TableHead>
                       <TableHead className="text-right">Часы</TableHead>
                       <TableHead className="text-right">Оплата/ч</TableHead>
+                      <TableHead className="w-[140px]">Действия</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -401,6 +418,11 @@ export default function AdminMockTojPage() {
                           {job.workerId ?? "—"}
                         </TableCell>
                         <TableCell>{job.status ?? "—"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {job.statusChangeMeta?.initiatorType
+                            ? `${job.statusChangeMeta.initiatorType}${job.statusChangeMeta.at ? ` (${formatDate(job.statusChangeMeta.at)})` : ""}`
+                            : "—"}
+                        </TableCell>
                         <TableCell>{job.customName ?? job.spec ?? "—"}</TableCell>
                         <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
                           {formatDate(job.start)}
@@ -413,6 +435,23 @@ export default function AdminMockTojPage() {
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {job.paymentPerHour ?? job.salaryPerHour ?? "—"}
+                        </TableCell>
+                        <TableCell>
+                          {job.status !== "cancelled" ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs"
+                              disabled={updatingJobId === job._id}
+                              onClick={() =>
+                                handleUpdateJobStatus(job._id, "cancelled", "worker")
+                              }
+                            >
+                              {updatingJobId === job._id ? "…" : "Отменить (worker)"}
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
