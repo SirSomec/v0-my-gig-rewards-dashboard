@@ -400,6 +400,14 @@ export async function adminEtlExplorerDatabases(): Promise<{ datname: string }[]
   return fetchAdmin("/v1/admin/etl-explorer/databases");
 }
 
+export async function adminEtlExplorerIntro(): Promise<{
+  connectionInfo: { database: string; user: string };
+  databases: { datname: string }[];
+  schemas: { schema_name: string }[];
+}> {
+  return fetchAdmin("/v1/admin/etl-explorer/intro");
+}
+
 export async function adminEtlExplorerSchemas(): Promise<{ schema_name: string }[]> {
   return fetchAdmin("/v1/admin/etl-explorer/schemas");
 }

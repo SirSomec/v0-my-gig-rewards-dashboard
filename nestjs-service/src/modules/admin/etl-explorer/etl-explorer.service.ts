@@ -69,6 +69,42 @@ export class EtlExplorerService {
     });
   }
 
+  /**
+   * За один коннект возвращает connectionInfo, databases и schemas — чтобы не открывать
+   * несколько параллельных подключений к ETL (избегаем ECONNRESET на Managed PostgreSQL).
+   */
+  async getIntro(): Promise<{
+    connectionInfo: { database: string; user: string };
+    databases: { datname: string }[];
+    schemas: { schema_name: string }[];
+  }> {
+    return this.runWithClient(async (sql) => {
+      const connRows = await sql`SELECT current_database() AS database, current_user AS "user"`;
+      const dbRows = await sql`
+        SELECT datname FROM pg_catalog.pg_database WHERE datistemplate = false ORDER BY datname
+      `;
+      let schemaRows: { schema_name: string }[];
+      try {
+        const fromPg = await sql`
+          SELECT nspname AS schema_name FROM pg_catalog.pg_namespace
+          WHERE nspname NOT LIKE 'pg_%' AND nspname != 'information_schema'
+          ORDER BY nspname
+        `;
+        schemaRows = fromPg as unknown as { schema_name: string }[];
+        if (schemaRows.length === 0) throw new Error('empty');
+      } catch {
+        schemaRows = (await sql`
+          SELECT schema_name FROM information_schema.schemata
+          WHERE schema_name NOT IN ('pg_catalog', 'pg_toast', 'pg_temp_1', 'pg_toast_temp_1', 'information_schema')
+          ORDER BY schema_name
+        `) as unknown as { schema_name: string }[];
+      }
+      const conn = (connRows as unknown as { database: string; user: string }[])[0] ?? { database: '', user: '' };
+      const databases = dbRows as unknown as { datname: string }[];
+      return { connectionInfo: conn, databases, schemas: schemaRows };
+    });
+  }
+
   private buildConnection(): { client: Sql; end: () => Promise<void> } {
     const host = getEtlEnv(this.config, 'ETL_HOST');
     const user = getEtlEnv(this.config, 'ETL_USER');
@@ -103,7 +139,7 @@ export class EtlExplorerService {
       ...opts,
       max_lifetime: 60,
       idle_timeout: 10,
-      connect_timeout: 10,
+      connect_timeout: 20,
     });
 
     return {

@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import {
   adminEtlExplorerStatus,
-  adminEtlExplorerConnectionInfo,
-  adminEtlExplorerDatabases,
+  adminEtlExplorerIntro,
   adminEtlExplorerSchemas,
   adminEtlExplorerTables,
   adminEtlExplorerColumns,
@@ -108,13 +107,23 @@ export default function AdminEtlExplorerPage() {
         setEnvStatus(r.env ?? null)
         setProcessEnvEtlKeys(r.processEnvEtlKeys ?? null)
         if (r.configured) {
-          loadSchemas()
-          adminEtlExplorerConnectionInfo().then(setConnectionInfo).catch(() => setConnectionInfo(null))
+          setLoadingSchemas(true)
           setLoadingDatabases(true)
-          adminEtlExplorerDatabases()
-            .then(setDatabases)
-            .catch(() => setDatabases([]))
-            .finally(() => setLoadingDatabases(false))
+          adminEtlExplorerIntro()
+            .then((intro) => {
+              setConnectionInfo(intro.connectionInfo)
+              setDatabases(intro.databases)
+              setSchemas(intro.schemas)
+            })
+            .catch(() => {
+              setConnectionInfo(null)
+              setDatabases([])
+              setSchemas([])
+            })
+            .finally(() => {
+              setLoadingSchemas(false)
+              setLoadingDatabases(false)
+            })
         }
       })
       .catch(() => {

@@ -49,6 +49,17 @@ export class EtlExplorerController {
     return this.etl.getDatabases();
   }
 
+  @Get('intro')
+  @ApiOperation({ summary: 'За один коннект: connectionInfo + databases + schemas (меньше ECONNRESET)' })
+  async getIntro(): Promise<{
+    connectionInfo: { database: string; user: string };
+    databases: { datname: string }[];
+    schemas: { schema_name: string }[];
+  }> {
+    this.ensureConfigured();
+    return this.etl.getIntro();
+  }
+
   @Get('schemas')
   @ApiOperation({ summary: 'Список схем БД ETL' })
   async getSchemas(): Promise<{ schema_name: string }[]> {
