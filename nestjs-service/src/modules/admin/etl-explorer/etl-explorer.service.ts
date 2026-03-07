@@ -47,6 +47,15 @@ export class EtlExplorerService {
     return Object.keys(process.env).filter((k) => k.startsWith('ETL_'));
   }
 
+  /** Текущая база и пользователь ETL (для проверки подключения). */
+  async getConnectionInfo(): Promise<{ database: string; user: string }> {
+    return this.runWithClient(async (sql) => {
+      const rows = await sql`SELECT current_database() AS database, current_user AS "user"`;
+      const r = (rows as unknown as { database: string; user: string }[])[0];
+      return r ?? { database: '', user: '' };
+    });
+  }
+
   private buildConnection(): { client: Sql; end: () => Promise<void> } {
     const host = getEtlEnv(this.config, 'ETL_HOST');
     const user = getEtlEnv(this.config, 'ETL_USER');
@@ -101,10 +110,24 @@ export class EtlExplorerService {
 
   async getSchemas(): Promise<{ schema_name: string }[]> {
     return this.runWithClient(async (sql) => {
+      // Сначала через pg_namespace (в Managed PostgreSQL часто надёжнее)
+      try {
+        const fromPgNamespace = await sql`
+          SELECT nspname AS schema_name
+          FROM pg_catalog.pg_namespace
+          WHERE nspname NOT LIKE 'pg_%'
+            AND nspname != 'information_schema'
+          ORDER BY nspname
+        `;
+        const rows = fromPgNamespace as unknown as { schema_name: string }[];
+        if (rows.length > 0) return rows;
+      } catch {
+        // игнорируем, пробуем information_schema
+      }
       const rows = await sql`
         SELECT schema_name
         FROM information_schema.schemata
-        WHERE schema_name NOT IN ('pg_catalog', 'pg_toast', 'pg_temp_1', 'pg_toast_temp_1')
+        WHERE schema_name NOT IN ('pg_catalog', 'pg_toast', 'pg_temp_1', 'pg_toast_temp_1', 'information_schema')
         ORDER BY schema_name
       `;
       return rows as unknown as { schema_name: string }[];

@@ -389,6 +389,13 @@ export async function adminEtlExplorerStatus(): Promise<{
   return fetchAdmin("/v1/admin/etl-explorer/status");
 }
 
+export async function adminEtlExplorerConnectionInfo(): Promise<{
+  database: string;
+  user: string;
+}> {
+  return fetchAdmin("/v1/admin/etl-explorer/connection-info");
+}
+
 export async function adminEtlExplorerSchemas(): Promise<{ schema_name: string }[]> {
   return fetchAdmin("/v1/admin/etl-explorer/schemas");
 }

@@ -35,6 +35,13 @@ export class EtlExplorerController {
     return { configured, env, processEnvEtlKeys };
   }
 
+  @Get('connection-info')
+  @ApiOperation({ summary: 'Текущая база и пользователь ETL (для проверки подключения)' })
+  async getConnectionInfo(): Promise<{ database: string; user: string }> {
+    this.ensureConfigured();
+    return this.etl.getConnectionInfo();
+  }
+
   @Get('schemas')
   @ApiOperation({ summary: 'Список схем БД ETL' })
   async getSchemas(): Promise<{ schema_name: string }[]> {

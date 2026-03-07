@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import {
   adminEtlExplorerStatus,
+  adminEtlExplorerConnectionInfo,
   adminEtlExplorerSchemas,
   adminEtlExplorerTables,
   adminEtlExplorerColumns,
@@ -79,6 +80,7 @@ export default function AdminEtlExplorerPage() {
   const [configured, setConfigured] = useState<boolean | null>(null)
   const [envStatus, setEnvStatus] = useState<Record<string, boolean> | null>(null)
   const [processEnvEtlKeys, setProcessEnvEtlKeys] = useState<string[] | null>(null)
+  const [connectionInfo, setConnectionInfo] = useState<{ database: string; user: string } | null>(null)
   const [schemas, setSchemas] = useState<{ schema_name: string }[]>([])
   const [tables, setTables] = useState<{ table_name: string }[]>([])
   const [columns, setColumns] = useState<{ column_name: string; data_type: string; is_nullable: string }[]>([])
@@ -102,7 +104,10 @@ export default function AdminEtlExplorerPage() {
         setConfigured(r.configured)
         setEnvStatus(r.env ?? null)
         setProcessEnvEtlKeys(r.processEnvEtlKeys ?? null)
-        if (r.configured) loadSchemas()
+        if (r.configured) {
+          loadSchemas()
+          adminEtlExplorerConnectionInfo().then(setConnectionInfo).catch(() => setConnectionInfo(null))
+        }
       })
       .catch(() => {
         setConfigured(false)
@@ -248,6 +253,16 @@ export default function AdminEtlExplorerPage() {
               <Database className="h-4 w-4" />
               Схемы и таблицы
             </span>
+            {connectionInfo && (
+              <p className="text-xs text-muted-foreground font-normal mt-1">
+                Подключение: база <code className="bg-muted px-1 rounded">{connectionInfo.database}</code>, пользователь {connectionInfo.user}
+              </p>
+            )}
+            {connectionInfo && schemas.length === 0 && !loadingSchemas && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 font-normal mt-1">
+                Схем не найдено. Задайте в .env переменную ETL_DATABASE с именем базы, где лежат данные (если подключаетесь не к той базе).
+              </p>
+            )}
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
