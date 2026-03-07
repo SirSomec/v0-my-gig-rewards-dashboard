@@ -182,7 +182,7 @@ export class EtlExplorerService {
       method: 'GET',
       hostname: host,
       port: 8443,
-      path: `/?query=${encodeURIComponent(query)}&database=${encodeURIComponent(db)}&format=JSONEachRow`,
+      path: `/?query=${encodeURIComponent(query.trimEnd() + ' FORMAT JSONEachRow')}&database=${encodeURIComponent(db)}`,
       headers: {
         'X-ClickHouse-User': user,
         'X-ClickHouse-Key': password,
