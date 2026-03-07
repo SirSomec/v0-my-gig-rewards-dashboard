@@ -117,7 +117,7 @@ export class TojSyncService {
         const { items } = await this.tojClient.findJobs(
           {
             workerIds: batch,
-            statuses: ['completed', 'confirmed'],
+            statuses: ['confirmed'],
             updatedAtGte: watermark,
           },
           { limit: pageSize, skip },

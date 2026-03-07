@@ -166,7 +166,7 @@ app.post('/job.find-by-id.query', basicAuth, (req, res) => {
 
 // ——— Generate mock jobs (admin only) ———
 function generateJobs(count, workerIds, dateFrom, dateTo, statuses) {
-  const statusList = Array.isArray(statuses) && statuses.length > 0 ? statuses : ['completed', 'confirmed'];
+  const statusList = Array.isArray(statuses) && statuses.length > 0 ? statuses : ['confirmed'];
   const workers = Array.isArray(workerIds) && workerIds.length > 0 ? workerIds : ['mock-worker-1'];
   const from = dateFrom ? new Date(dateFrom) : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
   const to = dateTo ? new Date(dateTo) : new Date();
@@ -223,7 +223,7 @@ app.post('/admin/generate-jobs', adminKey, (req, res) => {
   const workerIds = Array.isArray(body.workerIds) ? body.workerIds.filter((x) => typeof x === 'string') : [];
   const dateFrom = typeof body.dateFrom === 'string' ? body.dateFrom : null;
   const dateTo = typeof body.dateTo === 'string' ? body.dateTo : null;
-  const statuses = Array.isArray(body.statuses) ? body.statuses : ['completed', 'confirmed'];
+  const statuses = Array.isArray(body.statuses) ? body.statuses : ['confirmed'];
 
   const total = generateJobs(count, workerIds, dateFrom, dateTo, statuses);
   res.json(wrap({ generated: total, count: total }));
