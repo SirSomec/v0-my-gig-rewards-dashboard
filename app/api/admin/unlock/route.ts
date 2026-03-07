@@ -30,11 +30,12 @@ export async function POST(request: NextRequest) {
   }
 
   const res = NextResponse.json({ ok: true })
+  const isSecure = request.nextUrl.protocol === "https:"
   res.cookies.set(COOKIE_NAME, COOKIE_VALUE, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: isSecure,
     sameSite: "lax",
-    path: "/admin",
+    path: "/",
     maxAge: COOKIE_MAX_AGE,
   })
   return res

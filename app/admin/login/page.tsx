@@ -1,10 +1,9 @@
 "use client"
 
 import { Suspense, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 
 function AdminLoginForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -17,6 +16,7 @@ function AdminLoginForm() {
     try {
       const res = await fetch("/api/admin/unlock", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
       })
@@ -26,8 +26,8 @@ function AdminLoginForm() {
         return
       }
       const next = searchParams.get("next") ?? "/admin"
-      router.push(next)
-      router.refresh()
+      window.location.href = next
+      return
     } catch {
       setError("Ошибка сети")
     } finally {
