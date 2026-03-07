@@ -321,11 +321,14 @@ export class AdminController {
   ) {
     const userId = body?.userId;
     if (userId == null) throw new BadRequestException('userId required');
-    return this.admin.mockTojGenerate({
+    const params: Parameters<AdminService['mockTojGenerate']>[0] = {
       userId,
       count: Math.min(Math.max(Number(body?.count) || 10, 1), 500),
-      dateFrom: body?.dateFrom?.trim() || undefined,
-      dateTo: body?.dateTo?.trim() || undefined,
-    });
+    };
+    const from = body?.dateFrom?.trim();
+    if (from) params.dateFrom = from;
+    const to = body?.dateTo?.trim();
+    if (to) params.dateTo = to;
+    return this.admin.mockTojGenerate(params);
   }
 }
