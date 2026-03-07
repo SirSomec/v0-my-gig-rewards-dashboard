@@ -20,7 +20,7 @@ export class EtlExplorerService {
 
   /** Для диагностики: какие переменные ETL заданы (значения не возвращаем). */
   getEnvStatus(): { ETL_HOST: boolean; ETL_PORT: boolean; ETL_USER: boolean; ETL_PASSWORD: boolean; ETL_DATABASE: boolean; ETL_SSL_ROOT_CERT: boolean } {
-    const get = (key: string) => {
+    const get = (key: keyof Envs) => {
       const v = this.config.get<string>(key);
       return v != null && String(v).trim() !== '';
     };
