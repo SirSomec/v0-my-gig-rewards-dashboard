@@ -1,4 +1,5 @@
 import { readFileSync, existsSync } from 'fs';
+import * as https from 'https';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import postgres, { Sql } from 'postgres';
@@ -6,6 +7,9 @@ import type { Envs } from '../../../shared/env.validation-schema';
 
 const PREVIEW_LIMIT = 100;
 const CUSTOM_QUERY_LIMIT = 200;
+
+/** Порт ClickHouse HTTPS API (Yandex Cloud). При ETL_PORT=8443 используется HTTP API, а не PostgreSQL. */
+const CLICKHOUSE_HTTPS_PORT = '8443';
 
 /** Путь к CA в образе Docker (сертификаты Yandex Cloud загружаются при сборке). */
 const ETL_DEFAULT_CA_PATH = '/app/certs/YandexCloudCA.pem';
@@ -29,6 +33,11 @@ export class EtlExplorerService {
     return !!(host && user && password);
   }
 
+  /** True, если ETL — ClickHouse (порт 8443, HTTPS API). Иначе — PostgreSQL. */
+  private isClickHouse(): boolean {
+    return getEtlEnv(this.config, 'ETL_PORT') === CLICKHOUSE_HTTPS_PORT;
+  }
+
   /** Для диагностики: какие переменные ETL заданы (значения не возвращаем). */
   getEnvStatus(): { ETL_HOST: boolean; ETL_PORT: boolean; ETL_USER: boolean; ETL_PASSWORD: boolean; ETL_DATABASE: boolean; ETL_SSL_ROOT_CERT: boolean } {
     const get = (key: keyof Envs) => !!getEtlEnv(this.config, key);
@@ -49,6 +58,7 @@ export class EtlExplorerService {
 
   /** Текущая база и пользователь ETL (для проверки подключения). */
   async getConnectionInfo(): Promise<{ database: string; user: string }> {
+    if (this.isClickHouse()) return this.getConnectionInfoClickHouse();
     return this.runWithClient(async (sql) => {
       const rows = await sql`SELECT current_database() AS database, current_user AS "user"`;
       const r = (rows as unknown as { database: string; user: string }[])[0];
@@ -58,6 +68,7 @@ export class EtlExplorerService {
 
   /** Список баз данных в кластере ETL (для выбора ETL_DATABASE в .env). */
   async getDatabases(): Promise<{ datname: string }[]> {
+    if (this.isClickHouse()) return this.getDatabasesClickHouse();
     return this.runWithClient(async (sql) => {
       const rows = await sql`
         SELECT datname
@@ -78,6 +89,7 @@ export class EtlExplorerService {
     databases: { datname: string }[];
     schemas: { schema_name: string }[];
   }> {
+    if (this.isClickHouse()) return this.getIntroClickHouse();
     return this.runWithClient(async (sql) => {
       const connRows = await sql`SELECT current_database() AS database, current_user AS "user"`;
       const dbRows = await sql`
@@ -151,6 +163,87 @@ export class EtlExplorerService {
     };
   }
 
+  /** Выполняет запрос к ClickHouse по HTTPS (порт 8443), возвращает массив объектов (JSONEachRow). */
+  private clickHouseRequest<T = Record<string, unknown>>(
+    query: string,
+    database?: string,
+  ): Promise<T[]> {
+    const host = getEtlEnv(this.config, 'ETL_HOST');
+    const user = getEtlEnv(this.config, 'ETL_USER');
+    const password = getEtlEnv(this.config, 'ETL_PASSWORD');
+    if (!host || !user || !password) {
+      return Promise.reject(new Error('ETL_HOST, ETL_USER and ETL_PASSWORD are required'));
+    }
+    const db = database ?? getEtlEnv(this.config, 'ETL_DATABASE') ?? 'default';
+    const caPath =
+      getEtlEnv(this.config, 'ETL_SSL_ROOT_CERT') ||
+      (existsSync(ETL_DEFAULT_CA_PATH) ? ETL_DEFAULT_CA_PATH : undefined);
+    const options: https.RequestOptions = {
+      method: 'GET',
+      hostname: host,
+      port: 8443,
+      path: `/?query=${encodeURIComponent(query)}&database=${encodeURIComponent(db)}&format=JSONEachRow`,
+      headers: {
+        'X-ClickHouse-User': user,
+        'X-ClickHouse-Key': password,
+      },
+    };
+    if (caPath && existsSync(caPath)) {
+      options.ca = readFileSync(caPath);
+    }
+    return new Promise((resolve, reject) => {
+      const req = https.request(options, (res) => {
+        let body = '';
+        res.setEncoding('utf8');
+        res.on('data', (chunk) => { body += chunk; });
+        res.on('end', () => {
+          if (res.statusCode && res.statusCode >= 400) {
+            reject(new Error(`ClickHouse HTTP ${res.statusCode}: ${body.slice(0, 500)}`));
+            return;
+          }
+          const rows: T[] = [];
+          const lines = body.split(/\r?\n/).filter((s) => s.trim());
+          for (const line of lines) {
+            try {
+              rows.push(JSON.parse(line) as T);
+            } catch {
+              // skip malformed lines
+            }
+          }
+          resolve(rows);
+        });
+      });
+      req.on('error', reject);
+      req.end();
+    });
+  }
+
+  private async getConnectionInfoClickHouse(): Promise<{ database: string; user: string }> {
+    const rows = await this.clickHouseRequest<{ database: string; user: string }>(
+      'SELECT currentDatabase() AS database, currentUser() AS user',
+    );
+    const r = rows[0];
+    return r ?? { database: '', user: '' };
+  }
+
+  private async getDatabasesClickHouse(): Promise<{ datname: string }[]> {
+    const rows = await this.clickHouseRequest<{ name: string }>('SHOW DATABASES');
+    return rows.map((row) => ({ datname: row.name }));
+  }
+
+  private async getIntroClickHouse(): Promise<{
+    connectionInfo: { database: string; user: string };
+    databases: { datname: string }[];
+    schemas: { schema_name: string }[];
+  }> {
+    const [connectionInfo, databases] = await Promise.all([
+      this.getConnectionInfoClickHouse(),
+      this.getDatabasesClickHouse(),
+    ]);
+    const schemas = databases.map((d) => ({ schema_name: d.datname }));
+    return { connectionInfo, databases, schemas };
+  }
+
   private async runWithClient<T>(fn: (sql: Sql) => Promise<T>): Promise<T> {
     const { client, end } = this.buildConnection();
     try {
@@ -161,6 +254,10 @@ export class EtlExplorerService {
   }
 
   async getSchemas(): Promise<{ schema_name: string }[]> {
+    if (this.isClickHouse()) {
+      const rows = await this.clickHouseRequest<{ name: string }>('SHOW DATABASES');
+      return rows.map((r) => ({ schema_name: r.name }));
+    }
     return this.runWithClient(async (sql) => {
       // Сначала через pg_namespace (в Managed PostgreSQL часто надёжнее)
       try {
@@ -187,6 +284,13 @@ export class EtlExplorerService {
   }
 
   async getTables(schema: string): Promise<{ table_name: string }[]> {
+    if (!/^[a-zA-Z0-9_]+$/.test(schema)) throw new Error('Invalid schema name');
+    if (this.isClickHouse()) {
+      const rows = await this.clickHouseRequest<{ name: string }>(
+        `SHOW TABLES FROM \`${schema.replace(/`/g, '')}\``,
+      );
+      return rows.map((r) => ({ table_name: r.name }));
+    }
     return this.runWithClient(async (sql) => {
       const rows = await sql`
         SELECT table_name
@@ -200,6 +304,21 @@ export class EtlExplorerService {
   }
 
   async getColumns(schema: string, table: string): Promise<{ column_name: string; data_type: string; is_nullable: string }[]> {
+    if (!/^[a-zA-Z0-9_]+$/.test(schema) || !/^[a-zA-Z0-9_]+$/.test(table)) {
+      throw new Error('Invalid schema or table name');
+    }
+    const schemaSafe = schema.replace(/`/g, '');
+    const tableSafe = table.replace(/`/g, '');
+    if (this.isClickHouse()) {
+      const rows = await this.clickHouseRequest<{ name: string; type: string; nullable: string }>(
+        `SELECT name, type, nullable FROM system.columns WHERE database = '${schemaSafe}' AND table = '${tableSafe}' ORDER BY position`,
+      );
+      return rows.map((r) => ({
+        column_name: r.name,
+        data_type: r.type,
+        is_nullable: String(r.nullable) === '1' || r.nullable === true ? 'YES' : 'NO',
+      }));
+    }
     return this.runWithClient(async (sql) => {
       const rows = await sql`
         SELECT column_name, data_type, is_nullable
@@ -216,6 +335,13 @@ export class EtlExplorerService {
       throw new Error('Invalid schema or table name');
     }
     const limitNum = Math.min(Math.max(1, limit), PREVIEW_LIMIT);
+    const schemaSafe = schema.replace(/`/g, '');
+    const tableSafe = table.replace(/`/g, '');
+    if (this.isClickHouse()) {
+      return this.clickHouseRequest(
+        `SELECT * FROM \`${schemaSafe}\`.\`${tableSafe}\` LIMIT ${limitNum}`,
+      );
+    }
     return this.runWithClient(async (sql) => {
       const rows = await sql.unsafe(
         `SELECT * FROM "${schema}"."${table}" LIMIT $1`,
@@ -244,6 +370,10 @@ export class EtlExplorerService {
     const hasLimit = /\bLIMIT\s+\d+/i.test(sql);
     if (!hasLimit) {
       sql += ` LIMIT ${CUSTOM_QUERY_LIMIT}`;
+    }
+    if (this.isClickHouse()) {
+      const rows = await this.clickHouseRequest(sql);
+      return { rows, limited: !hasLimit };
     }
     const rows = await this.runWithClient(async (client) => {
       const result = await client.unsafe(sql, []);

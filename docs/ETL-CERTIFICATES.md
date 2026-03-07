@@ -6,26 +6,38 @@
 
 В проекте **один общий .env в корне репозитория** (рядом с `docker-compose.yml`). В нём задают и переменные ETL, и остальную конфигурацию. Контейнер api подхватывает их через `env_file: .env`.
 
-Подключение к источнику данных ETL задаётся переменными окружения бэкенда:
+Источник ETL может быть **ClickHouse** (порт 8443, HTTPS API) или **PostgreSQL** (порты 5432/6432). Тип определяется по `ETL_PORT`: при 8443 используется HTTP-интерфейс ClickHouse с заголовками `X-ClickHouse-User` и `X-ClickHouse-Key`, иначе — подключение по протоколу PostgreSQL.
+
+Подключение задаётся переменными окружения бэкенда:
 
 | Переменная | Описание |
 |------------|----------|
 | `ETL_HOST` | Хост ETL (или БД источника) |
-| `ETL_PORT` | Порт (например `5432` для PostgreSQL) |
+| `ETL_PORT` | Порт: **8443** для ClickHouse (HTTPS API, Yandex Cloud), **5432** или **6432** для PostgreSQL |
 | `ETL_USER` | Имя пользователя |
 | `ETL_PASSWORD` | Пароль |
-| `ETL_DATABASE` | (опционально) Имя БД |
+| `ETL_DATABASE` | (опционально) Имя БД по умолчанию |
 | `ETL_SSL_ROOT_CERT` | (опционально) Путь к CA для TLS. В Docker не задавайте — сертификат Yandex Cloud уже есть в образе по умолчанию. |
 
-Пример в `.env`:
+Пример в `.env` для **ClickHouse** (Yandex Cloud, порт 8443):
+
+```env
+ETL_HOST=rc1a-xxxxx.mdb.yandexcloud.net
+ETL_PORT=8443
+ETL_USER=myuser
+ETL_PASSWORD=secret
+ETL_DATABASE=default
+# ETL_SSL_ROOT_CERT — не нужна в Docker (сертификат уже в образе).
+```
+
+Пример для **PostgreSQL**:
 
 ```env
 ETL_HOST=etl.example.yandexcloud.net
-ETL_PORT=5432
+ETL_PORT=6432
 ETL_USER=mygig_ro
 ETL_PASSWORD=secret
 ETL_DATABASE=etl_db
-# ETL_SSL_ROOT_CERT — не нужна в Docker (сертификат уже в образе). Для локального запуска укажите путь к PEM при необходимости.
 ```
 
 **В Docker** образ API при сборке сам скачивает корневой и промежуточный CA Yandex Cloud в `/app/certs/YandexCloudCA.pem`. Переменная `ETL_SSL_ROOT_CERT` не нужна — при подключении к ETL используется этот файл, если путь не задан.
@@ -45,12 +57,13 @@ docker compose exec api env | grep ETL
 Строку подключения собирают из переменных в коде; для TLS используется сертификат из `ETL_SSL_ROOT_CERT` или (в Docker) из `/app/certs/YandexCloudCA.pem` по умолчанию.
 
 **Ошибка ECONNRESET при открытии «Данные ETL»:**  
-1) Пересоберите **оба** образа и перезапустите — фронт должен вызывать один запрос `intro`, а не четыре параллельных:
+1) Пересоберите **оба** образа и перезапустите — фронт вызывает один запрос `intro`, бэкенд подключается по выбранному протоколу (ClickHouse при порте 8443, PostgreSQL при 5432/6432):
    ```bash
    docker compose build app api
    docker compose up -d app api
    ```
-2) В Yandex Managed PostgreSQL для защищённого подключения часто указывают порт **6432** (не 8443). Проверьте в консоли Yandex Cloud точный хост и порт кластера и при необходимости задайте в .env `ETL_PORT=6432`.
+2) **ClickHouse (Yandex):** укажите `ETL_PORT=8443` — используется HTTPS API с заголовками `X-ClickHouse-User` и `X-ClickHouse-Key`.  
+3) **PostgreSQL (Yandex Managed):** для защищённого подключения часто указывают порт **6432**. Проверьте в консоли Yandex Cloud хост и порт кластера и при необходимости задайте `ETL_PORT=6432`.
 
 ## Зачем нужны сертификаты
 

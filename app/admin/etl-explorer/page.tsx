@@ -83,6 +83,7 @@ export default function AdminEtlExplorerPage() {
   const [connectionInfo, setConnectionInfo] = useState<{ database: string; user: string } | null>(null)
   const [databases, setDatabases] = useState<{ datname: string }[]>([])
   const [schemas, setSchemas] = useState<{ schema_name: string }[]>([])
+  const [introError, setIntroError] = useState<string | null>(null)
   const [tables, setTables] = useState<{ table_name: string }[]>([])
   const [columns, setColumns] = useState<{ column_name: string; data_type: string; is_nullable: string }[]>([])
   const [preview, setPreview] = useState<Record<string, unknown>[]>([])
@@ -107,6 +108,7 @@ export default function AdminEtlExplorerPage() {
         setEnvStatus(r.env ?? null)
         setProcessEnvEtlKeys(r.processEnvEtlKeys ?? null)
         if (r.configured) {
+          setIntroError(null)
           setLoadingSchemas(true)
           setLoadingDatabases(true)
           adminEtlExplorerIntro()
@@ -115,10 +117,19 @@ export default function AdminEtlExplorerPage() {
               setDatabases(intro.databases)
               setSchemas(intro.schemas)
             })
-            .catch(() => {
+            .catch((e) => {
               setConnectionInfo(null)
               setDatabases([])
               setSchemas([])
+              let msg = e instanceof Error ? e.message : String(e)
+              try {
+                const jsonMatch = msg.replace(/^[^:]+:\s*/, "")
+                const j = JSON.parse(jsonMatch)
+                if (j && typeof j.message === "string") msg = j.message
+              } catch {
+                // use full msg
+              }
+              setIntroError(msg)
             })
             .finally(() => {
               setLoadingSchemas(false)
@@ -263,6 +274,12 @@ export default function AdminEtlExplorerPage() {
         Обзор схем, таблиц и превью данных. Только чтение.
       </p>
 
+      {introError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="whitespace-pre-wrap">{introError}</AlertDescription>
+        </Alert>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <Card className="lg:col-span-1">
           <CardHeader className="py-3">

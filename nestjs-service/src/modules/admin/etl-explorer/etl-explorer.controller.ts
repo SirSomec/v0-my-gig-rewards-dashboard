@@ -57,7 +57,17 @@ export class EtlExplorerController {
     schemas: { schema_name: string }[];
   }> {
     this.ensureConfigured();
-    return this.etl.getIntro();
+    try {
+      return await this.etl.getIntro();
+    } catch (e) {
+      const code = e && typeof e === 'object' && 'code' in e ? (e as { code: string }).code : '';
+      if (code === 'ECONNRESET') {
+        throw new ServiceUnavailableException(
+          'Подключение к ETL разорвано (ECONNRESET). Проверьте ETL_HOST и ETL_PORT: для ClickHouse (Yandex) укажите ETL_PORT=8443 (HTTPS API), для PostgreSQL — обычно 6432. Перезапустите api после смены .env.',
+        );
+      }
+      throw e;
+    }
   }
 
   @Get('schemas')
