@@ -40,6 +40,13 @@ services:
       - DEV_USER_ID=${NEXT_PUBLIC_DEV_USER_ID:-1}
       # Ключ для админ-API (X-Admin-Key). Задайте в .env для production.
       - ADMIN_SECRET=${ADMIN_SECRET:-admin-dev-secret}
+      # ETL (MVP): подключение к источнику данных для раздела «Данные ETL» в админке
+      - ETL_HOST=${ETL_HOST:-}
+      - ETL_PORT=${ETL_PORT:-5432}
+      - ETL_USER=${ETL_USER:-}
+      - ETL_PASSWORD=${ETL_PASSWORD:-}
+      - ETL_DATABASE=${ETL_DATABASE:-}
+      - ETL_SSL_ROOT_CERT=${ETL_SSL_ROOT_CERT:-}
     depends_on:
       db:
         condition: service_healthy
