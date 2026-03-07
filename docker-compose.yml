@@ -3,7 +3,7 @@
 # При каждом запуске контейнера api автоматически применяются неприменённые миграции БД (entrypoint).
 #
 # Конфигурация: один общий файл .env в корне проекта (рядом с docker-compose.yml).
-# Его используют подстановки ${VAR} и env_file для контейнера api.
+# Контейнер api монтирует его в /app/.env — приложение читает переменные при старте (в т.ч. ETL_*).
 #
 # Подключение к БД по умолчанию (можно переопределить через .env):
 #   Пользователь: POSTGRES_USER=rewards
@@ -52,6 +52,9 @@ services:
       - ETL_PASSWORD=${ETL_PASSWORD:-}
       - ETL_DATABASE=${ETL_DATABASE:-}
       - ETL_SSL_ROOT_CERT=${ETL_SSL_ROOT_CERT:-}
+    volumes:
+      # Монтируем .env в контейнер — NestJS читает его при старте (ConfigModule envFilePath)
+      - ./.env:/app/.env:ro
     depends_on:
       db:
         condition: service_healthy

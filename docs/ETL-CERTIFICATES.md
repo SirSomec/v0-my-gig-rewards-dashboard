@@ -30,14 +30,13 @@ ETL_DATABASE=etl_db
 
 **В Docker** образ API при сборке сам скачивает корневой и промежуточный CA Yandex Cloud в `/app/certs/YandexCloudCA.pem`. Переменная `ETL_SSL_ROOT_CERT` не нужна — при подключении к ETL используется этот файл, если путь не задан.
 
-**Проверка на сервере (Docker):** переменные из `.env` попадают в контейнер **только при его создании**. Если вы изменили `.env` после того, как контейнер уже был запущен, пересоздайте контейнер api:
-
+**Проверка на сервере (Docker):** файл `.env` монтируется в контейнер как `/app/.env`, приложение читает его при старте. После правки `.env` перезапустите api:
 ```bash
 cd /opt/v0-my-gig-rewards-dashboard   # или ваш путь к проекту
-docker compose up -d --force-recreate api
+docker compose restart api
 docker compose exec api env | grep ETL
 ```
-Должны появиться строки `ETL_HOST=...`, `ETL_USER=...`, `ETL_PASSWORD=...`. Обычный `docker compose restart api` **не** подхватывает новый .env — нужен именно `--force-recreate`. Имена переменных должны быть **строго** в верхнем регистре: `ETL_HOST`, а не `etl_host`.
+Если переменных нет в выводе `env`, проверьте, что запускаете из каталога, где лежит `.env`. Имена переменных — **строго** в верхнем регистре: `ETL_HOST`, а не `etl_host`.
 
 Строку подключения собирают из переменных в коде; для TLS используется сертификат из `ETL_SSL_ROOT_CERT` или (в Docker) из `/app/certs/YandexCloudCA.pem` по умолчанию.
 
