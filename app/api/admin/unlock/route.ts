@@ -6,12 +6,6 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 7 // 7 дней
 
 export async function POST(request: NextRequest) {
   const expected = process.env.ADMIN_PANEL_PASSWORD
-  if (!expected) {
-    return NextResponse.json(
-      { error: "Защита панели не включена (ADMIN_PANEL_PASSWORD не задан)." },
-      { status: 503 }
-    )
-  }
 
   let body: { password?: string }
   try {
@@ -24,11 +18,15 @@ export async function POST(request: NextRequest) {
   }
 
   const password = typeof body.password === "string" ? body.password.trim() : ""
-  if (password !== expected) {
-    return NextResponse.json(
-      { error: "Неверный пароль." },
-      { status: 401 }
-    )
+
+  // Если пароль задан в .env — проверяем; иначе пускаем без пароля (удобно для локальной разработки).
+  if (expected) {
+    if (password !== expected) {
+      return NextResponse.json(
+        { error: "Неверный пароль." },
+        { status: 401 }
+      )
+    }
   }
 
   const res = NextResponse.json({ ok: true })

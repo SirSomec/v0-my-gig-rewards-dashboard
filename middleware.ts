@@ -16,11 +16,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Если пароль не задан в .env — панель открыта
-  if (!process.env.ADMIN_PANEL_PASSWORD) {
-    return NextResponse.next()
-  }
-
+  // Всегда требуем cookie для доступа в админку (независимо от пользователя ЛК).
+  // Cookie выставляется только после успешной проверки пароля на /admin/login (или без пароля, если ADMIN_PANEL_PASSWORD не задан).
   const cookie = request.cookies.get(COOKIE_NAME)
   if (cookie?.value) {
     return NextResponse.next()
