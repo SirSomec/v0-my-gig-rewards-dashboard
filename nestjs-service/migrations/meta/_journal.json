@@ -57,6 +57,13 @@
       "when": 1731283200000,
       "tag": "0008_system_settings_and_levels_bonus_multiplier",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1731369600000,
+      "tag": "0009_transactions_booked_at",
+      "breakpoints": true
     }
   ]
 }
