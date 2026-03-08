@@ -27,11 +27,11 @@ export default function MyGigRewards() {
 
   if (loading && !user) {
     return (
-      <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative">
+      <div className="min-h-screen min-h-[100dvh] bg-background flex flex-col max-w-md mx-auto relative">
         <header className="sticky top-0 z-50 bg-card/90 backdrop-blur-md border-b border-border">
-          <div className="flex items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-secondary animate-pulse" />
+          <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-secondary animate-pulse shrink-0" />
               <div className="flex flex-col gap-1">
                 <div className="h-4 w-28 bg-secondary rounded animate-pulse" />
                 <div className="h-4 w-24 bg-secondary rounded animate-pulse" />
@@ -40,10 +40,10 @@ export default function MyGigRewards() {
             <div className="h-9 w-20 bg-secondary rounded-full animate-pulse" />
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto px-4 py-4 pb-24">
+        <main className="flex-1 min-h-0 overflow-y-auto px-3 py-3 pb-20 sm:px-4 sm:py-4 sm:pb-24">
           <DashboardSkeleton />
         </main>
-        <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto h-14 bg-card border-t border-border" />
+        <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto h-12 sm:h-14 bg-card border-t border-border" />
       </div>
     )
   }
@@ -51,7 +51,7 @@ export default function MyGigRewards() {
   if (error && !user) {
     const { apiUrl, hasDevUserId } = getApiConfigForDisplay()
     return (
-      <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative">
+      <div className="min-h-screen min-h-[100dvh] bg-background flex flex-col max-w-md mx-auto relative">
         <main className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
           <div className="p-4 rounded-full bg-destructive/10 text-destructive">
             <AlertCircle size={32} />
@@ -81,7 +81,7 @@ export default function MyGigRewards() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative">
+    <div className="min-h-screen min-h-[100dvh] bg-background flex flex-col max-w-md mx-auto relative">
       <Header
         coinBalance={user.balance}
         userName={user.name}
@@ -90,7 +90,7 @@ export default function MyGigRewards() {
         onLogout={isLoggedIn ? logout : undefined}
       />
 
-      <main className="flex-1 overflow-y-auto px-4 py-4 pb-24">
+      <main className="flex-1 min-h-0 overflow-y-auto px-3 py-3 pb-20 sm:px-4 sm:py-4 sm:pb-24">
         <AnimatePresence mode="wait">
           {activeTab === "home" && (
             <motion.div
@@ -100,7 +100,7 @@ export default function MyGigRewards() {
               animate="animate"
               exit="exit"
               transition={{ duration: 0.25 }}
-              className="flex flex-col gap-4"
+              className="flex flex-col gap-3 sm:gap-4"
             >
               <LevelProgress
                 currentLevel={user.level}
@@ -115,7 +115,10 @@ export default function MyGigRewards() {
                 currentLevelPerks={currentLevelPerks}
               />
               <Quests quests={quests} />
-              <EarningHistory entries={transactions.slice(0, 3)} />
+              <EarningHistory
+                entries={transactions.slice(0, 3)}
+                onViewAllClick={() => setActiveTab("history")}
+              />
             </motion.div>
           )}
 
@@ -127,7 +130,7 @@ export default function MyGigRewards() {
               animate="animate"
               exit="exit"
               transition={{ duration: 0.25 }}
-              className="flex flex-col gap-4"
+              className="flex flex-col gap-3 sm:gap-4"
             >
               <EarningHistory
                 entries={transactions}
@@ -147,7 +150,7 @@ export default function MyGigRewards() {
               animate="animate"
               exit="exit"
               transition={{ duration: 0.25 }}
-              className="flex flex-col gap-4"
+              className="flex flex-col gap-3 sm:gap-4"
             >
               <RedemptionStore
                 items={storeItems}
@@ -165,7 +168,7 @@ export default function MyGigRewards() {
               animate="animate"
               exit="exit"
               transition={{ duration: 0.25 }}
-              className="flex flex-col gap-4"
+              className="flex flex-col gap-3 sm:gap-4"
             >
               <LevelsView currentLevelName={user.level} shiftsCompleted={user.shiftsCompleted} />
             </motion.div>

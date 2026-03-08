@@ -31,6 +31,8 @@ interface EarningHistoryProps {
   title?: string
   /** Показывать ли кнопку «Все» (на главной — да, на вкладке История — нет) */
   showViewAll?: boolean
+  /** Колбэк при нажатии на «Все» (переход на вкладку История) */
+  onViewAllClick?: () => void
 }
 
 export function EarningHistory({
@@ -39,6 +41,7 @@ export function EarningHistory({
   loadMoreSize = LOAD_MORE_SIZE,
   title = "Последняя активность",
   showViewAll = true,
+  onViewAllClick,
 }: EarningHistoryProps) {
   const isPaginated = initialPageSize != null && initialPageSize > 0
   const [visibleCount, setVisibleCount] = useState(() =>
@@ -92,35 +95,35 @@ export function EarningHistory({
   }, [])
 
   const listContent = (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1.5 sm:gap-2">
       {visibleEntries.map((entry, i) => (
         <motion.div
           key={entry.id}
           initial={{ opacity: 0, x: -12 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3, delay: Math.min(i * 0.08, 0.5) }}
-          className={`flex items-center gap-3 p-3 rounded-xl ${entry.type === "strike" ? "bg-destructive/10" : "bg-secondary/40"}`}
+          className={`flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl ${entry.type === "strike" ? "bg-destructive/10" : "bg-secondary/40"}`}
         >
-          <div className={`flex-shrink-0 p-2 rounded-lg ${entry.type === "strike" ? "bg-destructive/20 text-destructive" : "bg-accent/15 text-accent"}`}>
+          <div className={`flex-shrink-0 p-1.5 sm:p-2 rounded-lg ${entry.type === "strike" ? "bg-destructive/20 text-destructive" : "bg-accent/15 text-accent"}`}>
             {entry.type === "strike" ? <AlertTriangle size={18} /> : <Briefcase size={18} />}
           </div>
           <div className="flex-1 min-w-0">
-            <p className={`text-sm font-medium truncate ${entry.type === "strike" ? "text-destructive" : "text-foreground"}`}>{entry.title}</p>
+            <p className={`text-xs sm:text-sm font-medium truncate ${entry.type === "strike" ? "text-destructive" : "text-foreground"}`}>{entry.title}</p>
             <div className="flex items-center gap-1 mt-0.5">
               <MapPin size={10} className="text-muted-foreground flex-shrink-0" />
-              <span className="text-[11px] text-muted-foreground truncate">{entry.location}</span>
+              <span className="text-[10px] sm:text-[11px] text-muted-foreground truncate">{entry.location}</span>
               <span className="text-[11px] text-muted-foreground/50 mx-1">{"/"}</span>
-              <span className="text-[11px] text-muted-foreground">{entry.date}</span>
+              <span className="text-[10px] sm:text-[11px] text-muted-foreground">{entry.date}</span>
             </div>
           </div>
           {entry.type !== "strike" && (
             <div className="flex items-center gap-1 flex-shrink-0">
-              <GigCoinIcon size={16} />
+              <GigCoinIcon size={14} />
               <span
                 className={
                   entry.amount < 0
-                    ? "text-sm font-bold text-destructive tabular-nums"
-                    : "text-sm font-bold text-success tabular-nums"
+                    ? "text-xs sm:text-sm font-bold text-destructive tabular-nums"
+                    : "text-xs sm:text-sm font-bold text-success tabular-nums"
                 }
               >
                 {entry.amount >= 0 ? `+${entry.amount}` : entry.amount}
@@ -135,11 +138,15 @@ export function EarningHistory({
 
   return (
     <Card className="bg-card border-border relative">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex items-center justify-between mb-2 sm:mb-3">
+          <h2 className="text-xs sm:text-sm font-semibold text-foreground">{title}</h2>
           {showViewAll && (
-            <button className="text-xs text-accent hover:text-accent/80 font-medium transition-colors">
+            <button
+              type="button"
+              onClick={onViewAllClick}
+              className="text-xs text-accent hover:text-accent/80 font-medium transition-colors"
+            >
               Все
             </button>
           )}
@@ -148,7 +155,7 @@ export function EarningHistory({
         {isPaginated ? (
           <div
             ref={scrollRef}
-            className="overflow-y-auto max-h-[65vh] -mx-1 px-1 scroll-smooth relative"
+            className="overflow-y-auto max-h-[55vh] sm:max-h-[65vh] -mx-1 px-1 scroll-smooth relative"
             style={{ scrollBehavior: "smooth" }}
           >
             {listContent}
@@ -165,7 +172,7 @@ export function EarningHistory({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               onClick={scrollToTop}
-              className="absolute bottom-20 right-6 z-10 p-2.5 rounded-full bg-accent text-accent-foreground shadow-lg hover:bg-accent/90 transition-colors"
+              className="absolute bottom-16 right-4 sm:bottom-20 sm:right-6 z-10 p-2 sm:p-2.5 rounded-full bg-accent text-accent-foreground shadow-lg hover:bg-accent/90 transition-colors"
               aria-label="В начало списка"
             >
               <ArrowUp size={20} />

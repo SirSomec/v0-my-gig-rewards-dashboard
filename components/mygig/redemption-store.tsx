@@ -59,16 +59,16 @@ export function RedemptionStore({ items, userBalance, onPurchase, purchasingId }
 
   return (
     <Card className="bg-card border-border">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-foreground">Магазин наград</h2>
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex items-center justify-between mb-2 sm:mb-3">
+          <h2 className="text-xs sm:text-sm font-semibold text-foreground">Магазин наград</h2>
           <div className="flex items-center gap-1">
             <GigCoinIcon size={14} />
             <span className="text-xs font-semibold text-primary tabular-nums">{formatNumber(userBalance)}</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
           {items.map((item, i) => {
             const Icon = iconMap[item.icon]
             const inStock =
@@ -82,20 +82,20 @@ export function RedemptionStore({ items, userBalance, onPurchase, purchasingId }
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.3, delay: i * 0.08 }}
-                className={`flex flex-col p-3 bg-secondary/40 rounded-xl border border-transparent hover:border-primary/20 transition-colors ${!inStock ? "opacity-75" : ""}`}
+                className={`flex flex-col p-2.5 sm:p-3 bg-secondary/40 rounded-xl border border-transparent hover:border-primary/20 transition-colors ${!inStock ? "opacity-75" : ""}`}
               >
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-1.5 rounded-lg bg-accent/15 text-accent">
+                <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                  <div className="p-1 sm:p-1.5 rounded-lg bg-accent/15 text-accent shrink-0">
                     <Icon size={16} />
                   </div>
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">
+                  <span className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wide font-medium">
                     {item.category}
                   </span>
                 </div>
-                <p className="text-xs font-semibold text-foreground leading-tight mb-0.5">{item.name}</p>
-                <p className="text-[10px] text-muted-foreground leading-snug mb-2 flex-1">{item.description}</p>
+                <p className="text-[11px] sm:text-xs font-semibold text-foreground leading-tight mb-0.5">{item.name}</p>
+                <p className="text-[9px] sm:text-[10px] text-muted-foreground leading-snug mb-1.5 sm:mb-2 flex-1 min-h-0 line-clamp-2">{item.description}</p>
                 {item.stockLimit != null && (
-                  <p className="text-[10px] text-muted-foreground mb-2">
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground mb-1.5 sm:mb-2">
                     {inStock
                       ? `Осталось: ${item.stockLimit - (item.redeemedCount ?? 0)} из ${item.stockLimit}`
                       : "Нет в наличии"}
@@ -105,7 +105,7 @@ export function RedemptionStore({ items, userBalance, onPurchase, purchasingId }
                   size="sm"
                   variant={canBuy ? "default" : "secondary"}
                   disabled={!canBuy || busy !== null}
-                  className={`w-full h-7 text-[11px] font-semibold rounded-lg ${
+                  className={`w-full h-6 sm:h-7 text-[10px] sm:text-[11px] font-semibold rounded-lg ${
                     canBuy
                       ? "bg-primary text-primary-foreground hover:bg-primary/90"
                       : "bg-secondary text-muted-foreground"
@@ -119,7 +119,7 @@ export function RedemptionStore({ items, userBalance, onPurchase, purchasingId }
                   ) : (
                     <>
                       <GigCoinIcon size={12} />
-                      <span className="ml-1">{item.cost}</span>
+                      <span className="ml-0.5 sm:ml-1">{item.cost}</span>
                     </>
                   )}
                 </Button>

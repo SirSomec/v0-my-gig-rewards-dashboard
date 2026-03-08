@@ -41,8 +41,8 @@ export function LevelsView({ currentLevelName, shiftsCompleted = 0 }: LevelsView
     return { ...l, isCurrent, isUnlocked }
   })
   return (
-    <div className="flex flex-col gap-3">
-      <h2 className="text-sm font-semibold text-foreground px-1">Уровни лояльности</h2>
+    <div className="flex flex-col gap-2 sm:gap-3">
+      <h2 className="text-xs sm:text-sm font-semibold text-foreground px-1">Уровни лояльности</h2>
       {loading ? (
         <p className="text-sm text-muted-foreground px-1">Загрузка…</p>
       ) : error ? (
@@ -66,28 +66,28 @@ export function LevelsView({ currentLevelName, shiftsCompleted = 0 }: LevelsView
                 : "border-border bg-card opacity-60"
             }`}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                <div className="flex items-center gap-1.5 sm:gap-2">
                   {level.isUnlocked ? (
-                    <div className={`p-1 rounded-full ${level.isCurrent ? "bg-primary/20 text-primary" : "bg-success/20 text-success"}`}>
+                    <div className={`p-1 rounded-full shrink-0 ${level.isCurrent ? "bg-primary/20 text-primary" : "bg-success/20 text-success"}`}>
                       <Check size={14} />
                     </div>
                   ) : (
-                    <div className="p-1 rounded-full bg-secondary text-muted-foreground">
+                    <div className="p-1 rounded-full bg-secondary text-muted-foreground shrink-0">
                       <Lock size={14} />
                     </div>
                   )}
-                  <span className={`text-sm font-semibold ${level.isCurrent ? "text-primary" : "text-foreground"}`}>
+                  <span className={`text-xs sm:text-sm font-semibold min-w-0 truncate ${level.isCurrent ? "text-primary" : "text-foreground"}`}>
                     {level.name}
                   </span>
                   {level.isCurrent && (
-                    <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-medium">
+                    <span className="text-[9px] sm:text-[10px] bg-primary/20 text-primary px-1 sm:px-1.5 py-0.5 rounded-full font-medium shrink-0">
                       Текущий
                     </span>
                   )}
                 </div>
-                <span className="text-[11px] text-muted-foreground">
+                <span className="text-[10px] sm:text-[11px] text-muted-foreground shrink-0">
                   {level.shiftsRequired === 0 ? "базовый уровень" : `для перехода: ${level.shiftsRequired} смен`}
                 </span>
               </div>
@@ -95,7 +95,7 @@ export function LevelsView({ currentLevelName, shiftsCompleted = 0 }: LevelsView
                   {level.perks.map((perk, j) => (
                     <span
                       key={j}
-                      className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground"
+                      className="text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground"
                       title={perk.description}
                     >
                       {perk.description ? `${perk.title}: ${perk.description}` : perk.title}

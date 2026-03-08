@@ -88,9 +88,9 @@ export function LevelProgress({
 
   return (
     <Card className="bg-card border-border overflow-hidden">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-foreground">Прогресс уровня</h2>
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex items-center justify-between mb-2 sm:mb-3">
+          <h2 className="text-xs sm:text-sm font-semibold text-foreground">Прогресс уровня</h2>
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground">{currentLevel}</span>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-primary" aria-hidden="true">
@@ -101,7 +101,7 @@ export function LevelProgress({
         </div>
 
         {/* Progress bar */}
-        <div className="relative h-3 bg-secondary rounded-full overflow-hidden mb-2">
+        <div className="relative h-2.5 sm:h-3 bg-secondary rounded-full overflow-hidden mb-1.5 sm:mb-2">
           <motion.div
             className="absolute inset-y-0 left-0 rounded-full"
             style={{
@@ -122,7 +122,7 @@ export function LevelProgress({
           />
         </div>
 
-        <div className={`flex items-center justify-between ${showStrikesSection ? "mb-2" : "mb-4"}`}>
+        <div className={`flex items-center justify-between ${showStrikesSection ? "mb-1.5 sm:mb-2" : "mb-3 sm:mb-4"}`}>
           <span className="text-xs text-muted-foreground">
             {shiftsCompleted}/{isMaxLevel ? shiftsCompleted : shiftsRequired} смен
           </span>
@@ -132,8 +132,8 @@ export function LevelProgress({
         </div>
 
         {showStrikesSection && (
-          <div className="mb-4 space-y-3">
-            <p className="text-xs text-muted-foreground">
+          <div className="mb-3 sm:mb-4 space-y-2 sm:space-y-3">
+            <p className="text-[11px] sm:text-xs text-muted-foreground">
               При превышении количества штрафов за неделю или за месяц уровень будет понижен на один шаг. Следите за счётчиками ниже.
             </p>
             <div>
@@ -192,7 +192,7 @@ export function LevelProgress({
         {/* Benefits toggle */}
         <button
           onClick={() => setShowBenefits(!showBenefits)}
-          className="flex items-center justify-between w-full py-2 px-3 bg-secondary/60 rounded-lg text-sm hover:bg-secondary transition-colors"
+          className="flex items-center justify-between w-full py-1.5 px-2.5 sm:py-2 sm:px-3 bg-secondary/60 rounded-lg text-xs sm:text-sm hover:bg-secondary transition-colors"
           aria-expanded={showBenefits}
         >
           <span className="font-medium text-foreground">Текущие преимущества</span>
@@ -212,18 +212,18 @@ export function LevelProgress({
               transition={{ duration: 0.25, ease: "easeInOut" }}
               className="overflow-hidden"
             >
-              <div className="grid grid-cols-2 gap-2 mt-3">
+              <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mt-2 sm:mt-3">
                 {currentBenefits.map((benefit) => (
                   <div
                     key={benefit.label}
-                    className="flex items-start gap-2 p-2.5 bg-secondary/40 rounded-lg"
+                    className="flex items-start gap-1.5 sm:gap-2 p-2 sm:p-2.5 bg-secondary/40 rounded-lg"
                   >
                     <div className="flex-shrink-0 p-1 rounded-md bg-primary/15 text-primary">
                       {benefit.icon}
                     </div>
-                    <div>
-                      <p className="text-xs font-semibold text-foreground leading-tight">{benefit.label}</p>
-                      <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{benefit.description}</p>
+                    <div className="min-w-0">
+                      <p className="text-[11px] sm:text-xs font-semibold text-foreground leading-tight">{benefit.label}</p>
+                      <p className="text-[9px] sm:text-[10px] text-muted-foreground leading-tight mt-0.5">{benefit.description}</p>
                     </div>
                   </div>
                 ))}

@@ -47,39 +47,39 @@ function QuestCard({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.1 }}
-      className={`relative p-3 rounded-xl border transition-colors ${
+      className={`relative p-2.5 sm:p-3 rounded-xl border transition-colors ${
         quest.completed
           ? "bg-success/10 border-success/20"
           : "bg-secondary/40 border-transparent"
       }`}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2 sm:gap-3">
         <div
-          className={`flex-shrink-0 p-2 rounded-lg ${
+          className={`flex-shrink-0 p-1.5 sm:p-2 rounded-lg ${
             quest.completed
               ? "bg-success/20 text-success"
               : "bg-primary/15 text-primary"
           }`}
         >
-          <Icon size={18} />
+          <Icon size={16} className="sm:w-[18px] sm:h-[18px]" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between">
-            <p className={`text-sm font-medium leading-tight ${
+          <div className="flex items-center justify-between gap-1">
+            <p className={`text-xs sm:text-sm font-medium leading-tight min-w-0 truncate ${
               quest.completed ? "text-success line-through" : "text-foreground"
             }`}>
               {quest.title}
             </p>
-            <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+            <div className="flex items-center gap-1 flex-shrink-0 ml-1">
               <GigCoinIcon size={14} />
-              <span className="text-xs font-bold text-primary tabular-nums">+{quest.reward}</span>
+              <span className="text-[11px] sm:text-xs font-bold text-primary tabular-nums">+{quest.reward}</span>
             </div>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-0.5">{quest.description}</p>
+          <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5">{quest.description}</p>
 
           {!quest.completed && (
-            <div className="mt-2">
-              <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+            <div className="mt-1.5 sm:mt-2">
+              <div className="h-1 sm:h-1.5 bg-secondary rounded-full overflow-hidden">
                 <motion.div
                   className="h-full rounded-full bg-primary"
                   initial={{ width: 0 }}
@@ -87,7 +87,7 @@ function QuestCard({
                   transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 + index * 0.1 }}
                 />
               </div>
-              <span className="text-[10px] text-muted-foreground mt-1 inline-block">
+              <span className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5 sm:mt-1 inline-block">
                 {quest.progress}/{quest.total}
               </span>
             </div>
@@ -106,16 +106,16 @@ export function Quests({ quests }: QuestsProps) {
 
   return (
     <Card className="bg-card border-border">
-      <CardContent className="p-4">
+      <CardContent className="p-3 sm:p-4">
         {dailyQuests.length > 0 && (
           <>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-foreground">Ежедневные цели</h2>
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <h2 className="text-xs sm:text-sm font-semibold text-foreground">Ежедневные цели</h2>
               <span className="text-xs text-muted-foreground">
                 {dailyQuests.filter((q) => q.completed).length}/{dailyQuests.length}
               </span>
             </div>
-            <div className="flex flex-col gap-2 mb-4">
+            <div className="flex flex-col gap-1.5 sm:gap-2 mb-3 sm:mb-4">
               {dailyQuests.map((quest, i) => (
                 <QuestCard key={quest.id} quest={quest} index={i} />
               ))}
@@ -125,13 +125,13 @@ export function Quests({ quests }: QuestsProps) {
 
         {weeklyQuests.length > 0 && (
           <>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-foreground">Еженедельные цели</h2>
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <h2 className="text-xs sm:text-sm font-semibold text-foreground">Еженедельные цели</h2>
               <span className="text-xs text-muted-foreground">
                 {weeklyQuests.filter((q) => q.completed).length}/{weeklyQuests.length}
               </span>
             </div>
-            <div className="flex flex-col gap-2 mb-4">
+            <div className="flex flex-col gap-1.5 sm:gap-2 mb-3 sm:mb-4">
               {weeklyQuests.map((quest, i) => (
                 <QuestCard key={quest.id} quest={quest} index={i} />
               ))}
@@ -141,13 +141,13 @@ export function Quests({ quests }: QuestsProps) {
 
         {monthlyQuests.length > 0 && (
           <>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-foreground">Ежемесячные цели</h2>
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <h2 className="text-xs sm:text-sm font-semibold text-foreground">Ежемесячные цели</h2>
               <span className="text-xs text-muted-foreground">
                 {monthlyQuests.filter((q) => q.completed).length}/{monthlyQuests.length}
               </span>
             </div>
-            <div className="flex flex-col gap-2 mb-4">
+            <div className="flex flex-col gap-1.5 sm:gap-2 mb-3 sm:mb-4">
               {monthlyQuests.map((quest, i) => (
                 <QuestCard key={quest.id} quest={quest} index={i} />
               ))}
@@ -157,13 +157,13 @@ export function Quests({ quests }: QuestsProps) {
 
         {onceQuests.length > 0 && (
           <>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-foreground">Единоразовые цели</h2>
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <h2 className="text-xs sm:text-sm font-semibold text-foreground">Единоразовые цели</h2>
               <span className="text-xs text-muted-foreground">
                 {onceQuests.filter((q) => q.completed).length}/{onceQuests.length}
               </span>
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5 sm:gap-2">
               {onceQuests.map((quest, i) => (
                 <QuestCard key={quest.id} quest={quest} index={i} />
               ))}

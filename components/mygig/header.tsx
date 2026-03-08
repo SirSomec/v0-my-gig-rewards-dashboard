@@ -27,36 +27,36 @@ export function Header({ coinBalance, userName, userLevel, avatarUrl, onLogout }
 
   return (
     <header className="sticky top-0 z-50 bg-card/90 backdrop-blur-md border-b border-border">
-      <div className="flex items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10 border-2 border-primary/40">
+      <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Avatar className="h-9 w-9 sm:h-10 sm:w-10 border-2 border-primary/40">
             <AvatarImage src={avatarUrl} alt={`${userName}'s avatar`} />
-            <AvatarFallback className="bg-secondary text-secondary-foreground text-sm font-semibold">
+            <AvatarFallback className="bg-secondary text-secondary-foreground text-xs sm:text-sm font-semibold">
               {userName.split(" ").map(n => n[0]).join("")}
             </AvatarFallback>
           </Avatar>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold text-foreground leading-tight">{userName}</span>
+          <div className="flex flex-col min-w-0">
+            <span className="text-xs sm:text-sm font-semibold text-foreground leading-tight truncate">{userName}</span>
             <Badge
               variant="outline"
-              className="mt-0.5 w-fit text-[10px] px-1.5 py-0 border-primary/30 text-primary font-medium"
+              className="mt-0.5 w-fit text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0 border-primary/30 text-primary font-medium"
             >
               {userLevel}
             </Badge>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
           <motion.div
-            className="flex items-center gap-1.5 bg-secondary rounded-full px-3 py-1.5"
+            className="flex items-center gap-1 sm:gap-1.5 bg-secondary rounded-full px-2 py-1 sm:px-3 sm:py-1.5"
             whileTap={{ scale: 0.95 }}
           >
-            <GigCoinIcon size={20} />
+            <GigCoinIcon size={18} className="flex-shrink-0" />
             <motion.span
               key={coinBalance}
               initial={{ y: -8, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              className="text-sm font-bold text-primary tabular-nums"
+              className="text-xs sm:text-sm font-bold text-primary tabular-nums"
             >
               {formatNumber(coinBalance)}
             </motion.span>
@@ -65,28 +65,28 @@ export function Header({ coinBalance, userName, userLevel, avatarUrl, onLogout }
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+              className="h-8 w-8 sm:h-9 sm:w-9 rounded-full text-muted-foreground hover:text-foreground flex-shrink-0"
               onClick={onLogout}
               aria-label="Выйти (dev)"
             >
-              <LogOut size={18} />
+              <LogOut size={18} className="shrink-0" />
             </Button>
           )}
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+            className="h-8 w-8 sm:h-9 sm:w-9 rounded-full text-muted-foreground hover:text-foreground flex-shrink-0"
             onClick={() => setTheme(isDark ? "light" : "dark")}
             aria-label={isDark ? "Светлая тема" : "Тёмная тема"}
           >
             {isDark ? <Sun size={18} /> : <Moon size={18} />}
           </Button>
           <button
-            className="relative p-2 rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+            className="relative p-1.5 sm:p-2 rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
             aria-label="Уведомления"
           >
             <Bell size={18} />
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary" />
+            <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-primary" />
           </button>
         </div>
       </div>

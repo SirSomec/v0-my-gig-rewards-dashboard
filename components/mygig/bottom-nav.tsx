@@ -20,7 +20,7 @@ const tabs: { id: NavTab; label: string; icon: typeof Home }[] = [
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border" role="navigation" aria-label="Основная навигация">
-      <div className="max-w-md mx-auto flex items-center justify-around px-2 py-1 pb-[env(safe-area-inset-bottom)]">
+      <div className="max-w-md mx-auto flex items-center justify-around px-1 py-1 sm:px-2 sm:py-1 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
         {tabs.map((tab) => {
           const Icon = tab.icon
           const isActive = activeTab === tab.id
@@ -29,7 +29,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className="relative flex flex-col items-center justify-center py-2 px-4 rounded-xl transition-colors"
+              className="relative flex flex-col items-center justify-center py-1.5 px-2 sm:py-2 sm:px-4 rounded-xl transition-colors min-w-0"
               aria-current={isActive ? "page" : undefined}
               aria-label={tab.label}
             >
@@ -41,13 +41,13 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                 />
               )}
               <Icon
-                size={20}
-                className={`relative z-10 transition-colors ${
+                size={18}
+                className={`relative z-10 shrink-0 sm:w-5 sm:h-5 w-[18px] h-[18px] transition-colors ${
                   isActive ? "text-primary" : "text-muted-foreground"
                 }`}
               />
               <span
-                className={`relative z-10 text-[10px] mt-0.5 font-medium transition-colors ${
+                className={`relative z-10 text-[9px] sm:text-[10px] mt-0.5 font-medium transition-colors truncate max-w-full ${
                   isActive ? "text-primary" : "text-muted-foreground"
                 }`}
               >
