@@ -13,6 +13,7 @@ import {
   getDevUserId,
   isLoggedIn,
   clearToken,
+  setViewAsUserId,
   type MeResponse,
   type TransactionResponse,
   type StrikeResponse,
@@ -230,6 +231,27 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
   useEffect(() => {
     let cancelled = false
     const init = async () => {
+      // Поддержка перехода из админки «Сменить»: ?userId= в URL — выполняем dev-login и показываем кабинет от имени этого пользователя
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search)
+        const userIdFromUrl = params.get("userId")
+        if (userIdFromUrl) {
+          const id = parseInt(userIdFromUrl, 10)
+          if (!Number.isNaN(id)) {
+            try {
+              await devLogin(id)
+              setViewAsUserId(id)
+              window.history.replaceState({}, "", window.location.pathname)
+            } catch (e) {
+              if (!cancelled) {
+                setError(e instanceof Error ? e.message : "Ошибка входа (dev-login)")
+                setLoading(false)
+              }
+              return
+            }
+          }
+        }
+      }
       const devId = getDevUserId()
       if (devId && !isLoggedIn()) {
         try {

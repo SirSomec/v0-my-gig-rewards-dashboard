@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { Header } from "@/components/mygig/header"
+import { ViewAsUser } from "@/components/admin/view-as-user"
 import { LevelProgress } from "@/components/mygig/level-progress"
 import { EarningHistory } from "@/components/mygig/earning-history"
 import { Quests } from "@/components/mygig/quests"
@@ -89,6 +90,7 @@ export default function MyGigRewards() {
         avatarUrl={user.avatarUrl}
         onLogout={isLoggedIn ? logout : undefined}
       />
+      <ViewAsUser onSwitch={refetch} />
 
       <main className="flex-1 min-h-0 overflow-y-auto px-3 py-3 pb-20 sm:px-4 sm:py-4 sm:pb-24">
         <AnimatePresence mode="wait">

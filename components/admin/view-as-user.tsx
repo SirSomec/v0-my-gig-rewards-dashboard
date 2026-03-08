@@ -1,18 +1,24 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { adminListUsers } from "@/lib/admin-api"
 import type { AdminUser } from "@/lib/admin-api"
-import { switchDashboardToUser } from "@/lib/rewards-api"
+import { devLogin, setViewAsUserId } from "@/lib/rewards-api"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-export function ViewAsUser() {
+interface ViewAsUserProps {
+  /** После смены пользователя вызвать refetch, чтобы обновить данные кабинета */
+  onSwitch: () => void
+}
+
+export function ViewAsUser({ onSwitch }: ViewAsUserProps) {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string>("")
+  const [switching, setSwitching] = useState(false)
 
-  useEffect(() => {
+  const loadUsers = useCallback(() => {
     setLoading(true)
     adminListUsers({ pageSize: 100 })
       .then((r) => setUsers(r.items))
@@ -20,17 +26,28 @@ export function ViewAsUser() {
       .finally(() => setLoading(false))
   }, [])
 
-  const handleSwitchUser = () => {
+  useEffect(() => {
+    loadUsers()
+  }, [loadUsers])
+
+  const handleSwitch = async () => {
     const id = selectedId ? parseInt(selectedId, 10) : 0
     if (!id || Number.isNaN(id)) return
-    switchDashboardToUser(id)
+    setSwitching(true)
+    try {
+      await devLogin(id)
+      setViewAsUserId(id)
+      onSwitch()
+    } finally {
+      setSwitching(false)
+    }
   }
 
-  const dashboardUrl = process.env.NEXT_PUBLIC_DASHBOARD_URL
-  if (!dashboardUrl) return null
+  if (!process.env.NEXT_PUBLIC_ADMIN_SECRET) return null
 
   return (
-    <div className="space-y-2 pt-2 border-t border-border">
+    <div className="px-3 py-2 bg-muted/30 border-b border-border">
+      <div className="space-y-2">
       <p className="text-xs font-medium text-muted-foreground">
         Разработка: кабинет от имени
       </p>
@@ -58,13 +75,14 @@ export function ViewAsUser() {
             size="sm"
             variant="secondary"
             className="h-7 text-xs"
-            onClick={handleSwitchUser}
-            disabled={!selectedId}
+            onClick={handleSwitch}
+            disabled={!selectedId || switching}
           >
-            Сменить
+            {switching ? "…" : "Сменить"}
           </Button>
         </>
       )}
+      </div>
     </div>
   )
 }
