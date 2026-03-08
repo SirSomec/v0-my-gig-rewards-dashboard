@@ -7,21 +7,21 @@ import { cn } from "@/lib/utils"
 import { ViewAsUser } from "@/components/admin/view-as-user"
 
 const nav = [
-  { href: "/admin", label: "Обзор", icon: LayoutDashboard },
-  { href: "/admin/users", label: "Пользователи", icon: Users },
-  { href: "/admin/redemptions", label: "Заявки на обмен", icon: Gift },
-  { href: "/admin/store", label: "Магазин", icon: ShoppingBag },
-  { href: "/admin/quests", label: "Квесты", icon: Target },
-  { href: "/admin/levels", label: "Уровни", icon: Layers },
-  { href: "/admin/settings", label: "Настройки", icon: Settings },
-  { href: "/admin/balance", label: "Ручные начисления", icon: Wallet },
-  { href: "/admin/audit", label: "Аудит", icon: FileText },
-  { href: "/admin/etl-explorer", label: "Данные ETL", icon: Database },
-  { href: "/admin/mock-toj", label: "Мок TOJ (смены)", icon: Briefcase },
-  { href: "/admin/dev", label: "Мок: смены и штрафы", icon: Zap },
+  { href: "/", label: "Обзор", icon: LayoutDashboard },
+  { href: "/users", label: "Пользователи", icon: Users },
+  { href: "/redemptions", label: "Заявки на обмен", icon: Gift },
+  { href: "/store", label: "Магазин", icon: ShoppingBag },
+  { href: "/quests", label: "Квесты", icon: Target },
+  { href: "/levels", label: "Уровни", icon: Layers },
+  { href: "/settings", label: "Настройки", icon: Settings },
+  { href: "/balance", label: "Ручные начисления", icon: Wallet },
+  { href: "/audit", label: "Аудит", icon: FileText },
+  { href: "/etl-explorer", label: "Данные ETL", icon: Database },
+  { href: "/mock-toj", label: "Мок TOJ (смены)", icon: Briefcase },
+  { href: "/dev", label: "Мок: смены и штрафы", icon: Zap },
 ]
 
-export default function AdminLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
@@ -30,7 +30,6 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Левое боковое меню — фиксированная ширина на десктопе */}
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-40 flex flex-col",
@@ -40,13 +39,13 @@ export default function AdminLayout({
         )}
       >
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
-          <Link href="/admin" className="font-semibold text-foreground truncate">
+          <Link href="/" className="font-semibold text-foreground truncate">
             Админ-панель
           </Link>
         </div>
         <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
           {nav.map(({ href, label, icon: Icon }) => {
-            const isActive = pathname === href || (href !== "/admin" && pathname.startsWith(href + "/"))
+            const isActive = pathname === href || (href !== "/" && pathname.startsWith(href + "/"))
             return (
               <Link
                 key={href}
@@ -66,31 +65,38 @@ export default function AdminLayout({
         </nav>
         <div className="shrink-0 border-t border-border p-3 space-y-3">
           <ViewAsUser />
-          <Link
-            href="/"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition-colors"
-          >
-            ← Дашборд
-          </Link>
+          {process.env.NEXT_PUBLIC_DASHBOARD_URL && (
+            <a
+              href={process.env.NEXT_PUBLIC_DASHBOARD_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition-colors"
+            >
+              ← Дашборд
+            </a>
+          )}
         </div>
       </aside>
 
-      {/* На мобильных — верхняя шапка с меню (бургер или горизонтальный скролл) */}
       <header className="sm:hidden sticky top-0 z-50 bg-card border-b border-border px-4 py-3">
         <div className="flex items-center justify-between">
-          <Link href="/admin" className="font-semibold text-foreground">
+          <Link href="/" className="font-semibold text-foreground">
             Админ-панель
           </Link>
-          <Link
-            href="/"
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
-            ← Дашборд
-          </Link>
+          {process.env.NEXT_PUBLIC_DASHBOARD_URL && (
+            <a
+              href={process.env.NEXT_PUBLIC_DASHBOARD_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              ← Дашборд
+            </a>
+          )}
         </div>
         <nav className="flex gap-2 mt-3 overflow-x-auto pb-1 -mx-1">
           {nav.map(({ href, label, icon: Icon }) => {
-            const isActive = pathname === href || (href !== "/admin" && pathname.startsWith(href + "/"))
+            const isActive = pathname === href || (href !== "/" && pathname.startsWith(href + "/"))
             return (
               <Link
                 key={href}
@@ -113,7 +119,6 @@ export default function AdminLayout({
         </div>
       </header>
 
-      {/* Основной контент — адаптивный отступ слева на десктопе */}
       <main className="flex-1 min-w-0 sm:pl-56 min-h-screen flex flex-col">
         <div className="flex-1 p-4 sm:p-6 lg:p-8">{children}</div>
       </main>

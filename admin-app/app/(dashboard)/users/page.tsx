@@ -132,7 +132,7 @@ export default function AdminUsersPage() {
       .then(({ id: newId }) => {
         setDialogOpen(false)
         loadUsers()
-        router.push(`/admin/users/${newId}`)
+        router.push(`/users/${newId}`)
       })
       .catch((e) => setCreateError(e instanceof Error ? e.message : "Ошибка создания"))
       .finally(() => setCreateLoading(false))
@@ -195,7 +195,7 @@ export default function AdminUsersPage() {
                     </TableCell>
                     <TableCell>
                       <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/admin/users/${u.id}`}>Открыть</Link>
+                        <Link href={`/users/${u.id}`}>Открыть</Link>
                       </Button>
                     </TableCell>
                   </TableRow>

@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react"
 import { useSearchParams } from "next/navigation"
+import Link from "next/link"
 
 function AdminLoginForm() {
   const searchParams = useSearchParams()
@@ -25,7 +26,7 @@ function AdminLoginForm() {
         setError(data.error ?? "Ошибка входа")
         return
       }
-      const next = searchParams.get("next") ?? "/admin"
+      const next = searchParams.get("next") ?? "/"
       window.location.href = next
       return
     } catch {
@@ -73,9 +74,9 @@ function AdminLoginForm() {
           </button>
         </form>
         <p className="text-xs text-center text-muted-foreground">
-          <a href="/" className="underline hover:text-foreground">
-            ← Вернуться на дашборд
-          </a>
+          <Link href="/" className="underline hover:text-foreground">
+            На главную
+          </Link>
         </p>
       </div>
     </div>

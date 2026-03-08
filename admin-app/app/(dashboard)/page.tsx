@@ -3,10 +3,10 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 
-export default function AdminPage() {
+export default function DashboardHomePage() {
   const router = useRouter()
   useEffect(() => {
-    router.replace("/admin/users")
+    router.replace("/users")
   }, [router])
   return (
     <div className="flex items-center justify-center p-8">

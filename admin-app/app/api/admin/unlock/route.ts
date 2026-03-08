@@ -19,7 +19,6 @@ export async function POST(request: NextRequest) {
 
   const password = typeof body.password === "string" ? body.password.trim() : ""
 
-  // Если пароль задан в .env — проверяем; иначе пускаем без пароля (удобно для локальной разработки).
   if (expected) {
     if (password !== expected) {
       return NextResponse.json(

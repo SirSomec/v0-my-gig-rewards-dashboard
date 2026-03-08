@@ -1,22 +1,18 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
 import { adminListUsers } from "@/lib/admin-api"
 import type { AdminUser } from "@/lib/admin-api"
-import { devLogin, setViewAsUserId, getViewAsUserId, clearToken } from "@/lib/rewards-api"
+import { openDashboardAsUser } from "@/lib/rewards-api"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 export function ViewAsUser() {
-  const router = useRouter()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string>("")
-  const [actionLoading, setActionLoading] = useState(false)
-  const viewAsId = getViewAsUserId()
 
-  const loadUsers = useCallback(() => {
+  useEffect(() => {
     setLoading(true)
     adminListUsers({ pageSize: 100 })
       .then((r) => setUsers(r.items))
@@ -24,34 +20,14 @@ export function ViewAsUser() {
       .finally(() => setLoading(false))
   }, [])
 
-  useEffect(() => {
-    loadUsers()
-  }, [loadUsers])
-
-  useEffect(() => {
-    if (viewAsId && !selectedId) setSelectedId(viewAsId)
-  }, [viewAsId, selectedId])
-
-  const handleOpenCabinet = async () => {
+  const handleOpenCabinet = () => {
     const id = selectedId ? parseInt(selectedId, 10) : 0
     if (!id || Number.isNaN(id)) return
-    setActionLoading(true)
-    try {
-      setViewAsUserId(id)
-      await devLogin(id)
-      router.push("/")
-    } catch {
-      setActionLoading(false)
-    } finally {
-      setActionLoading(false)
-    }
+    openDashboardAsUser(id)
   }
 
-  const handleClear = () => {
-    setViewAsUserId(null)
-    clearToken()
-    setSelectedId("")
-  }
+  const dashboardUrl = process.env.NEXT_PUBLIC_DASHBOARD_URL
+  if (!dashboardUrl) return null
 
   return (
     <div className="space-y-2 pt-2 border-t border-border">
@@ -78,27 +54,15 @@ export function ViewAsUser() {
               </option>
             ))}
           </select>
-          <div className="flex flex-wrap gap-1">
-            <Button
-              size="sm"
-              variant="secondary"
-              className="h-7 text-xs"
-              onClick={handleOpenCabinet}
-              disabled={!selectedId || actionLoading}
-            >
-              {actionLoading ? "…" : "Открыть кабинет"}
-            </Button>
-            {viewAsId && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 text-xs text-muted-foreground"
-                onClick={handleClear}
-              >
-                Сбросить
-              </Button>
-            )}
-          </div>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="h-7 text-xs"
+            onClick={handleOpenCabinet}
+            disabled={!selectedId}
+          >
+            Открыть кабинет
+          </Button>
         </>
       )}
     </div>

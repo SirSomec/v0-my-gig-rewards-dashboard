@@ -351,7 +351,7 @@ export default function AdminRedemptionsPage() {
                       </TableCell>
                       <TableCell>
                         <Link
-                          href={`/admin/users/${r.userId}`}
+                          href={`/users/${r.userId}`}
                           className="text-primary hover:underline font-medium"
                         >
                           {r.userName ?? `#${r.userId}`}
