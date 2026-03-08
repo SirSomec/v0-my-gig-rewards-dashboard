@@ -10,6 +10,8 @@ import { TojClientService } from './toj-client.service';
 import { RewardsService } from '../rewards/rewards.service';
 
 const WATERMARK_KEY = 'toj_sync_last_updated_at';
+/** Время последнего запуска синхронизации (для ограничения «не чаще чем раз в N минут»). */
+const LAST_RUN_AT_KEY = 'toj_sync_last_run_at';
 
 export interface TojSyncResult {
   processed: number;
@@ -72,6 +74,53 @@ export class TojSyncService {
         target: systemSettings.key,
         set: { value: iso, updatedAt: now },
       });
+  }
+
+  /** Время последнего запуска runSync (ISO). Для ограничения частоты вызовов при загрузке главной. */
+  async getLastSyncRunAt(): Promise<string | null> {
+    const { systemSettings } = schema;
+    const [row] = await this.db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, LAST_RUN_AT_KEY))
+      .limit(1);
+    if (!row?.value) return null;
+    const v = row.value;
+    if (typeof v === 'string') return v;
+    if (typeof v === 'object' && v != null && typeof (v as { value?: string }).value === 'string') {
+      return (v as { value: string }).value;
+    }
+    return null;
+  }
+
+  async setLastSyncRunAt(iso: string): Promise<void> {
+    const { systemSettings } = schema;
+    const now = new Date();
+    await this.db
+      .insert(systemSettings)
+      .values({ key: LAST_RUN_AT_KEY, value: iso })
+      .onConflictDoUpdate({
+        target: systemSettings.key,
+        set: { value: iso, updatedAt: now },
+      });
+  }
+
+  /**
+   * Запускает синхронизацию смен из TOJ только если прошло не менее minIntervalMs с последнего запуска.
+   * Используется при загрузке главной страницы дашборда, чтобы не вызывать sync чаще чем раз в 5 минут.
+   */
+  async runSyncIfNeeded(minIntervalMs: number): Promise<{ ran: boolean; result?: TojSyncResult }> {
+    const lastRunAt = await this.getLastSyncRunAt();
+    const now = new Date();
+    if (lastRunAt) {
+      const elapsed = now.getTime() - new Date(lastRunAt).getTime();
+      if (elapsed < minIntervalMs) {
+        return { ran: false };
+      }
+    }
+    const result = await this.runSync();
+    await this.setLastSyncRunAt(now.toISOString());
+    return { ran: true, result };
   }
 
   async runSync(): Promise<TojSyncResult> {

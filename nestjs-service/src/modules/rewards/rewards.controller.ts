@@ -11,6 +11,7 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Request } from 'express';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt.guard';
 import { RewardsService } from './rewards.service';
+import { TojSyncService } from '../toj/toj-sync.service';
 import { CreateRedemptionRequestDto } from './dto/store.dto';
 import { RecordShiftCompleteRequestDto, RegisterStrikeRequestDto } from './dto/shifts.dto';
 import { MeResponseDto } from './dto/me.dto';
@@ -28,7 +29,10 @@ interface RequestWithUser extends Request {
 @Controller({ path: 'rewards', version: '1' })
 @UseGuards(OptionalJwtAuthGuard)
 export class RewardsController {
-  constructor(private readonly rewards: RewardsService) {}
+  constructor(
+    private readonly rewards: RewardsService,
+    private readonly tojSync: TojSyncService,
+  ) {}
 
   private getUserId(req: RequestWithUser, userIdQuery?: string): number {
     return this.rewards.resolveCurrentUserId(
@@ -44,6 +48,8 @@ export class RewardsController {
     @Query('userId') userId?: string,
   ): Promise<MeResponseDto> {
     const id = this.getUserId(req, userId);
+    // Обновляем смены из TOJ при загрузке главной страницы, но не чаще чем раз в 5 минут.
+    await this.tojSync.runSyncIfNeeded(5 * 60 * 1000);
     return this.rewards.getMe(id);
   }
 
