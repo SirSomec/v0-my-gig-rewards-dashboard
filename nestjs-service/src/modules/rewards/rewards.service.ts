@@ -853,8 +853,8 @@ export class RewardsService {
       const baseConditionsBookings = and(
         eq(transactions.userId, userId),
         eq(transactions.type, 'shift_booked'),
-        gte(sql`coalesce(${transactions.bookedAt}, ${transactions.createdAt})`, periodStart),
-        lt(sql`coalesce(${transactions.bookedAt}, ${transactions.createdAt})`, periodEnd),
+        gte(sql`coalesce(${transactions.bookedAt}, ${transactions.createdAt})`, periodStart.toISOString()),
+        lt(sql`coalesce(${transactions.bookedAt}, ${transactions.createdAt})`, periodEnd.toISOString()),
       );
 
       let progress = 0;
