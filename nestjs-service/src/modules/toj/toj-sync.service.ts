@@ -86,6 +86,8 @@ export class TojSyncService {
     const workerBatchSize = this.config.get('TOJ_SYNC_WORKER_BATCH_SIZE', { infer: true }) ?? 200;
     const initialDaysAgo = this.config.get('TOJ_SYNC_INITIAL_DAYS_AGO', { infer: true }) ?? 7;
 
+    // Водяной знак: запрашиваем только смены с updatedAt >= watermark. Смена может менять статус
+    // в течение 30 дней после даты старта — при смене статуса TOJ обновляет запись, мы подхватываем по updatedAt.
     let watermark = await this.getWatermark();
     if (!watermark) {
       const d = new Date();
