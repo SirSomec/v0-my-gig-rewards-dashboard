@@ -542,6 +542,21 @@ export async function adminMockTojGenerate(body: {
   });
 }
 
+export async function adminMockTojCreateBookedJob(body: {
+  workerId: string;
+  start: string;
+  finish?: string;
+  customName?: string;
+  spec?: string;
+  clientId?: string;
+  hours?: number;
+}): Promise<{ job: MockTojJob }> {
+  return fetchAdmin("/v1/admin/mock-toj/create-booked-job", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 // --- TOJ Sync (синхронизация смен из TOJ) ---
 
 export async function adminTojSyncStatus(): Promise<{
@@ -555,6 +570,7 @@ export async function adminTojSyncRun(): Promise<{
   processed: number;
   skipped: number;
   lateCancelApplied?: number;
+  bookedRecorded?: number;
   skippedReasons?: { noUser?: number; jobBeforeUser?: number; alreadySynced?: number; wrongStatus?: number };
   errors: string[];
   watermark?: string;

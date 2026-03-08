@@ -22,6 +22,8 @@
   `POST /job.find-many.query`, `POST /job.count.query`, `POST /job.find-by-id.query` — формат по [TOJ-API.md](../docs/TOJ-API.md).
 - **Генерация (X-Admin-Key):**  
   `POST /admin/generate-jobs` — тело: `{ count, workerIds[], dateFrom?, dateTo? }`. Заменяет текущий список смен сгенерированными.
+- **Создать одну забронированную смену (X-Admin-Key):**  
+  `POST /admin/create-booked-job` — тело: `{ workerId, start, finish?, customName?, spec?, clientId?, hours? }`. Добавляет одну смену со статусом `booked`. `start` — ISO date-time начала смены; дата бронирования фиксируется на стороне rewards при синхронизации.
 - **Просмотр смен (X-Admin-Key):**  
   `GET /admin/jobs?limit=&skip=` — возвращает `{ data: { items, total } }` (текущий список смен в памяти).
 - **Смена статуса смены с инициатором (X-Admin-Key):**  

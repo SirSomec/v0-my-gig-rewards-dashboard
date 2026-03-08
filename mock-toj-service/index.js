@@ -218,6 +218,58 @@ function generateJobs(count, workerIds, dateFrom, dateTo, statuses) {
   return newJobs.length;
 }
 
+// ——— Create a single booked job (admin only) ———
+// POST /admin/create-booked-job — body: { workerId, start, finish?, customName?, spec?, clientId?, hours? }
+app.post('/admin/create-booked-job', adminKey, (req, res) => {
+  const body = req.body || {};
+  const workerId = typeof body.workerId === 'string' ? body.workerId.trim() : null;
+  const startRaw = body.start;
+  if (!workerId) {
+    return res.status(400).json(wrap(null, 'workerId required'));
+  }
+  const startDate = startRaw ? new Date(startRaw) : new Date();
+  if (Number.isNaN(startDate.getTime())) {
+    return res.status(400).json(wrap(null, 'start must be a valid ISO date-time'));
+  }
+  const hours = typeof body.hours === 'number' && body.hours > 0 ? body.hours : 6;
+  const endDate = new Date(startDate.getTime() + hours * 60 * 60 * 1000);
+  const customName = typeof body.customName === 'string' ? body.customName.trim() : 'Забронированная смена';
+  const spec = typeof body.spec === 'string' ? body.spec.trim() : 'retail';
+  const clientId = typeof body.clientId === 'string' ? body.clientId.trim() : 'mock-client-1';
+  const finishIso = body.finish ? new Date(body.finish).toISOString() : endDate.toISOString();
+
+  const now = new Date().toISOString();
+  const job = {
+    _id: nextId(),
+    status: 'booked',
+    workerId,
+    employerId: 'mock-employer-1',
+    clientId,
+    workplaceId: 'mock-workplace-1',
+    coordinatorId: 'mock-coordinator-1',
+    spec,
+    customName,
+    description: 'Смена создана через «Создать забронированную смену»',
+    department: 'mock-dept',
+    start: startDate.toISOString(),
+    finish: finishIso,
+    startFact: startDate.toISOString(),
+    finishFact: finishIso,
+    hours,
+    minutes: hours * 60,
+    salaryPerHour: 250,
+    paymentPerJob: 0,
+    paymentPerHour: 280,
+    salaryPerJob: 0,
+    deleted: false,
+    createdAt: now,
+    updatedAt: now,
+    statusChangeMeta: null,
+  };
+  jobs.push(job);
+  res.status(201).json(wrap(job));
+});
+
 // ——— Allowed statuses for update (TOJ-like) ———
 const ALLOWED_STATUSES = ['booked', 'going', 'inprogress', 'completed', 'confirmed', 'cancelled', 'failed', 'delayed', 'waiting', 'expired'];
 

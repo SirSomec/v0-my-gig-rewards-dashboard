@@ -6,6 +6,7 @@ import {
   adminMockTojGenerate,
   adminMockTojListJobs,
   adminMockTojUpdateJobStatus,
+  adminMockTojCreateBookedJob,
   adminTojSyncStatus,
   adminTojSyncRun,
   adminListUsers,
@@ -63,6 +64,9 @@ export default function AdminMockTojPage() {
   const [jobsTotal, setJobsTotal] = useState(0)
   const [jobsLoading, setJobsLoading] = useState(false)
   const [updatingJobId, setUpdatingJobId] = useState<string | null>(null)
+  const [creatingBooked, setCreatingBooked] = useState(false)
+  const [bookedStart, setBookedStart] = useState("")
+  const [bookedCustomName, setBookedCustomName] = useState("")
   const [syncStatus, setSyncStatus] = useState<{
     configured: boolean
     syncEnabled: boolean
@@ -72,6 +76,7 @@ export default function AdminMockTojPage() {
     processed: number
     skipped: number
     lateCancelApplied?: number
+    bookedRecorded?: number
     skippedReasons?: { noUser?: number; jobBeforeUser?: number; alreadySynced?: number; wrongStatus?: number }
     errors: string[]
     watermark?: string
@@ -173,7 +178,7 @@ export default function AdminMockTojPage() {
       .then((r) => {
         setSyncResult(r)
         toast({
-          title: `Обработано: ${r.processed}, пропущено: ${r.skipped}${r.lateCancelApplied != null && r.lateCancelApplied > 0 ? `, штрафов поздняя отмена: ${r.lateCancelApplied}` : ""}`,
+          title: `Обработано: ${r.processed}, пропущено: ${r.skipped}${r.lateCancelApplied != null && r.lateCancelApplied > 0 ? `, штрафов поздняя отмена: ${r.lateCancelApplied}` : ""}${r.bookedRecorded != null && r.bookedRecorded > 0 ? `, забронировано: ${r.bookedRecorded}` : ""}`,
           variant: r.errors.length ? "destructive" : "default",
         })
       })
@@ -238,6 +243,9 @@ export default function AdminMockTojPage() {
               <p>Обработано: {syncResult.processed}, пропущено: {syncResult.skipped}
                 {syncResult.lateCancelApplied != null && syncResult.lateCancelApplied > 0 && (
                   <>, штрафов «поздняя отмена»: {syncResult.lateCancelApplied}</>
+                )}
+                {syncResult.bookedRecorded != null && syncResult.bookedRecorded > 0 && (
+                  <>, забронировано: {syncResult.bookedRecorded}</>
                 )}
               </p>
               {syncResult.skippedReasons &&
@@ -365,6 +373,105 @@ export default function AdminMockTojPage() {
             }
           >
             {submitting ? "Генерация..." : "Сгенерировать смены"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="py-2 text-sm font-medium">
+          Создать забронированную смену (статус booked)
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Добавляет одну смену со статусом &quot;booked&quot; в мок TOJ. workerId берётся из
+            external_id выбранного пользователя. После создания запустите синхронизацию — дата
+            бронирования фиксируется на стороне rewards при записи.
+          </p>
+          <div>
+            <Label>Пользователь (workerId = external_id)</Label>
+            <Select
+              value={userId}
+              onValueChange={(v) => {
+                setUserId(v)
+              }}
+            >
+              <SelectTrigger className="w-full max-w-md mt-1">
+                <SelectValue placeholder="Выберите пользователя" />
+              </SelectTrigger>
+              <SelectContent>
+                {usersWithExternalId.length > 0 ? (
+                  usersWithExternalId.map((u) => (
+                    <SelectItem key={u.id} value={String(u.id)}>
+                      #{u.id} {u.name ?? u.email ?? ""} — {u.externalId}
+                    </SelectItem>
+                  ))
+                ) : (
+                  users.map((u) => (
+                    <SelectItem key={u.id} value={String(u.id)}>
+                      #{u.id} {u.name ?? u.email ?? ""}
+                      {!u.externalId && " (нет external_id)"}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Дата и время начала смены</Label>
+            <Input
+              type="datetime-local"
+              value={bookedStart}
+              onChange={(e) => setBookedStart(e.target.value)}
+              className="max-w-xs mt-1"
+            />
+          </div>
+          <div>
+            <Label>Название смены (опционально)</Label>
+            <Input
+              type="text"
+              value={bookedCustomName}
+              onChange={(e) => setBookedCustomName(e.target.value)}
+              placeholder="Забронированная смена"
+              className="max-w-md mt-1"
+            />
+          </div>
+          <Button
+            onClick={() => {
+              if (!selectedUser?.externalId?.trim()) {
+                toast({ title: "Выберите пользователя с external_id", variant: "destructive" })
+                return
+              }
+              const startIso = bookedStart
+                ? new Date(bookedStart).toISOString()
+                : new Date().toISOString()
+              setCreatingBooked(true)
+              adminMockTojCreateBookedJob({
+                workerId: selectedUser.externalId!,
+                start: startIso,
+                customName: bookedCustomName.trim() || undefined,
+              })
+                .then(() => {
+                  toast({ title: "Забронированная смена создана" })
+                  setBookedStart("")
+                  setBookedCustomName("")
+                  loadJobs()
+                })
+                .catch((e) =>
+                  toast({
+                    title: e instanceof Error ? e.message : "Ошибка",
+                    variant: "destructive",
+                  })
+                )
+                .finally(() => setCreatingBooked(false))
+            }}
+            disabled={
+              creatingBooked ||
+              !userId ||
+              !selectedUser?.externalId?.trim() ||
+              configured === false
+            }
+          >
+            {creatingBooked ? "Создание…" : "Создать забронированную смену"}
           </Button>
         </CardContent>
       </Card>

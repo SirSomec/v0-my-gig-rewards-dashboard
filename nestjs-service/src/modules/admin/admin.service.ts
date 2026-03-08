@@ -737,8 +737,50 @@ export class AdminService {
   }
 
   /**
-   * Список сгенерированных смен из мок-сервиса (для просмотра в админке).
+   * Создать одну забронированную смену в моке TOJ (POST /admin/create-booked-job в моке).
+   * workerId = external_id пользователя; дата старта смены — в body.start (ISO).
    */
+  async mockTojCreateBookedJob(params: {
+    workerId: string;
+    start: string;
+    finish?: string;
+    customName?: string;
+    spec?: string;
+    clientId?: string;
+    hours?: number;
+  }): Promise<{ job: Record<string, unknown> }> {
+    const baseUrl = this.config.get('MOCK_TOJ_URL', { infer: true })?.replace(/\/$/, '');
+    const adminKey = this.config.get('MOCK_TOJ_ADMIN_KEY', { infer: true });
+    if (!baseUrl || !adminKey) {
+      throw new BadRequestException('Mock TOJ not configured (MOCK_TOJ_URL, MOCK_TOJ_ADMIN_KEY)');
+    }
+    const workerId = params.workerId?.trim();
+    if (!workerId) throw new BadRequestException('workerId required');
+    const start = params.start?.trim();
+    if (!start) throw new BadRequestException('start required (ISO date-time)');
+    const url = `${baseUrl}/admin/create-booked-job`;
+    const body: Record<string, unknown> = { workerId, start };
+    if (params.finish?.trim()) body.finish = params.finish.trim();
+    if (params.customName?.trim()) body.customName = params.customName.trim();
+    if (params.spec?.trim()) body.spec = params.spec.trim();
+    if (params.clientId?.trim()) body.clientId = params.clientId.trim();
+    if (params.hours != null && params.hours > 0) body.hours = params.hours;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Key': adminKey,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new BadRequestException(`Mock TOJ: ${res.status} ${text || res.statusText}`);
+    }
+    const data = (await res.json()) as { data?: Record<string, unknown> };
+    const job = data?.data ?? {};
+    return { job };
+  }
   async mockTojListJobs(params?: { limit?: number; skip?: number }): Promise<{ items: unknown[]; total: number }> {
     const baseUrl = this.config.get('MOCK_TOJ_URL', { infer: true })?.replace(/\/$/, '');
     const adminKey = this.config.get('MOCK_TOJ_ADMIN_KEY', { infer: true });

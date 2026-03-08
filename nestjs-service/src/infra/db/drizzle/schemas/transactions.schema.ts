@@ -1,4 +1,4 @@
-import { integer, pgTable, real, varchar } from 'drizzle-orm/pg-core';
+import { integer, pgTable, real, timestamp, varchar } from 'drizzle-orm/pg-core';
 import { timestamps } from './base.schema';
 import { users } from './users.schema';
 
@@ -17,6 +17,8 @@ export const transactions = pgTable('transactions', {
   category: varchar('category', { length: 128 }),
   /** Часы, отработанные в смене (для квестов по часам) */
   hours: real('hours'),
+  /** Дата и время бронирования (для type=shift_booked; фиксируем на своей стороне при записи) */
+  bookedAt: timestamp('booked_at', { withTimezone: true }),
   createdBy: integer('created_by'), // для ручных операций — ID админа
   ...timestamps,
 });

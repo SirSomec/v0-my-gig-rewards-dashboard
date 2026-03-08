@@ -359,6 +359,33 @@ export class AdminController {
     return this.admin.mockTojGenerate(params);
   }
 
+  @Post('mock-toj/create-booked-job')
+  @ApiOperation({ summary: 'Создать одну забронированную смену в моке TOJ (статус booked)' })
+  async mockTojCreateBookedJob(
+    @Body()
+    body: {
+      workerId: string;
+      start: string;
+      finish?: string;
+      customName?: string;
+      spec?: string;
+      clientId?: string;
+      hours?: number;
+    },
+  ) {
+    if (!body?.workerId?.trim()) throw new BadRequestException('workerId required');
+    if (!body?.start?.trim()) throw new BadRequestException('start required (ISO date-time)');
+    return this.admin.mockTojCreateBookedJob({
+      workerId: body.workerId.trim(),
+      start: body.start.trim(),
+      finish: body.finish?.trim(),
+      customName: body.customName?.trim(),
+      spec: body.spec?.trim(),
+      clientId: body.clientId?.trim(),
+      hours: body.hours != null ? Number(body.hours) : undefined,
+    });
+  }
+
   @Get('toj-sync/status')
   @ApiOperation({ summary: 'Статус синхронизации смен из TOJ (настроен ли клиент, включена ли синхронизация)' })
   getTojSyncStatus() {

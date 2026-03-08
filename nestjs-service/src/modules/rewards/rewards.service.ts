@@ -620,6 +620,7 @@ export class RewardsService {
         title: title ?? 'Бронирование смены',
         clientId: clientId ?? undefined,
         category: category ?? undefined,
+        bookedAt: new Date(),
       })
       .returning({ id: transactions.id });
     if (!tx) throw new Error('Failed to create shift_booked transaction');
@@ -852,8 +853,8 @@ export class RewardsService {
       const baseConditionsBookings = and(
         eq(transactions.userId, userId),
         eq(transactions.type, 'shift_booked'),
-        gte(transactions.createdAt, periodStart),
-        lt(transactions.createdAt, periodEnd),
+        gte(sql`coalesce(${transactions.bookedAt}, ${transactions.createdAt})`, periodStart),
+        lt(sql`coalesce(${transactions.bookedAt}, ${transactions.createdAt})`, periodEnd),
       );
 
       let progress = 0;
