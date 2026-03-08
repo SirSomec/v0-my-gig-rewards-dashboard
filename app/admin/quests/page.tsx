@@ -48,6 +48,7 @@ const PERIODS = [
 
 const CONDITION_TYPES = [
   { value: "shifts_count", label: "Количество смен (за период)" },
+  { value: "bookings_count", label: "Забронированные смены (за период)" },
   { value: "shifts_count_client", label: "Смены в конкретном клиенте (бренде)" },
   { value: "shifts_count_clients", label: "Смены в нескольких клиентах" },
   { value: "shifts_count_category", label: "Смены в конкретной категории (профессии)" },
@@ -401,6 +402,26 @@ export default function AdminQuestsPage() {
                     }))
                   }
                 />
+              </div>
+            )}
+            {form.conditionType === "bookings_count" && (
+              <div className="grid gap-2">
+                <Label htmlFor="condition-bookings-total">Цель (кол-во забронированных смен за период)</Label>
+                <Input
+                  id="condition-bookings-total"
+                  type="number"
+                  min={1}
+                  value={(form.conditionConfig as ConditionConfigForm)?.total ?? 1}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      conditionConfig: { ...f.conditionConfig, total: Math.max(1, Number(e.target.value) || 1) },
+                    }))
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Учитываются смены в статусе «booked» в TOJ; дата бронирования фиксируется при синхронизации и не обнуляется при смене статуса.
+                </p>
               </div>
             )}
             {(form.conditionType === "shifts_count_client" || form.conditionType === "hours_count_client") && (
