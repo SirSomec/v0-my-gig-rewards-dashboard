@@ -195,9 +195,11 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const load = useCallback(async () => {
-    setError(null)
-    setLoading(true)
+  const load = useCallback(async (silent = false) => {
+    if (!silent) {
+      setError(null)
+      setLoading(true)
+    }
     try {
       const [meRes, transactionsRes, strikesRes, questsRes, storeRes, levelsRes] = await Promise.all([
         fetchMe(),
@@ -217,14 +219,18 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
       setQuests(questsRes.map(mapQuest))
       setStoreItems(storeRes.map(mapStoreItem))
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Ошибка загрузки данных")
-      setUser(null)
-      setTransactions([])
-      setQuests([])
-      setStoreItems([])
-      setLevels([])
+      if (!silent) {
+        setError(e instanceof Error ? e.message : "Ошибка загрузки данных")
+        setUser(null)
+        setTransactions([])
+        setQuests([])
+        setStoreItems([])
+        setLevels([])
+      }
     } finally {
-      setLoading(false)
+      if (!silent) {
+        setLoading(false)
+      }
     }
   }, [])
 
@@ -271,6 +277,30 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
     return () => {
       cancelled = true
     }
+  }, [load])
+
+  // Автообновление при возврате на вкладку (активность в другом окне/табе или возврат в приложение)
+  useEffect(() => {
+    if (typeof document === "undefined") return
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void load(true)
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange)
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange)
+  }, [load])
+
+  // Периодическое обновление данных, пока вкладка видима (каждые 60 сек), чтобы подхватывать внешнюю активность
+  useEffect(() => {
+    if (typeof document === "undefined") return
+    const REFRESH_INTERVAL_MS = 60_000
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void load(true)
+      }
+    }, REFRESH_INTERVAL_MS)
+    return () => window.clearInterval(intervalId)
   }, [load])
 
   const purchaseItem = useCallback(
