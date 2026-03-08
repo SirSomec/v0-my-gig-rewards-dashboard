@@ -375,15 +375,20 @@ export class AdminController {
   ) {
     if (!body?.workerId?.trim()) throw new BadRequestException('workerId required');
     if (!body?.start?.trim()) throw new BadRequestException('start required (ISO date-time)');
-    return this.admin.mockTojCreateBookedJob({
+    const params: Parameters<AdminService['mockTojCreateBookedJob']>[0] = {
       workerId: body.workerId.trim(),
       start: body.start.trim(),
-      finish: body.finish?.trim(),
-      customName: body.customName?.trim(),
-      spec: body.spec?.trim(),
-      clientId: body.clientId?.trim(),
-      hours: body.hours != null ? Number(body.hours) : undefined,
-    });
+    };
+    const f = body.finish?.trim();
+    if (f) params.finish = f;
+    const cn = body.customName?.trim();
+    if (cn) params.customName = cn;
+    const sp = body.spec?.trim();
+    if (sp) params.spec = sp;
+    const cid = body.clientId?.trim();
+    if (cid) params.clientId = cid;
+    if (body.hours != null && body.hours > 0) params.hours = Number(body.hours);
+    return this.admin.mockTojCreateBookedJob(params);
   }
 
   @Get('toj-sync/status')
