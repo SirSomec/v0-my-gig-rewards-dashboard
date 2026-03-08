@@ -231,13 +231,13 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
   useEffect(() => {
     let cancelled = false
     const init = async () => {
-      // Поддержка перехода из админки «Сменить»: ?userId= в URL — выполняем dev-login и показываем кабинет от имени этого пользователя
+      // Переход из админки «Сменить»: ?userId= в URL — сохраняем в localStorage и делаем dev-login; при следующем обновлении страницы кабинет уже от этого пользователя
       if (typeof window !== "undefined") {
         const params = new URLSearchParams(window.location.search)
         const userIdFromUrl = params.get("userId")
-        if (userIdFromUrl) {
+        if (userIdFromUrl != null && userIdFromUrl !== "") {
           const id = parseInt(userIdFromUrl, 10)
-          if (!Number.isNaN(id)) {
+          if (!Number.isNaN(id) && id >= 1) {
             try {
               await devLogin(id)
               setViewAsUserId(id)
@@ -252,6 +252,7 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
           }
         }
       }
+      // При обычной загрузке/обновлении: если нет токена, но сохранён «кабинет от имени» — входим под ним
       const devId = getDevUserId()
       if (devId && !isLoggedIn()) {
         try {

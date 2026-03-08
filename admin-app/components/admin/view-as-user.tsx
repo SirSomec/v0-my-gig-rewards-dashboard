@@ -22,9 +22,11 @@ export function ViewAsUser() {
 
   const handleSwitchUser = () => {
     const id = selectedId ? parseInt(selectedId, 10) : 0
-    if (!id || Number.isNaN(id)) return
+    if (Number.isNaN(id) || id < 1) return
     switchDashboardToUser(id)
   }
+
+  const canSwitch = selectedId && !Number.isNaN(parseInt(selectedId, 10)) && parseInt(selectedId, 10) >= 1
 
   const dashboardUrl = process.env.NEXT_PUBLIC_DASHBOARD_URL
   if (!dashboardUrl) return null
@@ -59,7 +61,7 @@ export function ViewAsUser() {
             variant="secondary"
             className="h-7 text-xs"
             onClick={handleSwitchUser}
-            disabled={!selectedId}
+            disabled={!canSwitch}
           >
             Сменить
           </Button>

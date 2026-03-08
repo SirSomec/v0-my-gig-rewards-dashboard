@@ -6,9 +6,10 @@
 const getDashboardUrl = (): string =>
   process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3000"
 
-/** Перейти в личный кабинет от имени пользователя (та же вкладка, без новой). */
+/** Перейти в личный кабинет от имени пользователя (та же вкладка). */
 export function switchDashboardToUser(userId: number): void {
   if (typeof window === "undefined") return
+  if (!userId || userId < 1) return
   const url = new URL(getDashboardUrl())
   url.searchParams.set("userId", String(userId))
   window.location.href = url.toString()
