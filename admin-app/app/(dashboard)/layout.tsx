@@ -4,7 +4,6 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Users, ShoppingBag, Gift, Layers, Zap, Target, Wallet, FileText, LayoutDashboard, Settings, Database, Briefcase } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { ViewAsUser } from "@/components/admin/view-as-user"
 
 const nav = [
   { href: "/", label: "Обзор", icon: LayoutDashboard },
@@ -63,19 +62,6 @@ export default function DashboardLayout({
             )
           })}
         </nav>
-        <div className="shrink-0 border-t border-border p-3 space-y-3">
-          <ViewAsUser />
-          {process.env.NEXT_PUBLIC_DASHBOARD_URL && (
-            <a
-              href={process.env.NEXT_PUBLIC_DASHBOARD_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition-colors"
-            >
-              ← Дашборд
-            </a>
-          )}
-        </div>
       </aside>
 
       <header className="sm:hidden sticky top-0 z-50 bg-card border-b border-border px-4 py-3">
@@ -83,16 +69,6 @@ export default function DashboardLayout({
           <Link href="/" className="font-semibold text-foreground">
             Админ-панель
           </Link>
-          {process.env.NEXT_PUBLIC_DASHBOARD_URL && (
-            <a
-              href={process.env.NEXT_PUBLIC_DASHBOARD_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
-              ← Дашборд
-            </a>
-          )}
         </div>
         <nav className="flex gap-2 mt-3 overflow-x-auto pb-1 -mx-1">
           {nav.map(({ href, label, icon: Icon }) => {
@@ -114,9 +90,6 @@ export default function DashboardLayout({
             )
           })}
         </nav>
-        <div className="mt-3 sm:hidden">
-          <ViewAsUser />
-        </div>
       </header>
 
       <main className="flex-1 min-w-0 sm:pl-56 min-h-screen flex flex-col">

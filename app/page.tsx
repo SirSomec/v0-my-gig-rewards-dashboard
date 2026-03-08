@@ -90,7 +90,6 @@ export default function MyGigRewards() {
         avatarUrl={user.avatarUrl}
         onLogout={isLoggedIn ? logout : undefined}
       />
-      <ViewAsUser onSwitch={refetch} />
 
       <main className="flex-1 min-h-0 overflow-y-auto px-3 py-3 pb-20 sm:px-4 sm:py-4 sm:pb-24">
         <AnimatePresence mode="wait">
@@ -176,6 +175,8 @@ export default function MyGigRewards() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <ViewAsUser onSwitch={refetch} />
       </main>
 
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
