@@ -177,7 +177,7 @@
 | `id` (PK) | Внутренний ID. |
 | `name`, `description` | Название и описание цели. |
 | `period` | `daily` \| `weekly` \| `monthly`. |
-| `condition_type` | Тип условия: `shifts_count`, `shifts_count_client`, `shifts_count_clients`, `shifts_count_category`, `hours_count`, `hours_count_client`, `hours_count_clients`. |
+| `condition_type` | Тип условия: `shifts_count`, `bookings_count`, `shifts_count_client`, `shifts_count_clients`, `shifts_count_category`, `hours_count`, `hours_count_client`, `hours_count_clients`. |
 | `condition_config` | JSON параметров: `total` (число смен), `totalHours` (часы), `clientId`, `clientIds[]`, `category` — в зависимости от типа. |
 | `reward_coins` | Награда в монетах. |
 | `icon` | streak, target, calendar, trophy. |

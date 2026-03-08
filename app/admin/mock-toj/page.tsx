@@ -107,8 +107,8 @@ export default function AdminMockTojPage() {
 
   useEffect(() => {
     setLoading(true)
-    adminListUsers(undefined, 200)
-      .then(setUsers)
+    adminListUsers({ pageSize: 200 })
+      .then((r) => setUsers(r.items))
       .finally(() => setLoading(false))
   }, [])
 

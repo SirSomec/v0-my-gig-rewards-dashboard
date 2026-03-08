@@ -18,9 +18,34 @@ export class AdminService {
     private readonly config: ConfigService<Envs, true>,
   ) {}
 
-  async listUsers(search?: string, limit = 50) {
+  async listUsers(search?: string, page = 1, pageSize = 20) {
     const { users, levels } = schema;
-    let query = this.db
+    const conditions: Parameters<typeof and>[0][] = [];
+    if (search?.trim()) {
+      const term = `%${search.trim()}%`;
+      conditions.push(
+        or(
+          sql`${users.id}::text LIKE ${term}`,
+          ilike(users.name, term),
+          ilike(users.email, term),
+          ilike(users.externalId, term),
+        )!,
+      );
+    }
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [countResult] = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(users)
+      .leftJoin(levels, eq(users.levelId, levels.id))
+      .where(whereClause);
+    const total = Number(countResult?.count ?? 0);
+
+    const effectivePageSize = Math.min(100, Math.max(1, pageSize));
+    const effectivePage = Math.max(1, page);
+    const offset = (effectivePage - 1) * effectivePageSize;
+
+    const items = await this.db
       .select({
         id: users.id,
         name: users.name,
@@ -30,22 +55,17 @@ export class AdminService {
         shiftsCompleted: users.shiftsCompleted,
         levelId: users.levelId,
         levelName: levels.name,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
       })
       .from(users)
       .leftJoin(levels, eq(users.levelId, levels.id))
-      .limit(limit);
-    if (search?.trim()) {
-      const term = `%${search.trim()}%`;
-      query = query.where(
-        or(
-          sql`${users.id}::text LIKE ${term}`,
-          ilike(users.name, term),
-          ilike(users.email, term),
-          ilike(users.externalId, term),
-        ),
-      ) as typeof query;
-    }
-    return query;
+      .where(whereClause)
+      .orderBy(users.id)
+      .limit(effectivePageSize)
+      .offset(offset);
+
+    return { items, total, page: effectivePage, pageSize: effectivePageSize };
   }
 
   /** Создание пользователя по ID основной системы; имя отображается в личном кабинете (имя + фамилия из ETL). */

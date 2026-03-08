@@ -16,6 +16,8 @@ export interface TojSyncResult {
   skipped: number;
   /** Штрафов «поздняя отмена» начислено за смены со статусом cancelled (initiator=worker, <24ч до начала) */
   lateCancelApplied?: number;
+  /** Сколько раз зафиксировано бронирование (статус booked); идемпотентно по jobId */
+  bookedRecorded?: number;
   /** Причины пропуска: счётчики по коду причины */
   skippedReasons?: { noUser?: number; jobBeforeUser?: number; alreadySynced?: number; wrongStatus?: number };
   errors: string[];
@@ -121,6 +123,7 @@ export class TojSyncService {
     let processed = 0;
     let skipped = 0;
     let lateCancelApplied = 0;
+    let bookedRecorded = 0;
     const skippedReasons: { noUser: number; jobBeforeUser: number; alreadySynced: number; wrongStatus: number } = {
       noUser: 0,
       jobBeforeUser: 0,
@@ -135,7 +138,7 @@ export class TojSyncService {
       const batch = workerIds.slice(b, b + workerBatchSize);
       let skip = 0;
       while (true) {
-        if (processed + skipped + lateCancelApplied >= maxJobsPerRun) break;
+        if (processed + skipped + lateCancelApplied + bookedRecorded >= maxJobsPerRun) break;
         const { items } = await this.tojClient.findJobs(
           {
             workerIds: batch,
@@ -145,7 +148,7 @@ export class TojSyncService {
         );
         if (items.length === 0) break;
         for (const job of items) {
-          if (processed + skipped + lateCancelApplied >= maxJobsPerRun) break;
+          if (processed + skipped + lateCancelApplied + bookedRecorded >= maxJobsPerRun) break;
           const jobUpdatedAt = job.updatedAt || job.createdAt;
           if (jobUpdatedAt && jobUpdatedAt > maxUpdatedAt) {
             maxUpdatedAt = jobUpdatedAt;
@@ -158,6 +161,25 @@ export class TojSyncService {
           }
 
           const status = (job.status ?? '').toLowerCase();
+
+          // Забронированная смена (статус booked): фиксируем факт бронирования для квеста «забронировать смены».
+          // Один раз записанное бронирование не обнуляется при смене статуса (confirmed/cancelled).
+          if (status === 'booked') {
+            try {
+              const result = await this.rewards.recordShiftBooked(
+                user.id,
+                String(job._id),
+                (job.customName as string) || (job.spec as string) || 'Смена',
+                job.clientId as string | undefined,
+                job.spec as string | undefined,
+              );
+              if (result.recorded) bookedRecorded++;
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              errors.push(`Job ${job._id} (booked): ${msg}`);
+            }
+            continue;
+          }
 
           // Подтверждённая смена (только статус confirmed) — начисление
           if (status === 'confirmed') {
@@ -241,7 +263,7 @@ export class TojSyncService {
       await this.setWatermark(maxUpdatedAt);
     }
 
-    if (processed === 0 && skipped === 0 && lateCancelApplied === 0 && errors.length === 0) {
+    if (processed === 0 && skipped === 0 && lateCancelApplied === 0 && bookedRecorded === 0 && errors.length === 0) {
       errors.push(
         'В TOJ не найдено смен для ваших работников (workerId = external_id) за период watermark. Сгенерируйте смены в разделе «Мок TOJ» или проверьте фильтры.',
       );
@@ -254,6 +276,7 @@ export class TojSyncService {
       watermark: maxUpdatedAt,
     };
     if (lateCancelApplied > 0) result.lateCancelApplied = lateCancelApplied;
+    if (bookedRecorded > 0) result.bookedRecorded = bookedRecorded;
     if (skipped > 0) {
       result.skippedReasons = {};
       if (skippedReasons.noUser > 0) result.skippedReasons.noUser = skippedReasons.noUser;

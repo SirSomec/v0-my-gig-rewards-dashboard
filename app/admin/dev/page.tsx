@@ -32,8 +32,8 @@ export default function AdminDevPage() {
 
   const loadUsers = () => {
     setLoadingUsers(true)
-    adminListUsers(undefined, 100)
-      .then(setUsers)
+    adminListUsers({ pageSize: 100 })
+      .then((r) => setUsers(r.items))
       .finally(() => setLoadingUsers(false))
   }
 

@@ -28,12 +28,15 @@ export class AdminController {
   ) {}
 
   @Get('users')
-  @ApiOperation({ summary: 'Список пользователей (поиск по id, имени, email)' })
+  @ApiOperation({ summary: 'Список пользователей с пагинацией (поиск по id, имени, email)' })
   async listUsers(
     @Query('search') search?: string,
-    @Query('limit') limit?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
   ) {
-    return this.admin.listUsers(search, limit ? parseInt(limit, 10) : 50);
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const pageSizeNum = pageSize ? parseInt(pageSize, 10) : 20;
+    return this.admin.listUsers(search, pageNum, pageSizeNum);
   }
 
   @Get('users/:id')

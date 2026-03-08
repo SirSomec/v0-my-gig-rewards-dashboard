@@ -31,8 +31,8 @@ export default function AdminBalancePage() {
 
   useEffect(() => {
     setLoadingUsers(true)
-    adminListUsers(undefined, 200)
-      .then(setUsers)
+    adminListUsers({ pageSize: 200 })
+      .then((r) => setUsers(r.items))
       .finally(() => setLoadingUsers(false))
   }, [])
 

@@ -40,6 +40,8 @@ export interface AdminUser {
   shiftsCompleted: number;
   levelId: number;
   levelName: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AdminRedemption {
@@ -146,11 +148,19 @@ export type CreateQuestBody = {
 
 export type UpdateQuestBody = Partial<CreateQuestBody>;
 
-export async function adminListUsers(search?: string, limit?: number): Promise<AdminUser[]> {
-  const params = new URLSearchParams();
-  if (search) params.set("search", search);
-  if (limit) params.set("limit", String(limit));
-  return fetchAdmin<AdminUser[]>(`/v1/admin/users?${params}`);
+export async function adminListUsers(params?: {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<{ items: AdminUser[]; total: number; page: number; pageSize: number }> {
+  const searchParams = new URLSearchParams();
+  if (params?.search) searchParams.set("search", params.search);
+  if (params?.page != null) searchParams.set("page", String(params.page));
+  if (params?.pageSize != null) searchParams.set("pageSize", String(params.pageSize));
+  const q = searchParams.toString();
+  return fetchAdmin<{ items: AdminUser[]; total: number; page: number; pageSize: number }>(
+    `/v1/admin/users${q ? `?${q}` : ""}`
+  );
 }
 
 export async function adminGetUser(id: number): Promise<Record<string, unknown>> {

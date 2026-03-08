@@ -578,6 +578,55 @@ export class RewardsService {
     return { transactionId: tx.id };
   }
 
+  /**
+   * Зафиксировать факт бронирования смены (статус booked в TOJ).
+   * Используется для квеста «забронировать смены»: один раз записанное бронирование не обнуляется
+   * при смене статуса (confirmed/cancelled). Идемпотентно по jobId (sourceRef).
+   * Баланс не меняется (amount=0).
+   */
+  async recordShiftBooked(
+    userId: number,
+    jobId: string,
+    title?: string,
+    clientId?: string,
+    category?: string,
+  ): Promise<{ transactionId?: number; recorded: boolean }> {
+    const { transactions, users } = schema;
+    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const [existing] = await this.db
+      .select({ id: transactions.id })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          eq(transactions.type, 'shift_booked'),
+          eq(transactions.sourceRef, String(jobId)),
+        ),
+      )
+      .limit(1);
+    if (existing) {
+      return { transactionId: existing.id, recorded: false };
+    }
+    const [tx] = await this.db
+      .insert(transactions)
+      .values({
+        userId,
+        amount: 0,
+        type: 'shift_booked',
+        sourceRef: String(jobId),
+        title: title ?? 'Бронирование смены',
+        clientId: clientId ?? undefined,
+        category: category ?? undefined,
+      })
+      .returning({ id: transactions.id });
+    if (!tx) throw new Error('Failed to create shift_booked transaction');
+    await this.recalcQuestProgressForUser(userId);
+    return { transactionId: tx.id, recorded: true };
+  }
+
   /** Множитель бонусов за смену по умолчанию (монет за 1 час) из system_settings */
   private async getDefaultShiftBonusMultiplier(): Promise<number> {
     const { systemSettings } = schema;
@@ -800,9 +849,21 @@ export class RewardsService {
         gte(transactions.createdAt, periodStart),
         lt(transactions.createdAt, periodEnd),
       );
+      const baseConditionsBookings = and(
+        eq(transactions.userId, userId),
+        eq(transactions.type, 'shift_booked'),
+        gte(transactions.createdAt, periodStart),
+        lt(transactions.createdAt, periodEnd),
+      );
 
       let progress = 0;
-      if (q.conditionType === 'shifts_count') {
+      if (q.conditionType === 'bookings_count') {
+        const countResult = await this.db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(transactions)
+          .where(baseConditionsBookings);
+        progress = Math.min(countResult[0]?.count ?? 0, totalForStorage);
+      } else if (q.conditionType === 'shifts_count') {
         const countResult = await this.db
           .select({ count: sql<number>`count(*)::int` })
           .from(transactions)
