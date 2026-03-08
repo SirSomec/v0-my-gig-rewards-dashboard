@@ -1,4 +1,4 @@
-# Фронт (app), бэкенд API (api) и БД PostgreSQL (db) — каждый в отдельном контейнере.
+# Фронт (app), админ-панель (admin), бэкенд API (api) и БД PostgreSQL (db) — каждый в отдельном контейнере.
 # Данные БД сохраняются в volume pgdata.
 # При каждом запуске контейнера api автоматически применяются неприменённые миграции БД (entrypoint).
 #
@@ -22,6 +22,22 @@ services:
         - NEXT_PUBLIC_ADMIN_SECRET=${NEXT_PUBLIC_ADMIN_SECRET:-${ADMIN_SECRET:-admin-dev-secret}}
     ports:
       - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - ADMIN_PANEL_PASSWORD=${ADMIN_PANEL_PASSWORD:-}
+    restart: unless-stopped
+
+  # Админ-панель (отдельное приложение на порту 3002)
+  admin:
+    build:
+      context: ./admin-app
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_REWARDS_API_URL=${NEXT_PUBLIC_REWARDS_API_URL:-http://localhost:3001}
+        - NEXT_PUBLIC_ADMIN_SECRET=${NEXT_PUBLIC_ADMIN_SECRET:-${ADMIN_SECRET:-admin-dev-secret}}
+        - NEXT_PUBLIC_DASHBOARD_URL=${NEXT_PUBLIC_DASHBOARD_URL:-http://localhost:3000}
+    ports:
+      - "3002:3002"
     environment:
       - NODE_ENV=production
       - ADMIN_PANEL_PASSWORD=${ADMIN_PANEL_PASSWORD:-}
