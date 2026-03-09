@@ -345,6 +345,92 @@ export async function adminDeleteQuest(id: number): Promise<{ id: number }> {
   });
 }
 
+export interface AdminUserGroup {
+  id: number;
+  name: string;
+  description: string | null;
+  memberCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AdminUserGroupMember {
+  userId: number;
+  userName: string | null;
+  email: string | null;
+  externalId: string | null;
+}
+
+export async function adminListUserGroups(): Promise<AdminUserGroup[]> {
+  return fetchAdmin<AdminUserGroup[]>("/v1/admin/user-groups");
+}
+
+export async function adminGetUserGroup(id: number): Promise<AdminUserGroup> {
+  return fetchAdmin<AdminUserGroup>(`/v1/admin/user-groups/${id}`);
+}
+
+export async function adminCreateUserGroup(body: {
+  name: string;
+  description?: string | null;
+}): Promise<{ id: number }> {
+  return fetchAdmin("/v1/admin/user-groups", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function adminUpdateUserGroup(
+  id: number,
+  body: { name?: string; description?: string | null }
+): Promise<{ id: number }> {
+  return fetchAdmin(`/v1/admin/user-groups/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function adminDeleteUserGroup(id: number): Promise<{ id: number }> {
+  return fetchAdmin(`/v1/admin/user-groups/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function adminListGroupMembers(groupId: number): Promise<{
+  group: { id: number; name: string; description: string | null };
+  items: AdminUserGroupMember[];
+}> {
+  return fetchAdmin(`/v1/admin/user-groups/${groupId}/members`);
+}
+
+export async function adminAddGroupMember(
+  groupId: number,
+  userId: number
+): Promise<{ id: number; added: boolean }> {
+  return fetchAdmin(`/v1/admin/user-groups/${groupId}/members`, {
+    method: "POST",
+    body: JSON.stringify({ userId }),
+  });
+}
+
+export async function adminRemoveGroupMember(
+  groupId: number,
+  userId: number
+): Promise<{ id: number }> {
+  return fetchAdmin(`/v1/admin/user-groups/${groupId}/members/${userId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function adminImportGroupMembers(
+  groupId: number,
+  identifiers: string[]
+): Promise<{ added: number; totalRequested: number; resolved: number }> {
+  return fetchAdmin(`/v1/admin/user-groups/${groupId}/members/import`, {
+    method: "POST",
+    body: JSON.stringify({ identifiers }),
+  });
+}
+
 export async function adminCompleteManualQuestForUser(
   questId: number,
   userId: number

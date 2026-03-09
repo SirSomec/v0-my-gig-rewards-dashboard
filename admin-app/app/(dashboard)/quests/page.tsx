@@ -6,7 +6,9 @@ import {
   adminCreateQuest,
   adminUpdateQuest,
   adminDeleteQuest,
+  adminListUserGroups,
   type AdminQuest,
+  type AdminUserGroup,
   type CreateQuestBody,
 } from "@/lib/admin-api"
 import { Card, CardContent } from "@/components/ui/card"
@@ -136,6 +138,7 @@ const emptyForm: CreateQuestBody & {
 
 export default function AdminQuestsPage() {
   const [quests, setQuests] = useState<AdminQuest[]>([])
+  const [userGroups, setUserGroups] = useState<AdminUserGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -148,8 +151,11 @@ export default function AdminQuestsPage() {
   const load = useCallback(() => {
     setLoading(true)
     setError(null)
-    adminListQuests()
-      .then(setQuests)
+    Promise.all([adminListQuests(), adminListUserGroups()])
+      .then(([q, g]) => {
+        setQuests(q)
+        setUserGroups(g)
+      })
       .catch((e) => setError(e instanceof Error ? e.message : "Ошибка"))
       .finally(() => setLoading(false))
   }, [])
@@ -668,22 +674,36 @@ export default function AdminQuestsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Все пользователи</SelectItem>
-                  <SelectItem value="group">Группа (targetGroupId)</SelectItem>
+                  <SelectItem value="group">Группа пользователей</SelectItem>
                 </SelectContent>
               </Select>
               {form.targetType === "group" && (
-                <Input
-                  type="number"
-                  min={1}
-                  placeholder="ID группы"
-                  value={form.targetGroupId ?? ""}
-                  onChange={(e) =>
+                <Select
+                  value={form.targetGroupId != null ? String(form.targetGroupId) : ""}
+                  onValueChange={(v) =>
                     setForm((f) => ({
                       ...f,
-                      targetGroupId: e.target.value === "" ? null : Number(e.target.value),
+                      targetGroupId: v === "" ? null : Number(v),
                     }))
                   }
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите группу" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {userGroups.map((g) => (
+                      <SelectItem key={g.id} value={String(g.id)}>
+                        {g.name}
+                        {(g.memberCount ?? 0) > 0 ? ` (${g.memberCount} чел.)` : ""}
+                      </SelectItem>
+                    ))}
+                    {userGroups.length === 0 && (
+                      <p className="px-2 py-1.5 text-sm text-muted-foreground">
+                        Нет групп — создайте в разделе «Группы пользователей»
+                      </p>
+                    )}
+                  </SelectContent>
+                </Select>
               )}
             </div>
             <div className="flex items-center gap-2">

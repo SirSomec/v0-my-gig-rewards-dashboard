@@ -227,7 +227,7 @@ export class RewardsService {
   }
 
   async getQuests(userId: number): Promise<QuestResponseDto[]> {
-    const { quests, questProgress } = schema;
+    const { quests, questProgress, userGroupMembers } = schema;
     const now = new Date();
     const todayKey = now.toISOString().slice(0, 10);
     const weekStart = startOfWeekUTC(now);
@@ -235,8 +235,21 @@ export class RewardsService {
     const monthStart = startOfMonthUTC(now);
     const monthKey = monthStart.toISOString().slice(0, 7);
     const rows = await this.db.select().from(quests).where(eq(quests.isActive, 1));
+
+    const userGroupIds = new Set(
+      (
+        await this.db
+          .select({ groupId: userGroupMembers.groupId })
+          .from(userGroupMembers)
+          .where(and(eq(userGroupMembers.userId, userId), isNull(userGroupMembers.deletedAt)))
+      ).map((r) => r.groupId),
+    );
+
     const result: QuestResponseDto[] = [];
     for (const q of rows) {
+      if (q.targetType === 'group' && q.targetGroupId != null) {
+        if (!userGroupIds.has(q.targetGroupId)) continue;
+      }
       if (!isQuestInActiveWindow(q.activeFrom as Date | null, q.activeUntil as Date | null, now)) {
         continue;
       }
@@ -852,7 +865,7 @@ export class RewardsService {
    * Условие shifts_count: число транзакций type=shift за период (день/неделя). При достижении total — начисление награды.
    */
   async recalcQuestProgressForUser(userId: number): Promise<void> {
-    const { quests, questProgress, transactions, users } = schema;
+    const { quests, questProgress, transactions, users, userGroupMembers } = schema;
     const now = new Date();
     const todayStart = startOfDayUTC(now);
     const tomorrowStart = new Date(todayStart);
@@ -866,8 +879,20 @@ export class RewardsService {
     const weekKey = weekStart.toISOString().slice(0, 10);
     const monthKey = monthStart.toISOString().slice(0, 7);
 
+    const userGroupIds = new Set(
+      (
+        await this.db
+          .select({ groupId: userGroupMembers.groupId })
+          .from(userGroupMembers)
+          .where(and(eq(userGroupMembers.userId, userId), isNull(userGroupMembers.deletedAt)))
+      ).map((r) => r.groupId),
+    );
+
     const rows = await this.db.select().from(quests).where(eq(quests.isActive, 1));
     for (const q of rows) {
+      if (q.targetType === 'group' && q.targetGroupId != null) {
+        if (!userGroupIds.has(q.targetGroupId)) continue;
+      }
       if (!isQuestInActiveWindow(q.activeFrom as Date | null, q.activeUntil as Date | null, now)) {
         continue;
       }

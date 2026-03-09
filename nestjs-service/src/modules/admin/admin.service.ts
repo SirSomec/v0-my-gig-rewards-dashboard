@@ -545,6 +545,195 @@ export class AdminService {
     return { id };
   }
 
+  /** Группы пользователей (для квестов target_type=group) */
+  async listUserGroups() {
+    const { userGroups, userGroupMembers } = schema;
+    const groups = await this.db
+      .select()
+      .from(userGroups)
+      .where(isNull(userGroups.deletedAt))
+      .orderBy(userGroups.id);
+    const memberCounts = await this.db
+      .select({ groupId: userGroupMembers.groupId, count: sql<number>`count(*)::int` })
+      .from(userGroupMembers)
+      .where(isNull(userGroupMembers.deletedAt))
+      .groupBy(userGroupMembers.groupId);
+    const countMap = new Map(memberCounts.map((r) => [r.groupId, r.count]));
+    return groups.map((g) => ({ ...g, memberCount: countMap.get(g.id) ?? 0 }));
+  }
+
+  async getUserGroup(id: number) {
+    const { userGroups } = schema;
+    const [row] = await this.db
+      .select()
+      .from(userGroups)
+      .where(and(eq(userGroups.id, id), isNull(userGroups.deletedAt)))
+      .limit(1);
+    if (!row) throw new NotFoundException('User group not found');
+    return row;
+  }
+
+  async createUserGroup(dto: { name: string; description?: string | null }) {
+    const { userGroups } = schema;
+    const name = (dto.name ?? '').trim();
+    if (!name) throw new BadRequestException('name is required');
+    const [row] = await this.db
+      .insert(userGroups)
+      .values({ name, description: dto.description?.trim() || null })
+      .returning({ id: userGroups.id });
+    if (!row) throw new Error('Insert user group failed');
+    return { id: row.id };
+  }
+
+  async updateUserGroup(id: number, dto: { name?: string; description?: string | null }) {
+    const { userGroups } = schema;
+    const [existing] = await this.db
+      .select()
+      .from(userGroups)
+      .where(and(eq(userGroups.id, id), isNull(userGroups.deletedAt)))
+      .limit(1);
+    if (!existing) throw new NotFoundException('User group not found');
+    const updates: Partial<typeof userGroups.$inferInsert> = {};
+    if (dto.name !== undefined) updates.name = dto.name.trim();
+    if (dto.description !== undefined) updates.description = dto.description?.trim() || null;
+    if (Object.keys(updates).length === 0) return { id };
+    await this.db.update(userGroups).set(updates).where(eq(userGroups.id, id));
+    return { id };
+  }
+
+  async deleteUserGroup(id: number) {
+    const { userGroups } = schema;
+    const [existing] = await this.db
+      .select()
+      .from(userGroups)
+      .where(and(eq(userGroups.id, id), isNull(userGroups.deletedAt)))
+      .limit(1);
+    if (!existing) throw new NotFoundException('User group not found');
+    const now = new Date();
+    await this.db.update(userGroups).set({ deletedAt: now }).where(eq(userGroups.id, id));
+    return { id };
+  }
+
+  async listGroupMembers(groupId: number) {
+    const { userGroupMembers, users } = schema;
+    const [group] = await this.db
+      .select()
+      .from(schema.userGroups)
+      .where(and(eq(schema.userGroups.id, groupId), isNull(schema.userGroups.deletedAt)))
+      .limit(1);
+    if (!group) throw new NotFoundException('User group not found');
+    const rows = await this.db
+      .select({
+        userId: users.id,
+        userName: users.name,
+        email: users.email,
+        externalId: users.externalId,
+      })
+      .from(userGroupMembers)
+      .innerJoin(users, eq(userGroupMembers.userId, users.id))
+      .where(and(eq(userGroupMembers.groupId, groupId), isNull(userGroupMembers.deletedAt)));
+    return { group: { id: group.id, name: group.name, description: group.description }, items: rows };
+  }
+
+  async addGroupMember(groupId: number, userId: number) {
+    const { userGroups, userGroupMembers, users } = schema;
+    const [group] = await this.db
+      .select()
+      .from(userGroups)
+      .where(and(eq(userGroups.id, groupId), isNull(userGroups.deletedAt)))
+      .limit(1);
+    if (!group) throw new NotFoundException('User group not found');
+    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) throw new NotFoundException('User not found');
+    const [existing] = await this.db
+      .select()
+      .from(userGroupMembers)
+      .where(
+        and(
+          eq(userGroupMembers.groupId, groupId),
+          eq(userGroupMembers.userId, userId),
+          isNull(userGroupMembers.deletedAt),
+        ),
+      )
+      .limit(1);
+    if (existing) return { id: existing.id, added: false };
+    const [row] = await this.db
+      .insert(userGroupMembers)
+      .values({ groupId, userId })
+      .returning({ id: userGroupMembers.id });
+    if (!row) throw new Error('Insert group member failed');
+    return { id: row.id, added: true };
+  }
+
+  async removeGroupMember(groupId: number, userId: number) {
+    const { userGroupMembers } = schema;
+    const [existing] = await this.db
+      .select()
+      .from(userGroupMembers)
+      .where(
+        and(
+          eq(userGroupMembers.groupId, groupId),
+          eq(userGroupMembers.userId, userId),
+          isNull(userGroupMembers.deletedAt),
+        ),
+      )
+      .limit(1);
+    if (!existing) throw new NotFoundException('Group member not found');
+    const now = new Date();
+    await this.db
+      .update(userGroupMembers)
+      .set({ deletedAt: now })
+      .where(eq(userGroupMembers.id, existing.id));
+    return { id: existing.id };
+  }
+
+  /**
+   * Импорт участников группы по списку идентификаторов.
+   * Каждая строка — id (число), email или external_id. Дубликаты и несуществующие пользователи пропускаются.
+   */
+  async importGroupMembers(groupId: number, identifiers: string[]) {
+    const { userGroups, users, userGroupMembers } = schema;
+    const [group] = await this.db
+      .select()
+      .from(userGroups)
+      .where(and(eq(userGroups.id, groupId), isNull(userGroups.deletedAt)))
+      .limit(1);
+    if (!group) throw new NotFoundException('User group not found');
+
+    const userIds = new Set<number>();
+    for (const raw of identifiers) {
+      const s = (raw ?? '').toString().trim();
+      if (!s) continue;
+      const asId = /^\d+$/.test(s) ? parseInt(s, 10) : null;
+      let found: { id: number } | undefined;
+      if (asId != null && !Number.isNaN(asId)) {
+        [found] = await this.db.select({ id: users.id }).from(users).where(eq(users.id, asId)).limit(1);
+      }
+      if (!found) {
+        [found] = await this.db.select({ id: users.id }).from(users).where(eq(users.email, s)).limit(1);
+      }
+      if (!found) {
+        [found] = await this.db.select({ id: users.id }).from(users).where(eq(users.externalId, s)).limit(1);
+      }
+      if (found) userIds.add(found.id);
+    }
+
+    const existingMembers = await this.db
+      .select({ userId: userGroupMembers.userId })
+      .from(userGroupMembers)
+      .where(and(eq(userGroupMembers.groupId, groupId), isNull(userGroupMembers.deletedAt)));
+    const existingSet = new Set(existingMembers.map((r) => r.userId));
+    const toAdd = [...userIds].filter((id) => !existingSet.has(id));
+
+    let added = 0;
+    for (const userId of toAdd) {
+      await this.db.insert(userGroupMembers).values({ groupId, userId });
+      added++;
+      existingSet.add(userId);
+    }
+    return { added, totalRequested: identifiers.filter((x) => (x ?? '').toString().trim()).length, resolved: userIds.size };
+  }
+
   /** Ручное изменение уровня пользователя (6.5) */
   async updateUserLevel(userId: number, levelId: number) {
     const { users, levels } = schema;

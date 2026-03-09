@@ -9,3 +9,5 @@ export { timestamps, defaultArray } from './base.schema';
 export { transactions } from './transactions.schema';
 export { users } from './users.schema';
 export { strikes } from './strikes.schema';
+export { userGroups } from './user-groups.schema';
+export { userGroupMembers } from './user-group-members.schema';

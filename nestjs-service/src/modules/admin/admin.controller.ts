@@ -240,6 +240,82 @@ export class AdminController {
     return this.admin.deleteQuest(questId);
   }
 
+  @Get('user-groups')
+  @ApiOperation({ summary: 'Список групп пользователей (для привязки квестов)' })
+  async listUserGroups() {
+    return this.admin.listUserGroups();
+  }
+
+  @Get('user-groups/:id')
+  @ApiOperation({ summary: 'Группа по ID' })
+  async getUserGroup(@Param('id') id: string) {
+    const groupId = parseInt(id, 10);
+    if (Number.isNaN(groupId)) throw new BadRequestException('Invalid group id');
+    return this.admin.getUserGroup(groupId);
+  }
+
+  @Post('user-groups')
+  @ApiOperation({ summary: 'Создать группу пользователей' })
+  async createUserGroup(@Body() body: { name: string; description?: string | null }) {
+    if (!body?.name?.trim()) throw new BadRequestException('name is required');
+    return this.admin.createUserGroup(body);
+  }
+
+  @Patch('user-groups/:id')
+  @ApiOperation({ summary: 'Обновить группу' })
+  async updateUserGroup(
+    @Param('id') id: string,
+    @Body() body: { name?: string; description?: string | null },
+  ) {
+    const groupId = parseInt(id, 10);
+    if (Number.isNaN(groupId)) throw new BadRequestException('Invalid group id');
+    return this.admin.updateUserGroup(groupId, body);
+  }
+
+  @Delete('user-groups/:id')
+  @ApiOperation({ summary: 'Удалить группу (мягкое удаление)' })
+  async deleteUserGroup(@Param('id') id: string) {
+    const groupId = parseInt(id, 10);
+    if (Number.isNaN(groupId)) throw new BadRequestException('Invalid group id');
+    return this.admin.deleteUserGroup(groupId);
+  }
+
+  @Get('user-groups/:id/members')
+  @ApiOperation({ summary: 'Участники группы' })
+  async listGroupMembers(@Param('id') id: string) {
+    const groupId = parseInt(id, 10);
+    if (Number.isNaN(groupId)) throw new BadRequestException('Invalid group id');
+    return this.admin.listGroupMembers(groupId);
+  }
+
+  @Post('user-groups/:id/members')
+  @ApiOperation({ summary: 'Добавить участника в группу' })
+  async addGroupMember(@Param('id') id: string, @Body() body: { userId: number }) {
+    const groupId = parseInt(id, 10);
+    if (Number.isNaN(groupId)) throw new BadRequestException('Invalid group id');
+    const userId = body?.userId;
+    if (userId == null || typeof userId !== 'number') throw new BadRequestException('userId is required');
+    return this.admin.addGroupMember(groupId, userId);
+  }
+
+  @Delete('user-groups/:id/members/:userId')
+  @ApiOperation({ summary: 'Удалить участника из группы' })
+  async removeGroupMember(@Param('id') id: string, @Param('userId') userIdParam: string) {
+    const groupId = parseInt(id, 10);
+    const userId = parseInt(userIdParam, 10);
+    if (Number.isNaN(groupId) || Number.isNaN(userId)) throw new BadRequestException('Invalid id');
+    return this.admin.removeGroupMember(groupId, userId);
+  }
+
+  @Post('user-groups/:id/members/import')
+  @ApiOperation({ summary: 'Импорт участников: массив идентификаторов (id, email или external_id)' })
+  async importGroupMembers(@Param('id') id: string, @Body() body: { identifiers: string[] }) {
+    const groupId = parseInt(id, 10);
+    if (Number.isNaN(groupId)) throw new BadRequestException('Invalid group id');
+    const identifiers = Array.isArray(body?.identifiers) ? body.identifiers : [];
+    return this.admin.importGroupMembers(groupId, identifiers);
+  }
+
   @Post('quests/:id/complete-for-user')
   @ApiOperation({ summary: 'Подтвердить выполнение квеста с ручным подтверждением для пользователя' })
   async completeManualQuestForUser(

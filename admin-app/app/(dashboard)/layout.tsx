@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Users, ShoppingBag, Gift, Layers, Zap, Target, Wallet, FileText, LayoutDashboard, Settings, Database, Briefcase, ShieldCheck } from "lucide-react"
+import { Users, ShoppingBag, Gift, Layers, Zap, Target, Wallet, FileText, LayoutDashboard, Settings, Database, Briefcase, ShieldCheck, UsersRound } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const nav = [
@@ -11,6 +11,7 @@ const nav = [
   { href: "/redemptions", label: "Заявки на обмен", icon: Gift },
   { href: "/store", label: "Магазин", icon: ShoppingBag },
   { href: "/quests", label: "Квесты", icon: Target },
+  { href: "/user-groups", label: "Группы пользователей", icon: UsersRound },
   { href: "/quest-moderation", label: "Модерация квестов", icon: ShieldCheck },
   { href: "/levels", label: "Уровни", icon: Layers },
   { href: "/settings", label: "Настройки", icon: Settings },
