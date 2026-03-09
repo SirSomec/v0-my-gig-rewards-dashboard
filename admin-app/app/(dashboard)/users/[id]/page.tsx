@@ -319,7 +319,7 @@ export default function AdminUserDetailPage() {
                       </TableCell>
                       <TableCell>{tx.type}</TableCell>
                       <TableCell className="max-w-[200px] truncate text-muted-foreground">
-                        {tx.title || tx.description ?? "—"}
+                        {tx.title || tx.description || "—"}
                       </TableCell>
                       <TableCell className="text-xs whitespace-nowrap">
                         {formatDate(tx.createdAt)}
