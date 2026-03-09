@@ -240,6 +240,21 @@ export class AdminController {
     return this.admin.deleteQuest(questId);
   }
 
+  @Post('quests/:id/complete-for-user')
+  @ApiOperation({ summary: 'Подтвердить выполнение квеста с ручным подтверждением для пользователя' })
+  async completeManualQuestForUser(
+    @Param('id') id: string,
+    @Body() body: { userId: number },
+  ) {
+    const questId = parseInt(id, 10);
+    if (Number.isNaN(questId)) throw new BadRequestException('Invalid quest id');
+    const userId = body?.userId;
+    if (userId == null || typeof userId !== 'number') {
+      throw new BadRequestException('userId required');
+    }
+    return this.rewards.completeManualQuestForUser(userId, questId);
+  }
+
   @Post('shifts/complete')
   @ApiOperation({ summary: '[Мок] Засчитать смену для пользователя. При указании hours бонус считается автоматически.' })
   async recordShift(

@@ -50,6 +50,7 @@ const CONDITION_TYPES = [
   { value: "shifts_count", label: "Количество смен (за период)" },
   { value: "shifts_series", label: "Серия смен (без прогулов и поздних отмен)" },
   { value: "bookings_count", label: "Забронированные смены (за период)" },
+  { value: "manual_confirmation", label: "Ручное подтверждение (администратором)" },
   { value: "shifts_count_client", label: "Смены в конкретном клиенте (бренде)" },
   { value: "shifts_count_clients", label: "Смены в нескольких клиентах" },
   { value: "shifts_count_category", label: "Смены в конкретной категории (профессии)" },
@@ -83,7 +84,7 @@ function conditionConfigToTotal(config: Record<string, unknown> | null, conditio
   ) {
     return typeof config.totalHours === "number" ? Math.max(0.1, config.totalHours) : 1
   }
-  if (conditionType === "shifts_series") {
+  if (conditionType === "shifts_series" || conditionType === "manual_confirmation") {
     return typeof config.total === "number" ? Math.max(1, config.total) : 1
   }
   return typeof config.total === "number" ? Math.max(1, config.total) : 1
@@ -102,6 +103,9 @@ function conditionConfigToDisplay(config: Record<string, unknown> | null, condit
   if (conditionType === "shifts_series") {
     const t = config.total ?? 1
     return `${t} смен подряд без прогулов и поздних отмен`
+  }
+  if (conditionType === "manual_confirmation") {
+    return "по подтверждению администратора"
   }
   const t = config.total ?? 1
   const parts = [String(t)]
@@ -431,6 +435,11 @@ export default function AdminQuestsPage() {
                   Серия обнуляется при любом прогуле (no-show) или поздней отмене смены в течение периода.
                 </p>
               </div>
+            )}
+            {form.conditionType === "manual_confirmation" && (
+              <p className="text-sm text-muted-foreground">
+                Выполнение квеста подтверждается вручную в разделе «Модерация квестов». Пользователь видит квест с прогрессом 0/1 до подтверждения админом.
+              </p>
             )}
             {form.conditionType === "bookings_count" && (
               <div className="grid gap-2">

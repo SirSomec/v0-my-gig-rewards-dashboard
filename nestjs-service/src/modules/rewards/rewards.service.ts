@@ -76,6 +76,9 @@ function getQuestTarget(config: QuestConditionConfig, conditionType: string): nu
   if (conditionType === 'shifts_series') {
     return config.total ?? 1;
   }
+  if (conditionType === 'manual_confirmation') {
+    return 1;
+  }
   return config.total ?? 1;
 }
 
@@ -898,9 +901,12 @@ export class RewardsService {
         q.conditionType === 'hours_count_client' ||
         q.conditionType === 'hours_count_clients';
       const isShiftsSeries = q.conditionType === 'shifts_series';
-      const totalTarget = isHoursCondition
-        ? (config.totalHours ?? 1)
-        : (config.total ?? 1);
+      const isManualConfirmation = q.conditionType === 'manual_confirmation';
+      const totalTarget = isManualConfirmation
+        ? 1
+        : isHoursCondition
+          ? (config.totalHours ?? 1)
+          : (config.total ?? 1);
       const totalForStorage =
         isHoursCondition ? Math.round(totalTarget * 10) : totalTarget;
 
@@ -1001,6 +1007,8 @@ export class RewardsService {
           );
         const seriesCount = seriesCountResult[0]?.count ?? 0;
         progress = Math.min(seriesCount, totalForStorage);
+      } else if (isManualConfirmation) {
+        progress = 0;
       }
 
       const total = totalForStorage;
@@ -1087,5 +1095,94 @@ export class RewardsService {
         }
       }
     }
+  }
+
+  /**
+   * Ручное подтверждение выполнения квеста администратором (тип условия manual_confirmation).
+   * Начисляет награду и помечает квест выполненным за период для пользователя.
+   * Идемпотентно: повторный вызов для уже выполненного квеста возвращает alreadyCompleted: true без повторного начисления.
+   */
+  async completeManualQuestForUser(
+    userId: number,
+    questId: number,
+  ): Promise<{ completed: boolean; alreadyCompleted: boolean }> {
+    const { quests, questProgress, users, transactions } = schema;
+    const now = new Date();
+    const [quest] = await this.db.select().from(quests).where(eq(quests.id, questId)).limit(1);
+    if (!quest) {
+      throw new NotFoundException('Quest not found');
+    }
+    if (quest.conditionType !== 'manual_confirmation') {
+      throw new NotFoundException('Quest is not a manual confirmation quest');
+    }
+    if (quest.isActive !== 1) {
+      throw new NotFoundException('Quest is not active');
+    }
+    if (!isQuestInActiveWindow(quest.activeFrom as Date | null, quest.activeUntil as Date | null, now)) {
+      throw new NotFoundException('Quest is not in active window');
+    }
+    const todayKey = now.toISOString().slice(0, 10);
+    const weekStart = startOfWeekUTC(now);
+    const weekKey = weekStart.toISOString().slice(0, 10);
+    const monthStart = startOfMonthUTC(now);
+    const monthKey = monthStart.toISOString().slice(0, 7);
+    const periodKey =
+      quest.isOneTime === 1
+        ? 'once'
+        : quest.period === 'daily'
+          ? todayKey
+          : quest.period === 'weekly'
+            ? weekKey
+            : quest.period === 'monthly'
+              ? monthKey
+              : todayKey;
+
+    const [existing] = await this.db
+      .select()
+      .from(questProgress)
+      .where(
+        and(
+          eq(questProgress.userId, userId),
+          eq(questProgress.questId, questId),
+          eq(questProgress.periodKey, periodKey),
+        ),
+      )
+      .limit(1);
+    if (existing?.completedAt) {
+      return { completed: false, alreadyCompleted: true };
+    }
+
+    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (existing) {
+      await this.db
+        .update(questProgress)
+        .set({ progress: 1, completedAt: now, updatedAt: now })
+        .where(eq(questProgress.id, existing.id));
+    } else {
+      await this.db.insert(questProgress).values({
+        userId,
+        questId,
+        periodKey,
+        progress: 1,
+        completedAt: now,
+        updatedAt: now,
+      });
+    }
+    await this.db
+      .update(users)
+      .set({ balance: user.balance + quest.rewardCoins })
+      .where(eq(users.id, userId));
+    await this.db.insert(transactions).values({
+      userId,
+      amount: quest.rewardCoins,
+      type: 'quest',
+      sourceRef: String(quest.id),
+      title: quest.name,
+    });
+    return { completed: true, alreadyCompleted: false };
   }
 }

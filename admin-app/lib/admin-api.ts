@@ -345,6 +345,16 @@ export async function adminDeleteQuest(id: number): Promise<{ id: number }> {
   });
 }
 
+export async function adminCompleteManualQuestForUser(
+  questId: number,
+  userId: number
+): Promise<{ completed: boolean; alreadyCompleted: boolean }> {
+  return fetchAdmin(`/v1/admin/quests/${questId}/complete-for-user`, {
+    method: "POST",
+    body: JSON.stringify({ userId }),
+  });
+}
+
 export async function adminRecordShift(body: {
   userId: number;
   coins?: number;
