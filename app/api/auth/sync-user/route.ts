@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 
 const MYGIG_BASE = (process.env.NEXT_PUBLIC_MYGIG_API_URL ?? "").trim().replace(/\/$/, "")
 const REWARDS_API_BASE = (process.env.NEXT_PUBLIC_REWARDS_API_URL ?? "http://localhost:3001").replace(/\/$/, "")
-const INTERNAL_SECRET = process.env.REWARDS_INTERNAL_SECRET ?? ""
+// Читаем в рантайме (не при сборке), чтобы в Docker контейнер мог передать переменную через env
+function getInternalSecret(): string {
+  return (process.env["REWARDS_INTERNAL_SECRET"] ?? "").trim()
+}
 
 /**
  * После входа через MyGig: по токену получаем профиль, находим или создаём пользователя
@@ -19,9 +22,13 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+  const INTERNAL_SECRET = getInternalSecret()
   if (!INTERNAL_SECRET) {
     return NextResponse.json(
-      { error: "REWARDS_INTERNAL_SECRET не задан на сервере" },
+      {
+        error:
+          "REWARDS_INTERNAL_SECRET не задан на сервере. Добавьте в корневой .env строку REWARDS_INTERNAL_SECRET=ваш-секрет (то же значение задайте для Nest API). После правки перезапустите приложение (или контейнер app: docker compose restart app).",
+      },
       { status: 500 }
     )
   }
