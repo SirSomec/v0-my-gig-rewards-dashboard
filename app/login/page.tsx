@@ -43,7 +43,8 @@ export default function LoginPage() {
         setStep("code")
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Ошибка запроса кода")
+      const msg = e instanceof Error ? e.message : "Ошибка запроса кода"
+      setError(msg === "Failed to fetch" ? "Нет связи с сервером. Проверьте интернет или попробуйте позже." : msg)
     } finally {
       setLoading(false)
     }
@@ -63,7 +64,8 @@ export default function LoginPage() {
         router.replace("/")
         router.refresh()
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Ошибка входа")
+        const msg = e instanceof Error ? e.message : "Ошибка входа"
+        setError(msg === "Failed to fetch" ? "Нет связи с сервером. Проверьте интернет или попробуйте позже." : msg)
       } finally {
         setLoading(false)
       }

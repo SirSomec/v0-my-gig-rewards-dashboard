@@ -134,32 +134,30 @@ async function fetchMyGig<T>(
   return JSON.parse(text) as T
 }
 
-/** Запрос кода: POST /auth/phone. В dev-режиме в ответе может быть DEV_MODE с кодом. */
+/** Запрос кода: POST /auth/phone. Идёт через наш API (/api/auth/phone), чтобы избежать CORS. */
 export async function authPhone(phone: string): Promise<AuthPhoneResponse & AuthPhoneError> {
-  const base = getBaseUrl()
-  if (!base) throw new Error(AUTH_ERROR)
   const normalized = phone.replace(/\D/g, "")
   const num = normalized.startsWith("7") ? parseInt(normalized, 10) : parseInt(`7${normalized}`, 10)
   if (Number.isNaN(num) || num < 79000000000) throw new Error("Введите корректный номер телефона")
-  const res = await fetch(`${base}/auth/phone`, {
+  const res = await fetch("/api/auth/phone", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ phone: num }),
   })
   const data = (await res.json()) as AuthPhoneResponse & AuthPhoneError
   if (!res.ok) {
-    throw new Error(data.error ?? `Ошибка запроса кода: ${res.status}`)
+    throw new Error((data as AuthPhoneError).error ?? `Ошибка запроса кода: ${res.status}`)
   }
-  return data
+  return data as AuthPhoneResponse & AuthPhoneError
 }
 
-/** Подтверждение кода: POST /auth/code. Телефон передаётся строкой. Только роль worker. */
+/** Подтверждение кода: POST /auth/code. Идёт через наш API (/api/auth/code). Телефон — строка. Только роль worker. */
 export async function authCode(phone: string, code: string): Promise<AuthCodeResponse> {
   const base = getBaseUrl()
   if (!base) throw new Error(AUTH_ERROR)
   const phoneStr = phone.replace(/\D/g, "").replace(/^8/, "7")
   const body = { phone: phoneStr.length === 11 ? phoneStr : `7${phoneStr}`, code }
-  const res = await fetch(`${base}/auth/code`, {
+  const res = await fetch("/api/auth/code", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -175,9 +173,32 @@ export async function authCode(phone: string, code: string): Promise<AuthCodeRes
   return data
 }
 
-/** Профиль пользователя: GET /user/profile. */
+/** Профиль пользователя: GET /user/profile. Идёт через наш API (/api/user/profile), чтобы избежать CORS. */
 export async function fetchUserProfile(): Promise<UserProfile> {
-  return fetchMyGig<UserProfile>("/user/profile")
+  const token = getToken()
+  if (!token) throw new Error("Сессия истекла. Войдите снова.")
+  const base = getBaseUrl()
+  if (!base) throw new Error(AUTH_ERROR)
+  const res = await fetch("/api/user/profile", {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (res.status === 401) {
+    clearToken()
+    throw new Error("Сессия истекла. Войдите снова.")
+  }
+  const text = await res.text()
+  if (!res.ok) {
+    let errMsg = `Профиль: ${text || res.statusText}`
+    try {
+      const json = JSON.parse(text) as { error?: string }
+      if (json.error) errMsg = json.error
+    } catch {
+      // ignore
+    }
+    throw new Error(errMsg)
+  }
+  if (!text) return {} as UserProfile
+  return JSON.parse(text) as UserProfile
 }
 
 /** Преобразует профиль MyGig в формат MeResponse (rewards-api) с подстановкой моков для null. */
