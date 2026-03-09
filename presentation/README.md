@@ -1,22 +1,27 @@
 # Презентация для совета директоров
 
-Презентация MyGig Rewards Dashboard в формате [Marp](https://marp.app/) (Markdown).
+Презентация MyGig Rewards Dashboard в формате [Marp](https://marp.app/) (Markdown) и в виде одностраничного HTML.
 
 ## Файлы
 
-- **`board-presentation.md`** — слайды презентации
-- **`speaker-notes.md`** — подсказки для докладчика: что говорить, демо, ответы на возражения
+- **`board-presentation.html`** — одностраничная презентация: откройте в браузере, переключение слайдов стрелками ←/→ или кнопками (поддержка клавиш Space, PageUp/PageDown).
+- **`board-presentation.md`** — слайды в формате Marp (Markdown).
+- **`speaker-notes.md`** — подсказки для докладчика: что говорить, демо, ответы на возражения.
 
 ## Как просматривать и показывать
 
-### Вариант 1: VS Code + Marp (рекомендуется)
+### Вариант 1: Одностраничный HTML (без установки)
+
+Откройте **`board-presentation.html`** в любом браузере (двойной клик по файлу или «Открыть файл»). Навигация: кнопки внизу справа или клавиши → ←, Space, PageDown/PageUp.
+
+### Вариант 2: VS Code + Marp
 
 1. Установите расширение [Marp for VS Code](https://marketplace.visualstudio.com/items?itemName=marp-team.marp-vscode).
 2. Откройте `board-presentation.md`.
 3. Нажмите «Open Preview to the Side» или используйте команду **Marp: Toggle Marp Preview**.
 4. Для полноэкранного показа: в превью кнопка полноэкрана или **Marp: Open Preview**.
 
-### Вариант 2: Экспорт в PDF/HTML
+### Вариант 3: Экспорт в PDF/HTML
 
 С Marp CLI (нужен Node.js):
 
@@ -28,7 +33,7 @@ npx @marp-team/marp-cli@latest presentation/board-presentation.md -o presentatio
 
 После этого можно показывать PDF в любой программе или открыть HTML в браузере.
 
-### Вариант 3: Копирование в PowerPoint / Google Slides
+### Вариант 4: Копирование в PowerPoint / Google Slides
 
 Слайды в Markdown разделены `---`. Каждый блок между `---` — один слайд. Текст можно скопировать в слайды вручную и оформить по корпоративному шаблону.
 

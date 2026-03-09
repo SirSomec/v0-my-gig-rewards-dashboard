@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyGig Rewards Dashboard — Совет директоров</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background: #f8fafc; }
+    .deck { position: relative; height: 100%; overflow: hidden; }
+    .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; padding: 2rem 3rem; display: none; flex-direction: column; justify-content: center; background: #fff; overflow: auto; }
+    .slide.active { display: flex; z-index: 1; }
+    .slide h1 { font-size: 2rem; color: #0f172a; margin: 0 0 0.5rem; font-weight: 700; }
+    .slide h2 { font-size: 1.5rem; color: #1e40af; margin: 1.25rem 0 0.5rem; font-weight: 600; }
+    .slide h1 + p, .slide h2 + p { margin: 0 0 0.75rem; }
+    .slide p, .slide li { font-size: 1.1rem; line-height: 1.5; color: #334155; margin: 0.35rem 0; }
+    .slide ul { margin: 0.5rem 0; padding-left: 1.5rem; }
+    .slide strong { color: #0f172a; }
+    .slide.title-slide { text-align: center; }
+    .slide.title-slide h1 { font-size: 2.25rem; }
+    .slide.title-slide h2 { font-size: 1.35rem; margin-top: 0.5rem; }
+    .slide.title-slide p { font-size: 1rem; color: #64748b; margin-top: 1rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.95rem; margin: 0.75rem 0; }
+    th, td { border: 1px solid #e2e8f0; padding: 0.5rem 0.75rem; text-align: left; }
+    th { background: #f1f5f9; color: #1e40af; font-weight: 600; }
+    td { color: #334155; }
+    pre { background: #f1f5f9; padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.8rem; line-height: 1.4; color: #334155; margin: 0.75rem 0; white-space: pre; }
+    .nav { position: fixed; bottom: 1rem; right: 1rem; z-index: 10; display: flex; gap: 0.5rem; align-items: center; background: rgba(255,255,255,0.95); padding: 0.5rem 0.75rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .nav button { width: 36px; height: 36px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; cursor: pointer; font-size: 1.25rem; line-height: 1; color: #475569; }
+    .nav button:hover { background: #f1f5f9; color: #1e40af; }
+    .nav span { font-size: 0.9rem; color: #64748b; min-width: 4rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="deck">
+    <section class="slide title-slide active" data-slide="1">
+      <h1>MyGig Rewards Dashboard</h1>
+      <h2>Геймификация и награды для гиг-работников</h2>
+      <p>Презентация для совета директоров</p>
+    </section>
+
+    <section class="slide" data-slide="2">
+      <h2>Сегодня в повестке</h2>
+      <ol>
+        <li><strong>Зачем это бизнесу</strong> — цели и выгоды</li>
+        <li><strong>Демонстрация продукта</strong> — дашборд и админка</li>
+        <li><strong>Архитектура и интеграция</strong> — как это встраивается в платформу</li>
+        <li><strong>Этапы внедрения</strong> — сроки и следующие шаги</li>
+        <li><strong>Риски и управление ими</strong></li>
+        <li><strong>Рекомендация и решение</strong></li>
+      </ol>
+    </section>
+
+    <section class="slide" data-slide="3">
+      <h2>Проблема → Решение → Результат</h2>
+      <table>
+        <thead><tr><th>Проблема</th><th>Результат</th></tr></thead>
+        <tbody>
+          <tr><td>Текучесть кадров, слабая вовлечённость</td><td>Рост удержания, предсказуемая явка</td></tr>
+          <tr><td>Прогулы и поздние отмены</td><td>Меньше no-show и отмен в последний момент</td></tr>
+          <tr><td>Нет «крючка» для регулярных выходов</td><td>Больше смен на одного работника</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="slide" data-slide="4">
+      <h1>Часть 1. Бизнес-цели и выгоды</h1>
+    </section>
+
+    <section class="slide" data-slide="5">
+      <h2>Выгода 1: Удержание работников</h2>
+      <ul>
+        <li><strong>Больше смен и достижений</strong> → выше уровень и больше наград</li>
+        <li>Работник <strong>видит прогресс</strong> и выгоду от стабильной работы</li>
+        <li><strong>Меньше ухода</strong> в первые недели и месяцы</li>
+      </ul>
+    </section>
+
+    <section class="slide" data-slide="6">
+      <h2>Выгода 2: Явка и надёжность</h2>
+      <ul>
+        <li><strong>Штрафы за прогулы и поздние отмены</strong> влияют на уровень лояльности</li>
+        <li>Понятные правила: что будет при no-show и отмене менее чем за 24 часа</li>
+        <li><strong>Снижение рисков</strong> для операционки в пиковые дни</li>
+      </ul>
+    </section>
+
+    <section class="slide" data-slide="7">
+      <h2>Выгода 3: Вовлечённость</h2>
+      <ul>
+        <li><strong>Квесты</strong> — ежедневные, еженедельные, ежемесячные цели (смены, часы, серии)</li>
+        <li><strong>Магазин наград</strong> — обмен монет на скидки, мерч, подарочные карты</li>
+        <li>Дополнительная мотивация помимо оплаты смены</li>
+      </ul>
+    </section>
+
+    <section class="slide" data-slide="8">
+      <h2>Выгода 4: Управляемость без разработки</h2>
+      <ul>
+        <li><strong>Всё настраивается в админке:</strong> уровни, лимиты штрафов, квесты, товары в магазине</li>
+        <li>Обработка заявок на обмен, ручные начисления/списания, снятие штрафов</li>
+        <li><strong>Аудит</strong> — кто, когда и что изменил</li>
+      </ul>
+    </section>
+
+    <section class="slide" data-slide="9">
+      <h2>Выгода 5: Готовность к масштабу</h2>
+      <ul>
+        <li><strong>Продукт готов к внедрению:</strong> дашборд, API, админка, деплой (Docker)</li>
+        <li>Остаётся <strong>интеграция с платформой</strong> — ограниченный по объёму этап</li>
+        <li>Возможен <strong>пилот</strong> на части пользователей до полной автоматизации</li>
+      </ul>
+    </section>
+
+    <section class="slide" data-slide="10">
+      <h1>Часть 2. Демонстрация продукта</h1>
+      <p><em>После слайдов — живое демо: дашборд работника → админ-панель</em></p>
+    </section>
+
+    <section class="slide" data-slide="11">
+      <h2>Дашборд работника (что видит сотрудник)</h2>
+      <ul>
+        <li><strong>Главная:</strong> баланс Gig Coins, текущий уровень, прогресс до следующего уровня, квесты по периодам</li>
+        <li><strong>История:</strong> все начисления и списания (смены, бонусы, квесты, штрафы)</li>
+        <li><strong>Магазин:</strong> каталог наград, цена в монетах, остаток по тиражу, кнопка «Купить»</li>
+        <li><strong>Уровни:</strong> все уровни лояльности, пороги смен, перки</li>
+      </ul>
+    </section>
+
+    <section class="slide" data-slide="12">
+      <h2>Админ-панель (управление без программистов)</h2>
+      <ul>
+        <li><strong>Магазин:</strong> CRUD товаров, лимиты тиража, категории</li>
+        <li><strong>Квесты:</strong> настройка целей (смены, часы, клиенты, серия смен)</li>
+        <li><strong>Уровни:</strong> пороги смен, лимиты штрафов за неделю/месяц, перки</li>
+        <li><strong>Пользователи:</strong> поиск, карточка, ручное изменение уровня, снятие штрафа</li>
+        <li><strong>Заявки на обмен:</strong> список, фильтры, массовое выполнение/отмена</li>
+        <li><strong>Аудит:</strong> лог изменений</li>
+      </ul>
+    </section>
+
+    <section class="slide" data-slide="13">
+      <h1>Часть 3. Архитектура и интеграция</h1>
+    </section>
+
+    <section class="slide" data-slide="14">
+      <h2>Как это встраивается</h2>
+      <pre>┌─────────────────────┐     ┌──────────────────────────┐
+│  Платформа MyGig    │────▶│  Сервис наград (наш API) │
+│  Смены, пользователи│     │  Баланс, уровни, квесты  │
+│  Отмены, прогулы    │     │  Магазин, заявки         │
+└─────────────────────┘     └──────────────────────────┘
+                                        │
+                    ┌───────────────────┴───────────────────┐
+                    ▼                                       ▼
+            ┌───────────────┐                     ┌─────────────────┐
+            │  Дашборд      │                     │  Админ-панель   │
+            │  (работник)   │                     │  (оператор)     │
+            └───────────────┘                     └─────────────────┘</pre>
+      <p>Платформа — <strong>источник правды</strong> по сменам и пользователям. Наш сервис хранит только данные программы лояльности.</p>
+    </section>
+
+    <section class="slide" data-slide="15">
+      <h2>Следующий шаг: интеграция</h2>
+      <p>Чтобы начисления и штрафы считались <strong>автоматически</strong>, нужна интеграция:</p>
+      <ul>
+        <li>События: <strong>«смена завершена»</strong>, <strong>«отмена»</strong>, <strong>«прогул»</strong></li>
+        <li>Форматы и эндпоинты — по вашим API или согласованному формату</li>
+      </ul>
+      <p><strong>Сейчас</strong> продукт уже можно использовать с ручным/моковым вводом в админке — полная автоматизация после подключения API.</p>
+    </section>
+
+    <section class="slide" data-slide="16">
+      <h1>Часть 4. Этапы внедрения</h1>
+    </section>
+
+    <section class="slide" data-slide="17">
+      <h2>Этап 1 (сейчас): продукт готов</h2>
+      <ul>
+        <li>Дашборд, админка, API, логика уровней, квестов, штрафов, магазина</li>
+        <li>Развёртывание по документации (Docker)</li>
+        <li><strong>Пилот</strong> на части пользователей с ручным или частичным вводом смен</li>
+      </ul>
+    </section>
+
+    <section class="slide" data-slide="18">
+      <h2>Этап 2: интеграция с платформой</h2>
+      <ul>
+        <li>Подключение к API: авторизация, смены, отмены, прогулы</li>
+        <li>Оценка: <strong>2–3 месяца</strong> при наличии доступа к API и спецификациям</li>
+        <li>После интеграции — автоматические начисления и штрафы</li>
+      </ul>
+    </section>
+
+    <section class="slide" data-slide="19">
+      <h2>Этап 3: масштабирование</h2>
+      <ul>
+        <li>Запуск на всей базе гиг-работников</li>
+        <li>Метрики: удержание, явка, активность в квестах и магазине</li>
+        <li>Доработки по обратной связи</li>
+      </ul>
+    </section>
+
+    <section class="slide" data-slide="20">
+      <h1>Часть 5. Риски и управление ими</h1>
+    </section>
+
+    <section class="slide" data-slide="21">
+      <h2>Риски и митигация</h2>
+      <table>
+        <thead><tr><th>Риск</th><th>Митигация</th></tr></thead>
+        <tbody>
+          <tr><td>Сложная интеграция</td><td>Ограниченный набор событий и форматов; оценка по вашим API</td></tr>
+          <tr><td>Дорого / долго</td><td>Основной объём разработки выполнен; остаётся адаптация и подключение API</td></tr>
+          <tr><td>Работники не будут пользоваться</td><td>Мобильный интерфейс, простая логика; пилот и замер активности</td></tr>
+          <tr><td>Безопасность и доступ к данным</td><td>Храним только данные лояльности; админка по ключу; при необходимости — пароль</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="slide" data-slide="22">
+      <h1>Часть 6. Рекомендация и решение</h1>
+    </section>
+
+    <section class="slide" data-slide="23">
+      <h2>Рекомендация</h2>
+      <p><strong>Согласовать внедрение MyGig Rewards Dashboard</strong> и выделить ресурсы на этап интеграции с платформой.</p>
+      <p><strong>Дальнейшие шаги:</strong></p>
+      <ol>
+        <li>Назначить ответственного со стороны продукта/технологий</li>
+        <li>Согласовать формат API и событий для интеграции</li>
+        <li>Утвердить пилот (площадка/регион) и метрики успеха</li>
+      </ol>
+    </section>
+
+    <section class="slide" data-slide="24">
+      <h2>Запрос к совету</h2>
+      <p>Прошу согласовать <strong>внедрение системы геймификации и наград</strong> и выделить бюджет/ресурсы на этап интеграции с платформой.</p>
+      <p>После совета готов детализировать план и смету под ваши сроки.</p>
+    </section>
+
+    <section class="slide title-slide" data-slide="25">
+      <h1>Спасибо за внимание</h1>
+      <p>Вопросы?</p>
+    </section>
+  </div>
+
+  <nav class="nav" aria-label="Навигация по слайдам">
+    <button type="button" id="prev" title="Предыдущий">←</button>
+    <span id="counter">1 / 25</span>
+    <button type="button" id="next" title="Следующий">→</button>
+  </nav>
+
+  <script>
+    (function() {
+      var slides = document.querySelectorAll('.slide');
+      var total = slides.length;
+      var idx = 0;
+
+      function go(n) {
+        idx = Math.max(0, Math.min(total - 1, n));
+        slides.forEach(function(s, i) { s.classList.toggle('active', i === idx); });
+        document.getElementById('counter').textContent = (idx + 1) + ' / ' + total;
+      }
+
+      document.getElementById('prev').onclick = function() { go(idx - 1); };
+      document.getElementById('next').onclick = function() { go(idx + 1); };
+
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); go(idx + 1); }
+        else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(idx - 1); }
+      });
+
+      go(0);
+    })();
+  </script>
+</body>
+</html>
