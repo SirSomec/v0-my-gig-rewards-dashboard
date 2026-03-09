@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { AnimatePresence, motion } from "framer-motion"
 import { Header } from "@/components/mygig/header"
 import { ViewAsUser } from "@/components/admin/view-as-user"
@@ -13,6 +14,7 @@ import { LevelsView } from "@/components/mygig/levels-view"
 import { DashboardSkeleton } from "@/components/mygig/dashboard-skeleton"
 import { useRewardsDashboard } from "@/hooks/use-rewards-dashboard"
 import { getApiConfigForDisplay } from "@/lib/rewards-api"
+import { isMyGigAuthEnabled } from "@/lib/mygig-auth"
 import { Button } from "@/components/ui/button"
 import { AlertCircle } from "lucide-react"
 
@@ -23,8 +25,16 @@ const pageVariants = {
 }
 
 export default function MyGigRewards() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<NavTab>("home")
   const { user, transactions, quests, storeItems, currentLevelPerks, loading, error, refetch, purchaseItem, logout, isLoggedIn } = useRewardsDashboard()
+  const myGigEnabled = isMyGigAuthEnabled()
+
+  useEffect(() => {
+    if (myGigEnabled && !isLoggedIn && !loading && !user) {
+      router.replace("/login")
+    }
+  }, [myGigEnabled, isLoggedIn, loading, user, router])
 
   if (loading && !user) {
     return (

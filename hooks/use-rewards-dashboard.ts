@@ -21,6 +21,11 @@ import {
   type StoreItemResponse,
   type LevelResponse,
 } from "@/lib/rewards-api"
+import {
+  isMyGigAuthEnabled,
+  fetchUserProfile,
+  mapProfileToMeResponse,
+} from "@/lib/mygig-auth"
 import type { EarningEntry } from "@/components/mygig/earning-history"
 import type { Quest } from "@/components/mygig/quests"
 import type { StoreItem } from "@/components/mygig/redemption-store"
@@ -201,8 +206,10 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
       setLoading(true)
     }
     try {
-      const [meRes, transactionsRes, strikesRes, questsRes, storeRes, levelsRes] = await Promise.all([
-        fetchMe(),
+      const meRes: MeResponse = isMyGigAuthEnabled()
+        ? mapProfileToMeResponse(await fetchUserProfile())
+        : await fetchMe()
+      const [transactionsRes, strikesRes, questsRes, storeRes, levelsRes] = await Promise.all([
         fetchTransactions(),
         fetchStrikes(),
         fetchQuests(),
@@ -237,8 +244,13 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
   useEffect(() => {
     let cancelled = false
     const init = async () => {
-      // Переход из админки «Сменить»: ?userId= в URL — сохраняем в localStorage и делаем dev-login; при следующем обновлении страницы кабинет уже от этого пользователя
-      if (typeof window !== "undefined") {
+      const myGigEnabled = isMyGigAuthEnabled()
+      if (myGigEnabled && !isLoggedIn()) {
+        setLoading(false)
+        return
+      }
+      // Переход из админки «Сменить»: ?userId= в URL — сохраняем в localStorage и делаем dev-login; только если MyGig не используется
+      if (typeof window !== "undefined" && !myGigEnabled) {
         const params = new URLSearchParams(window.location.search)
         const userIdFromUrl = params.get("userId")
         if (userIdFromUrl != null && userIdFromUrl !== "") {
@@ -258,17 +270,19 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
           }
         }
       }
-      // При обычной загрузке/обновлении: если нет токена, но сохранён «кабинет от имени» — входим под ним
-      const devId = getDevUserId()
-      if (devId && !isLoggedIn()) {
-        try {
-          await devLogin(parseInt(devId, 10))
-        } catch (e) {
-          if (!cancelled) {
-            setError(e instanceof Error ? e.message : "Ошибка входа (dev-login)")
-            setLoading(false)
+      // При обычной загрузке/обновлении: если нет токена, но сохранён «кабинет от имени» — входим под ним (только без MyGig)
+      if (!myGigEnabled) {
+        const devId = getDevUserId()
+        if (devId && !isLoggedIn()) {
+          try {
+            await devLogin(parseInt(devId, 10))
+          } catch (e) {
+            if (!cancelled) {
+              setError(e instanceof Error ? e.message : "Ошибка входа (dev-login)")
+              setLoading(false)
+            }
+            return
           }
-          return
         }
       }
       await load()
