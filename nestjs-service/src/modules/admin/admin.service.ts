@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, asc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, ilike, isNull, lte, or, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type { Envs } from '../../shared/env.validation-schema';
 import * as schema from '../../infra/db/drizzle/schemas';
@@ -187,14 +187,14 @@ export class AdminService {
     if (opts.dateFrom) {
       const d = new Date(opts.dateFrom);
       if (!Number.isNaN(d.getTime())) {
-        conditions.push(sql`${redemptions.createdAt} >= ${d}`);
+        conditions.push(gte(redemptions.createdAt, d));
       }
     }
     if (opts.dateTo) {
       const d = new Date(opts.dateTo);
       if (!Number.isNaN(d.getTime())) {
         d.setHours(23, 59, 59, 999);
-        conditions.push(sql`${redemptions.createdAt} <= ${d}`);
+        conditions.push(lte(redemptions.createdAt, d));
       }
     }
     if (opts.search?.trim()) {
