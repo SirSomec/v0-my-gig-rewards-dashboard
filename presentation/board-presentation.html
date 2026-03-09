@@ -4,184 +4,335 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MyGig Rewards Dashboard — Совет директоров</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --mg-primary: #C9A227;
+      --mg-primary-dark: #A88520;
+      --mg-primary-light: #F5EBCD;
+      --mg-bg: #FAFAF9;
+      --mg-card: #FFFFFF;
+      --mg-text: #1A1A1A;
+      --mg-text-muted: #5C5C5C;
+      --mg-accent: #4F6FED;
+      --mg-success: #22A65D;
+      --mg-border: #E8E6E3;
+      --mg-radius: 12px;
+      --mg-radius-lg: 20px;
+      --mg-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      --mg-shadow-lg: 0 8px 32px rgba(0,0,0,0.08);
+    }
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; height: 100%; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background: #f8fafc; }
+    html, body { margin: 0; padding: 0; height: 100%; font-family: 'Inter', system-ui, sans-serif; background: var(--mg-bg); color: var(--mg-text); }
     .deck { position: relative; height: 100%; overflow: hidden; }
-    .slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; padding: 2rem 3rem; display: none; flex-direction: column; justify-content: center; background: #fff; overflow: auto; }
+    .slide {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      display: none; flex-direction: column; justify-content: flex-start; align-items: stretch;
+      background: var(--mg-bg); overflow: auto;
+      padding: 0 3rem 5rem;
+    }
     .slide.active { display: flex; z-index: 1; }
-    .slide h1 { font-size: 2rem; color: #0f172a; margin: 0 0 0.5rem; font-weight: 700; }
-    .slide h2 { font-size: 1.5rem; color: #1e40af; margin: 1.25rem 0 0.5rem; font-weight: 600; }
+    .slide-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 0; margin-bottom: 0.5rem;
+      border-bottom: 1px solid var(--mg-border);
+    }
+    .slide-logo { font-weight: 700; font-size: 1.25rem; color: var(--mg-primary); letter-spacing: -0.02em; }
+    .slide-num { font-size: 0.875rem; color: var(--mg-text-muted); font-weight: 500; }
+    .slide-content { flex: 1; display: flex; flex-direction: column; justify-content: center; max-width: 900px; }
+    .slide h1 { font-size: 1.85rem; color: var(--mg-text); margin: 0 0 0.5rem; font-weight: 700; letter-spacing: -0.02em; }
+    .slide h2 { font-size: 1.35rem; color: var(--mg-primary-dark); margin: 1rem 0 0.5rem; font-weight: 600; }
     .slide h1 + p, .slide h2 + p { margin: 0 0 0.75rem; }
-    .slide p, .slide li { font-size: 1.1rem; line-height: 1.5; color: #334155; margin: 0.35rem 0; }
-    .slide ul { margin: 0.5rem 0; padding-left: 1.5rem; }
-    .slide strong { color: #0f172a; }
-    .slide.title-slide { text-align: center; }
+    .slide p, .slide li { font-size: 1.05rem; line-height: 1.55; color: var(--mg-text-muted); margin: 0.4rem 0; }
+    .slide ul { margin: 0.5rem 0; padding-left: 1.4rem; }
+    .slide strong { color: var(--mg-text); }
+    .slide.title-slide { justify-content: center; align-items: center; text-align: center; padding: 2rem 3rem; }
+    .slide.title-slide .slide-header { position: absolute; top: 0; left: 0; right: 0; }
+    .slide.title-slide .slide-content { align-items: center; }
     .slide.title-slide h1 { font-size: 2.25rem; }
-    .slide.title-slide h2 { font-size: 1.35rem; margin-top: 0.5rem; }
-    .slide.title-slide p { font-size: 1rem; color: #64748b; margin-top: 1rem; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.95rem; margin: 0.75rem 0; }
-    th, td { border: 1px solid #e2e8f0; padding: 0.5rem 0.75rem; text-align: left; }
-    th { background: #f1f5f9; color: #1e40af; font-weight: 600; }
-    td { color: #334155; }
-    pre { background: #f1f5f9; padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.8rem; line-height: 1.4; color: #334155; margin: 0.75rem 0; white-space: pre; }
-    .nav { position: fixed; bottom: 1rem; right: 1rem; z-index: 10; display: flex; gap: 0.5rem; align-items: center; background: rgba(255,255,255,0.95); padding: 0.5rem 0.75rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .nav button { width: 36px; height: 36px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; cursor: pointer; font-size: 1.25rem; line-height: 1; color: #475569; }
-    .nav button:hover { background: #f1f5f9; color: #1e40af; }
-    .nav span { font-size: 0.9rem; color: #64748b; min-width: 4rem; text-align: center; }
+    .slide.title-slide h2 { font-size: 1.35rem; margin-top: 0.5rem; color: var(--mg-text-muted); }
+    .slide.title-slide p { font-size: 1rem; color: var(--mg-text-muted); margin-top: 1rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 0.75rem 0; border-radius: var(--mg-radius); overflow: hidden; box-shadow: var(--mg-shadow); }
+    th, td { border: 1px solid var(--mg-border); padding: 0.6rem 0.9rem; text-align: left; }
+    th { background: var(--mg-primary); color: #fff; font-weight: 600; }
+    td { background: var(--mg-card); color: var(--mg-text-muted); }
+    tr:nth-child(even) td { background: var(--mg-bg); }
+    pre { background: var(--mg-card); padding: 1rem 1.25rem; border-radius: var(--mg-radius); overflow-x: auto; font-size: 0.75rem; line-height: 1.45; color: var(--mg-text); margin: 0.75rem 0; white-space: pre; border: 1px solid var(--mg-border); box-shadow: var(--mg-shadow); }
+    .nav { position: fixed; bottom: 1.25rem; right: 1.25rem; z-index: 10; display: flex; gap: 0.25rem; align-items: center; background: var(--mg-card); padding: 0.35rem 0.5rem; border-radius: 999px; box-shadow: var(--mg-shadow-lg); border: 1px solid var(--mg-border); }
+    .nav button { width: 40px; height: 40px; border: none; background: var(--mg-primary); color: #fff; border-radius: 50%; cursor: pointer; font-size: 1.25rem; line-height: 1; display: flex; align-items: center; justify-content: center; transition: background .2s; }
+    .nav button:hover { background: var(--mg-primary-dark); }
+    .nav button:disabled { background: var(--mg-border); color: var(--mg-text-muted); cursor: not-allowed; }
+    .nav span { font-size: 0.85rem; color: var(--mg-text-muted); min-width: 3.5rem; text-align: center; font-weight: 500; }
+
+    .deco-blob { position: absolute; pointer-events: none; opacity: 0.12; }
+    .deco-blob-1 { top: -80px; right: -80px; width: 320px; height: 320px; background: var(--mg-primary); border-radius: 50%; }
+    .deco-blob-2 { bottom: -60px; left: -60px; width: 240px; height: 240px; background: var(--mg-accent); border-radius: 50%; }
+    .deco-section { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; background: var(--mg-primary); color: #fff; font-weight: 700; font-size: 1.5rem; border-radius: var(--mg-radius-lg); margin-bottom: 1rem; }
+    .deco-icon { width: 24px; height: 24px; margin-right: 0.5rem; flex-shrink: 0; }
+    .deco-list { list-style: none; padding-left: 0; }
+    .deco-list li { display: flex; align-items: flex-start; gap: 0.6rem; margin: 0.5rem 0; padding-left: 0; }
+    .deco-list li::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--mg-primary); margin-top: 0.5rem; flex-shrink: 0; }
+    .card-block { background: var(--mg-card); border-radius: var(--mg-radius); padding: 1.25rem; margin: 0.75rem 0; border: 1px solid var(--mg-border); box-shadow: var(--mg-shadow); }
+    .title-slide .coin-badge { width: 80px; height: 80px; background: linear-gradient(135deg, var(--mg-primary) 0%, var(--mg-primary-dark) 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem; box-shadow: 0 8px 24px rgba(201,162,39,0.35); }
+    .title-slide .coin-badge svg { width: 44px; height: 44px; }
   </style>
 </head>
 <body>
   <div class="deck">
     <section class="slide title-slide active" data-slide="1">
-      <h1>MyGig Rewards Dashboard</h1>
-      <h2>Геймификация и награды для гиг-работников</h2>
-      <p>Презентация для совета директоров</p>
+      <div class="deco-blob deco-blob-1"></div>
+      <div class="deco-blob deco-blob-2"></div>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <div class="coin-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 6v12M9 9h6M9 15h6"/></svg>
+        </div>
+        <h1>MyGig Rewards Dashboard</h1>
+        <h2>Геймификация и награды для гиг-работников</h2>
+        <p>Презентация для совета директоров</p>
+      </div>
     </section>
 
     <section class="slide" data-slide="2">
-      <h2>Сегодня в повестке</h2>
-      <ol>
-        <li><strong>Зачем это бизнесу</strong> — цели и выгоды</li>
-        <li><strong>Демонстрация продукта</strong> — дашборд и админка</li>
-        <li><strong>Архитектура и интеграция</strong> — как это встраивается в платформу</li>
-        <li><strong>Этапы внедрения</strong> — сроки и следующие шаги</li>
-        <li><strong>Риски и управление ими</strong></li>
-        <li><strong>Рекомендация и решение</strong></li>
-      </ol>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Сегодня в повестке</h2>
+        <ol class="deco-list" style="list-style: decimal; padding-left: 1.5rem;">
+          <li><strong>Зачем это бизнесу</strong> — цели и выгоды</li>
+          <li><strong>Демонстрация продукта</strong> — дашборд и админка</li>
+          <li><strong>Архитектура и интеграция</strong> — как это встраивается в платформу</li>
+          <li><strong>Этапы внедрения</strong> — сроки и следующие шаги</li>
+          <li><strong>Риски и управление ими</strong></li>
+          <li><strong>Рекомендация и решение</strong></li>
+        </ol>
+      </div>
     </section>
 
     <section class="slide" data-slide="3">
-      <h2>Проблема → Решение → Результат</h2>
-      <table>
-        <thead><tr><th>Проблема</th><th>Решение</th><th>Ожидаемый результат</th></tr></thead>
-        <tbody>
-          <tr><td>Текучесть кадров, слабая вовлечённость</td><td>Программа лояльности: уровни, квесты, монеты, магазин наград</td><td>Рост удержания, предсказуемая явка</td></tr>
-          <tr><td>Прогулы и поздние отмены</td><td>Прозрачные штрафы и понижение уровня при превышении лимитов</td><td>Меньше no-show и отмен в последний момент</td></tr>
-          <tr><td>Нет «крючка» для регулярных выходов</td><td>Ежедневные и еженедельные цели, прогресс до следующего уровня</td><td>Больше смен на одного работника</td></tr>
-        </tbody>
-      </table>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Проблема → Решение → Результат</h2>
+        <table>
+          <thead><tr><th>Проблема</th><th>Решение</th><th>Ожидаемый результат</th></tr></thead>
+          <tbody>
+            <tr><td>Текучесть кадров, слабая вовлечённость</td><td>Программа лояльности: уровни, квесты, монеты, магазин наград</td><td>Рост удержания, предсказуемая явка</td></tr>
+            <tr><td>Прогулы и поздние отмены</td><td>Прозрачные штрафы и понижение уровня при превышении лимитов</td><td>Меньше no-show и отмен в последний момент</td></tr>
+            <tr><td>Нет «крючка» для регулярных выходов</td><td>Ежедневные и еженедельные цели, прогресс до следующего уровня</td><td>Больше смен на одного работника</td></tr>
+          </tbody>
+        </table>
+      </div>
     </section>
 
     <section class="slide" data-slide="4">
-      <h1>Часть 1. Бизнес-цели и выгоды</h1>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <div class="deco-section">1</div>
+        <h1>Бизнес-цели и выгоды</h1>
+      </div>
     </section>
 
     <section class="slide" data-slide="5">
-      <h2>Выгода 1: Удержание работников</h2>
-      <ul>
-        <li><strong>Больше смен и достижений</strong> → выше уровень и больше наград</li>
-        <li>Работник <strong>видит прогресс</strong> и выгоду от стабильной работы</li>
-        <li><strong>Меньше ухода</strong> в первые недели и месяцы</li>
-      </ul>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Выгода 1: Удержание работников</h2>
+        <ul class="deco-list">
+          <li><strong>Больше смен и достижений</strong> → выше уровень и больше наград</li>
+          <li>Работник <strong>видит прогресс</strong> и выгоду от стабильной работы</li>
+          <li><strong>Меньше ухода</strong> в первые недели и месяцы</li>
+        </ul>
+      </div>
     </section>
 
     <section class="slide" data-slide="6">
-      <h2>Выгода 2: Явка и надёжность</h2>
-      <ul>
-        <li><strong>Штрафы за прогулы и поздние отмены</strong> влияют на уровень лояльности</li>
-        <li>Понятные правила: что будет при no-show и отмене менее чем за 24 часа</li>
-        <li><strong>Снижение рисков</strong> для операционки в пиковые дни</li>
-      </ul>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Выгода 2: Явка и надёжность</h2>
+        <ul class="deco-list">
+          <li><strong>Штрафы за прогулы и поздние отмены</strong> влияют на уровень лояльности</li>
+          <li>Понятные правила: что будет при no-show и отмене менее чем за 24 часа</li>
+          <li><strong>Снижение рисков</strong> для операционки в пиковые дни</li>
+        </ul>
+      </div>
     </section>
 
     <section class="slide" data-slide="7">
-      <h2>Выгода 3: Вовлечённость</h2>
-      <ul>
-        <li><strong>Квесты</strong> — ежедневные, еженедельные, ежемесячные цели (смены, часы, серии)</li>
-        <li><strong>Магазин наград</strong> — обмен монет на скидки, мерч, подарочные карты</li>
-        <li>Дополнительная мотивация помимо оплаты смены</li>
-      </ul>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Выгода 3: Вовлечённость</h2>
+        <ul class="deco-list">
+          <li><strong>Квесты</strong> — ежедневные, еженедельные, ежемесячные цели (смены, часы, серии)</li>
+          <li><strong>Магазин наград</strong> — обмен монет на скидки, мерч, подарочные карты</li>
+          <li>Дополнительная мотивация помимо оплаты смены</li>
+        </ul>
+      </div>
     </section>
 
     <section class="slide" data-slide="8">
-      <h2>Выгода 4: Управляемость без разработки</h2>
-      <ul>
-        <li><strong>Всё настраивается в админке:</strong> уровни, лимиты штрафов, квесты, товары в магазине</li>
-        <li>Обработка заявок на обмен, ручные начисления/списания, снятие штрафов</li>
-        <li><strong>Аудит</strong> — кто, когда и что изменил</li>
-      </ul>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Выгода 4: Управляемость без разработки</h2>
+        <ul class="deco-list">
+          <li><strong>Всё настраивается в админке:</strong> уровни, лимиты штрафов, квесты, товары в магазине</li>
+          <li>Обработка заявок на обмен, ручные начисления/списания, снятие штрафов</li>
+          <li><strong>Аудит</strong> — кто, когда и что изменил</li>
+        </ul>
+      </div>
     </section>
 
     <section class="slide" data-slide="9">
-      <h2>Выгода 5: Готовность к масштабу</h2>
-      <ul>
-        <li><strong>Продукт готов к внедрению:</strong> дашборд, API, админка, деплой (Docker)</li>
-        <li>Остаётся <strong>интеграция с платформой</strong> — ограниченный по объёму этап</li>
-        <li>Возможен <strong>пилот</strong> на части пользователей до полной автоматизации</li>
-      </ul>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Выгода 5: Готовность к масштабу</h2>
+        <ul class="deco-list">
+          <li><strong>Продукт готов к внедрению:</strong> дашборд, API, админка, деплой (Docker)</li>
+          <li>Остаётся <strong>интеграция с платформой</strong> — ограниченный по объёму этап</li>
+          <li>Возможен <strong>пилот</strong> на части пользователей до полной автоматизации</li>
+        </ul>
+      </div>
     </section>
 
     <section class="slide" data-slide="10">
-      <h2>Как посчитать экономическую выгоду для платформы</h2>
-      <p>Три основных источника экономии — подставьте свои метрики:</p>
-      <table>
-        <thead><tr><th>Источник</th><th>Что измерить</th><th>Как считать</th></tr></thead>
-        <tbody>
-          <tr>
-            <td><strong>Снижение текучести</strong></td>
-            <td>Стоимость подбора и онбординга одного работника; число работников в год</td>
-            <td>Экономия = стоимость замены 1 чел. × снижение % увольнений × кол-во уходящих в год</td>
-          </tr>
-          <tr>
-            <td><strong>Меньше прогулов и поздних отмен</strong></td>
-            <td>Средние потери на один no-show / срочную замену (простой, доп. оплата, репутация)</td>
-            <td>Экономия = потери на 1 случай × ожидаемое снижение числа случаев в год</td>
-          </tr>
-          <tr>
-            <td><strong>Рост смен на работника</strong></td>
-            <td>Среднее число смен на работника в месяц; размер пула</td>
-            <td>Экономия = рост % смен на человека × пул × средняя маржа со смены (или экономия на привлечении новых)</td>
-          </tr>
-        </tbody>
-      </table>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Как посчитать экономическую выгоду для платформы</h2>
+        <p>Три основных источника экономии — подставьте свои метрики:</p>
+        <table>
+          <thead><tr><th>Источник</th><th>Что измерить</th><th>Как считать</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Снижение текучести</strong></td>
+              <td>Стоимость подбора и онбординга одного работника; число работников в год</td>
+              <td>Экономия = стоимость замены 1 чел. × снижение % увольнений × кол-во уходящих в год</td>
+            </tr>
+            <tr>
+              <td><strong>Меньше прогулов и поздних отмен</strong></td>
+              <td>Средние потери на один no-show / срочную замену (простой, доп. оплата, репутация)</td>
+              <td>Экономия = потери на 1 случай × ожидаемое снижение числа случаев в год</td>
+            </tr>
+            <tr>
+              <td><strong>Рост смен на работника</strong></td>
+              <td>Среднее число смен на работника в месяц; размер пула</td>
+              <td>Экономия = рост % смен на человека × пул × средняя маржа со смены (или экономия на привлечении новых)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </section>
 
     <section class="slide" data-slide="11">
-      <h2>Пример расчёта (ориентир)</h2>
-      <p>Условные цифры для иллюстрации — замените на свои:</p>
-      <ul>
-        <li><strong>Текучесть:</strong> стоимость замены 1 работника ≈ 15–30 тыс. ₽. При снижении текучести на 10% и 500 уходов в год → экономия <strong>750 тыс. – 1,5 млн ₽/год</strong>.</li>
-        <li><strong>Прогулы/отмены:</strong> потери на один случай ≈ 3–10 тыс. ₽. При снижении на 20% и 1000 случаев в год → экономия <strong>600 тыс. – 2 млн ₽/год</strong>.</li>
-        <li><strong>Смены на человека:</strong> рост на 5–15% при том же пуле даёт больше закрытых смен без роста подбора — считайте по вашей марже и объёму.</li>
-      </ul>
-      <p><strong>Итого:</strong> сумма по трём блокам даёт ориентир годовой экономии; окупаемость внедрения — сравнение с затратами на интеграцию и награды.</p>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Пример расчёта (ориентир)</h2>
+        <p>Условные цифры для иллюстрации — замените на свои:</p>
+        <ul class="deco-list">
+          <li><strong>Текучесть:</strong> стоимость замены 1 работника ≈ 15–30 тыс. ₽. При снижении текучести на 10% и 500 уходов в год → экономия <strong>750 тыс. – 1,5 млн ₽/год</strong>.</li>
+          <li><strong>Прогулы/отмены:</strong> потери на один случай ≈ 3–10 тыс. ₽. При снижении на 20% и 1000 случаев в год → экономия <strong>600 тыс. – 2 млн ₽/год</strong>.</li>
+          <li><strong>Смены на человека:</strong> рост на 5–15% при том же пуле даёт больше закрытых смен без роста подбора — считайте по вашей марже и объёму.</li>
+        </ul>
+        <div class="card-block"><strong>Итого:</strong> сумма по трём блокам даёт ориентир годовой экономии; окупаемость внедрения — сравнение с затратами на интеграцию и награды.</div>
+      </div>
     </section>
 
     <section class="slide" data-slide="12">
-      <h1>Часть 2. Демонстрация продукта</h1>
-      <p><em>После слайдов — живое демо: дашборд работника → админ-панель</em></p>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <div class="deco-section">2</div>
+        <h1>Демонстрация продукта</h1>
+        <p><em>После слайдов — живое демо: дашборд работника → админ-панель</em></p>
+      </div>
     </section>
 
     <section class="slide" data-slide="13">
-      <h2>Дашборд работника (что видит сотрудник)</h2>
-      <ul>
-        <li><strong>Главная:</strong> баланс Gig Coins, текущий уровень, прогресс до следующего уровня, квесты по периодам</li>
-        <li><strong>История:</strong> все начисления и списания (смены, бонусы, квесты, штрафы)</li>
-        <li><strong>Магазин:</strong> каталог наград, цена в монетах, остаток по тиражу, кнопка «Купить»</li>
-        <li><strong>Уровни:</strong> все уровни лояльности, пороги смен, перки</li>
-      </ul>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Дашборд работника (что видит сотрудник)</h2>
+        <ul class="deco-list">
+          <li><strong>Главная:</strong> баланс Gig Coins, текущий уровень, прогресс до следующего уровня, квесты по периодам</li>
+          <li><strong>История:</strong> все начисления и списания (смены, бонусы, квесты, штрафы)</li>
+          <li><strong>Магазин:</strong> каталог наград, цена в монетах, остаток по тиражу, кнопка «Купить»</li>
+          <li><strong>Уровни:</strong> все уровни лояльности, пороги смен, перки</li>
+        </ul>
+      </div>
     </section>
 
     <section class="slide" data-slide="14">
-      <h2>Админ-панель (управление без программистов)</h2>
-      <ul>
-        <li><strong>Магазин:</strong> CRUD товаров, лимиты тиража, категории</li>
-        <li><strong>Квесты:</strong> настройка целей (смены, часы, клиенты, серия смен)</li>
-        <li><strong>Уровни:</strong> пороги смен, лимиты штрафов за неделю/месяц, перки</li>
-        <li><strong>Пользователи:</strong> поиск, карточка, ручное изменение уровня, снятие штрафа</li>
-        <li><strong>Заявки на обмен:</strong> список, фильтры, массовое выполнение/отмена</li>
-        <li><strong>Аудит:</strong> лог изменений</li>
-      </ul>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Админ-панель (управление без программистов)</h2>
+        <ul class="deco-list">
+          <li><strong>Магазин:</strong> CRUD товаров, лимиты тиража, категории</li>
+          <li><strong>Квесты:</strong> настройка целей (смены, часы, клиенты, серия смен)</li>
+          <li><strong>Уровни:</strong> пороги смен, лимиты штрафов за неделю/месяц, перки</li>
+          <li><strong>Пользователи:</strong> поиск, карточка, ручное изменение уровня, снятие штрафа</li>
+          <li><strong>Заявки на обмен:</strong> список, фильтры, массовое выполнение/отмена</li>
+          <li><strong>Аудит:</strong> лог изменений</li>
+        </ul>
+      </div>
     </section>
 
     <section class="slide" data-slide="15">
-      <h1>Часть 3. Архитектура и интеграция</h1>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <div class="deco-section">3</div>
+        <h1>Архитектура и интеграция</h1>
+      </div>
     </section>
 
     <section class="slide" data-slide="16">
-      <h2>Как это встраивается</h2>
-      <pre>┌─────────────────────┐     ┌──────────────────────────┐
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Как это встраивается</h2>
+        <pre>┌─────────────────────┐     ┌──────────────────────────┐
 │  Платформа MyGig    │────▶│  Сервис наград (наш API) │
 │  Смены, пользователи│     │  Баланс, уровни, квесты  │
 │  Отмены, прогулы    │     │  Магазин, заявки         │
@@ -193,108 +344,185 @@
             │  Дашборд      │                     │  Админ-панель   │
             │  (работник)   │                     │  (оператор)     │
             └───────────────┘                     └─────────────────┘</pre>
-      <p>Платформа — <strong>источник правды</strong> по сменам и пользователям. Наш сервис хранит только данные программы лояльности.</p>
+        <p>Платформа — <strong>источник правды</strong> по сменам и пользователям. Наш сервис хранит только данные программы лояльности.</p>
+      </div>
     </section>
 
     <section class="slide" data-slide="17">
-      <h2>Следующий шаг: интеграция</h2>
-      <p>Чтобы начисления и штрафы считались <strong>автоматически</strong>, нужна интеграция:</p>
-      <ul>
-        <li>События: <strong>«смена завершена»</strong>, <strong>«отмена»</strong>, <strong>«прогул»</strong></li>
-        <li>Форматы и эндпоинты — по вашим API или согласованному формату</li>
-      </ul>
-      <p><strong>Сейчас</strong> продукт уже можно использовать с ручным/моковым вводом в админке — полная автоматизация после подключения API.</p>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Следующий шаг: интеграция</h2>
+        <p>Чтобы начисления и штрафы считались <strong>автоматически</strong>, нужна интеграция:</p>
+        <ul class="deco-list">
+          <li>События: <strong>«смена завершена»</strong>, <strong>«отмена»</strong>, <strong>«прогул»</strong></li>
+          <li>Форматы и эндпоинты — по вашим API или согласованному формату</li>
+        </ul>
+        <p><strong>Сейчас</strong> продукт уже можно использовать с ручным/моковым вводом в админке — полная автоматизация после подключения API.</p>
+      </div>
     </section>
 
     <section class="slide" data-slide="18">
-      <h1>Часть 4. Этапы внедрения</h1>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <div class="deco-section">4</div>
+        <h1>Этапы внедрения</h1>
+      </div>
     </section>
 
     <section class="slide" data-slide="19">
-      <h2>Этап 1 (сейчас): продукт готов</h2>
-      <ul>
-        <li>Дашборд, админка, API, логика уровней, квестов, штрафов, магазина</li>
-        <li>Развёртывание по документации (Docker)</li>
-        <li><strong>Пилот</strong> на части пользователей с ручным или частичным вводом смен</li>
-      </ul>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Этап 1 (сейчас): продукт готов</h2>
+        <ul class="deco-list">
+          <li>Дашборд, админка, API, логика уровней, квестов, штрафов, магазина</li>
+          <li>Развёртывание по документации (Docker)</li>
+          <li><strong>Пилот</strong> на части пользователей с ручным или частичным вводом смен</li>
+        </ul>
+      </div>
     </section>
 
     <section class="slide" data-slide="20">
-      <h2>Этап 2: интеграция с платформой</h2>
-      <ul>
-        <li>Подключение к API: авторизация, смены, отмены, прогулы</li>
-        <li>Оценка: <strong>2–3 месяца</strong> при наличии доступа к API и спецификациям</li>
-        <li>После интеграции — автоматические начисления и штрафы</li>
-      </ul>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Этап 2: интеграция с платформой</h2>
+        <ul class="deco-list">
+          <li>Подключение к API: авторизация, смены, отмены, прогулы</li>
+          <li>Оценка: <strong>2–3 месяца</strong> при наличии доступа к API и спецификациям</li>
+          <li>После интеграции — автоматические начисления и штрафы</li>
+        </ul>
+      </div>
     </section>
 
     <section class="slide" data-slide="21">
-      <h2>Этап 3: масштабирование</h2>
-      <ul>
-        <li>Запуск на всей базе гиг-работников</li>
-        <li>Метрики: удержание, явка, активность в квестах и магазине</li>
-        <li>Доработки по обратной связи</li>
-      </ul>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Этап 3: масштабирование</h2>
+        <ul class="deco-list">
+          <li>Запуск на всей базе гиг-работников</li>
+          <li>Метрики: удержание, явка, активность в квестах и магазине</li>
+          <li>Доработки по обратной связи</li>
+        </ul>
+      </div>
     </section>
 
     <section class="slide" data-slide="22">
-      <h2>Что ещё предстоит сделать</h2>
-      <p>Параллельно с интеграцией и пилотом:</p>
-      <ul>
-        <li><strong>Дизайн под платформу</strong> — адаптация визуала дашборда и админки под фирменный стиль MyGig (цвета, типографика, компоненты), единый опыт с основным приложением.</li>
-        <li><strong>Расчёт экономики Gig Coins</strong> — тарифы начисления за смену и квесты, бюджет магазина наград, себестоимость выкупов; модель должна быть устойчивой и предсказуемой для платформы.</li>
-        <li><strong>CustDev (customer development)</strong> — интервью с гиг-работниками, проверка гипотез по квестам и наградам, донастройка механик и контента магазина перед масштабированием.</li>
-      </ul>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Что ещё предстоит сделать</h2>
+        <p>Параллельно с интеграцией и пилотом:</p>
+        <ul class="deco-list">
+          <li><strong>Дизайн под платформу</strong> — адаптация визуала дашборда и админки под фирменный стиль MyGig (цвета, типографика, компоненты), единый опыт с основным приложением.</li>
+          <li><strong>Расчёт экономики Gig Coins</strong> — тарифы начисления за смену и квесты, бюджет магазина наград, себестоимость выкупов; модель должна быть устойчивой и предсказуемой для платформы.</li>
+          <li><strong>CustDev (customer development)</strong> — интервью с гиг-работниками, проверка гипотез по квестам и наградам, донастройка механик и контента магазина перед масштабированием.</li>
+        </ul>
+      </div>
     </section>
 
     <section class="slide" data-slide="23">
-      <h1>Часть 5. Риски и управление ими</h1>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <div class="deco-section">5</div>
+        <h1>Риски и управление ими</h1>
+      </div>
     </section>
 
     <section class="slide" data-slide="24">
-      <h2>Риски и митигация</h2>
-      <table>
-        <thead><tr><th>Риск</th><th>Митигация</th></tr></thead>
-        <tbody>
-          <tr><td>Сложная интеграция</td><td>Ограниченный набор событий и форматов; оценка по вашим API</td></tr>
-          <tr><td>Дорого / долго</td><td>Основной объём разработки выполнен; остаётся адаптация и подключение API</td></tr>
-          <tr><td>Работники не будут пользоваться</td><td>Мобильный интерфейс, простая логика; пилот и замер активности</td></tr>
-          <tr><td>Безопасность и доступ к данным</td><td>Храним только данные лояльности; админка по ключу; при необходимости — пароль</td></tr>
-        </tbody>
-      </table>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Риски и митигация</h2>
+        <table>
+          <thead><tr><th>Риск</th><th>Митигация</th></tr></thead>
+          <tbody>
+            <tr><td>Сложная интеграция</td><td>Ограниченный набор событий и форматов; оценка по вашим API</td></tr>
+            <tr><td>Дорого / долго</td><td>Основной объём разработки выполнен; остаётся адаптация и подключение API</td></tr>
+            <tr><td>Работники не будут пользоваться</td><td>Мобильный интерфейс, простая логика; пилот и замер активности</td></tr>
+            <tr><td>Безопасность и доступ к данным</td><td>Храним только данные лояльности; админка по ключу; при необходимости — пароль</td></tr>
+          </tbody>
+        </table>
+      </div>
     </section>
 
     <section class="slide" data-slide="25">
-      <h1>Часть 6. Рекомендация и решение</h1>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <div class="deco-section">6</div>
+        <h1>Рекомендация и решение</h1>
+      </div>
     </section>
 
     <section class="slide" data-slide="26">
-      <h2>Рекомендация</h2>
-      <p><strong>Согласовать внедрение MyGig Rewards Dashboard</strong> и выделить ресурсы на этап интеграции с платформой.</p>
-      <p><strong>Дальнейшие шаги:</strong></p>
-      <ol>
-        <li>Назначить ответственного со стороны продукта/технологий</li>
-        <li>Согласовать формат API и событий для интеграции</li>
-        <li>Утвердить пилот (площадка/регион) и метрики успеха</li>
-        <li>Включить в план: дизайн под платформу, расчёт экономики Gig Coins, CustDev</li>
-      </ol>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Рекомендация</h2>
+        <p><strong>Согласовать внедрение MyGig Rewards Dashboard</strong> и выделить ресурсы на этап интеграции с платформой.</p>
+        <p><strong>Дальнейшие шаги:</strong></p>
+        <ol class="deco-list" style="list-style: decimal; padding-left: 1.5rem;">
+          <li>Назначить ответственного со стороны продукта/технологий</li>
+          <li>Согласовать формат API и событий для интеграции</li>
+          <li>Утвердить пилот (площадка/регион) и метрики успеха</li>
+          <li>Включить в план: дизайн под платформу, расчёт экономики Gig Coins, CustDev</li>
+        </ol>
+      </div>
     </section>
 
     <section class="slide" data-slide="27">
-      <h2>Запрос к совету</h2>
-      <p>Прошу согласовать <strong>внедрение системы геймификации и наград</strong> и выделить бюджет/ресурсы на этап интеграции с платформой.</p>
-      <p>После совета готов детализировать план и смету под ваши сроки.</p>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h2>Запрос к совету</h2>
+        <p>Прошу согласовать <strong>внедрение системы геймификации и наград</strong> и выделить бюджет/ресурсы на этап интеграции с платформой.</p>
+        <p>После совета готов детализировать план и смету под ваши сроки.</p>
+      </div>
     </section>
 
     <section class="slide title-slide" data-slide="28">
-      <h1>Спасибо за внимание</h1>
-      <p>Вопросы?</p>
+      <div class="deco-blob deco-blob-1"></div>
+      <header class="slide-header">
+        <span class="slide-logo">MyGig</span>
+        <span class="slide-num"></span>
+      </header>
+      <div class="slide-content">
+        <h1>Спасибо за внимание</h1>
+        <p>Вопросы?</p>
+      </div>
     </section>
   </div>
 
   <nav class="nav" aria-label="Навигация по слайдам">
     <button type="button" id="prev" title="Предыдущий">←</button>
-    <span id="counter">1 / 28</span>
+    <span id="counter" class="slide-num">1 / 28</span>
     <button type="button" id="next" title="Следующий">→</button>
   </nav>
 
@@ -304,10 +532,17 @@
       var total = slides.length;
       var idx = 0;
 
+      function updateCounter() {
+        var t = (idx + 1) + ' / ' + total;
+        document.querySelectorAll('.slide-num').forEach(function(el) { el.textContent = t; });
+      }
+
       function go(n) {
         idx = Math.max(0, Math.min(total - 1, n));
         slides.forEach(function(s, i) { s.classList.toggle('active', i === idx); });
-        document.getElementById('counter').textContent = (idx + 1) + ' / ' + total;
+        updateCounter();
+        document.getElementById('prev').disabled = idx === 0;
+        document.getElementById('next').disabled = idx === total - 1;
       }
 
       document.getElementById('prev').onclick = function() { go(idx - 1); };
