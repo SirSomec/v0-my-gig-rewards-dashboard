@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../../infra/db/drizzle/schemas';
 import { drizzleProvider } from '../../infra/db/drizzle/drizzle.module';
@@ -72,6 +72,9 @@ function getQuestTarget(config: QuestConditionConfig, conditionType: string): nu
     conditionType === 'hours_count_clients'
   ) {
     return config.totalHours ?? 1;
+  }
+  if (conditionType === 'shifts_series') {
+    return config.total ?? 1;
   }
   return config.total ?? 1;
 }
@@ -263,7 +266,8 @@ export class RewardsService {
         q.conditionType === 'hours_count' ||
         q.conditionType === 'hours_count_client' ||
         q.conditionType === 'hours_count_clients';
-      const displayProgress = isHoursCondition ? (progress as number) / 10 : (progress as number);
+      const displayProgress =
+        isHoursCondition ? (progress as number) / 10 : (progress as number);
       const dto = new QuestResponseDto();
       dto.id = q.id;
       dto.name = q.name;
@@ -724,7 +728,59 @@ export class RewardsService {
         levelDemoted = true;
       }
     }
+    await this.resetShiftsSeriesProgressForUser(userId);
     return { strikeId: strike.id, levelDemoted };
+  }
+
+  /**
+   * Обнуляет прогресс по квестам «серия смен» для пользователя при прогуле или поздней отмене.
+   * Вызывается из registerStrike.
+   */
+  async resetShiftsSeriesProgressForUser(userId: number): Promise<void> {
+    const { quests, questProgress } = schema;
+    const now = new Date();
+    const todayStart = startOfDayUTC(now);
+    const weekStart = startOfWeekUTC(now);
+    const monthStart = startOfMonthUTC(now);
+    const todayKey = todayStart.toISOString().slice(0, 10);
+    const weekKey = weekStart.toISOString().slice(0, 10);
+    const monthKey = monthStart.toISOString().slice(0, 7);
+
+    const seriesQuests = await this.db
+      .select({
+        id: quests.id,
+        period: quests.period,
+        isOneTime: quests.isOneTime,
+        activeFrom: quests.activeFrom,
+        activeUntil: quests.activeUntil,
+      })
+      .from(quests)
+      .where(and(eq(quests.isActive, 1), eq(quests.conditionType, 'shifts_series')));
+    for (const q of seriesQuests) {
+      if (!isQuestInActiveWindow(q.activeFrom as Date | null, q.activeUntil as Date | null, now))
+        continue;
+      const periodKey =
+        q.isOneTime === 1
+          ? 'once'
+          : q.period === 'daily'
+            ? todayKey
+            : q.period === 'weekly'
+              ? weekKey
+              : q.period === 'monthly'
+                ? monthKey
+                : todayKey;
+      await this.db
+        .update(questProgress)
+        .set({ progress: 0 })
+        .where(
+          and(
+            eq(questProgress.userId, userId),
+            eq(questProgress.questId, q.id),
+            eq(questProgress.periodKey, periodKey),
+            isNull(questProgress.completedAt),
+          ),
+        );
+    }
   }
 
   /**
@@ -841,8 +897,12 @@ export class RewardsService {
         q.conditionType === 'hours_count' ||
         q.conditionType === 'hours_count_client' ||
         q.conditionType === 'hours_count_clients';
-      const totalTarget = isHoursCondition ? (config.totalHours ?? 1) : (config.total ?? 1);
-      const totalForStorage = isHoursCondition ? Math.round(totalTarget * 10) : totalTarget;
+      const isShiftsSeries = q.conditionType === 'shifts_series';
+      const totalTarget = isHoursCondition
+        ? (config.totalHours ?? 1)
+        : (config.total ?? 1);
+      const totalForStorage =
+        isHoursCondition ? Math.round(totalTarget * 10) : totalTarget;
 
       const baseConditions = and(
         eq(transactions.userId, userId),
@@ -909,6 +969,38 @@ export class RewardsService {
           .where(and(baseConditions, inArray(transactions.clientId, config.clientIds)));
         const sumHours = Number(sumResult[0]?.sum ?? 0);
         progress = Math.min(Math.round(sumHours * 10), totalForStorage);
+      } else if (isShiftsSeries) {
+        const { strikes } = schema;
+        const [lastStrikeRow] = await this.db
+          .select({ occurredAt: strikes.occurredAt })
+          .from(strikes)
+          .where(
+            and(
+              eq(strikes.userId, userId),
+              gte(strikes.occurredAt, periodStart),
+              lt(strikes.occurredAt, periodEnd),
+              isNull(strikes.removedAt),
+            ),
+          )
+          .orderBy(desc(strikes.occurredAt))
+          .limit(1);
+        const lastStrikeAt = lastStrikeRow?.occurredAt
+          ? new Date(lastStrikeRow.occurredAt)
+          : new Date(periodStart.getTime() - 1);
+        const seriesCountResult = await this.db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(transactions)
+          .where(
+            and(
+              eq(transactions.userId, userId),
+              eq(transactions.type, 'shift'),
+              gte(transactions.createdAt, periodStart),
+              lt(transactions.createdAt, periodEnd),
+              gt(transactions.createdAt, lastStrikeAt),
+            ),
+          );
+        const seriesCount = seriesCountResult[0]?.count ?? 0;
+        progress = Math.min(seriesCount, totalForStorage);
       }
 
       const total = totalForStorage;

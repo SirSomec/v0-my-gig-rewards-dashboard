@@ -48,6 +48,7 @@ const PERIODS = [
 
 const CONDITION_TYPES = [
   { value: "shifts_count", label: "Количество смен (за период)" },
+  { value: "shifts_series", label: "Серия смен (без прогулов и поздних отмен)" },
   { value: "bookings_count", label: "Забронированные смены (за период)" },
   { value: "shifts_count_client", label: "Смены в конкретном клиенте (бренде)" },
   { value: "shifts_count_clients", label: "Смены в нескольких клиентах" },
@@ -82,6 +83,9 @@ function conditionConfigToTotal(config: Record<string, unknown> | null, conditio
   ) {
     return typeof config.totalHours === "number" ? Math.max(0.1, config.totalHours) : 1
   }
+  if (conditionType === "shifts_series") {
+    return typeof config.total === "number" ? Math.max(1, config.total) : 1
+  }
   return typeof config.total === "number" ? Math.max(1, config.total) : 1
 }
 
@@ -94,6 +98,10 @@ function conditionConfigToDisplay(config: Record<string, unknown> | null, condit
   ) {
     const h = config.totalHours ?? 1
     return `${h} ч`
+  }
+  if (conditionType === "shifts_series") {
+    const t = config.total ?? 1
+    return `${t} смен подряд без прогулов и поздних отмен`
   }
   const t = config.total ?? 1
   const parts = [String(t)]
@@ -402,6 +410,26 @@ export default function AdminQuestsPage() {
                     }))
                   }
                 />
+              </div>
+            )}
+            {form.conditionType === "shifts_series" && (
+              <div className="grid gap-2">
+                <Label htmlFor="condition-series-total">Цель (смен подряд без прогулов и поздних отмен)</Label>
+                <Input
+                  id="condition-series-total"
+                  type="number"
+                  min={1}
+                  value={(form.conditionConfig as ConditionConfigForm)?.total ?? 1}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      conditionConfig: { ...f.conditionConfig, total: Math.max(1, Number(e.target.value) || 1) },
+                    }))
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Серия обнуляется при любом прогуле (no-show) или поздней отмене смены в течение периода.
+                </p>
               </div>
             )}
             {form.conditionType === "bookings_count" && (
