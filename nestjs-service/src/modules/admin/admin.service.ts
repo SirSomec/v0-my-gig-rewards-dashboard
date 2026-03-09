@@ -616,6 +616,7 @@ export class AdminService {
       })
       .where(eq(strikes.id, strikeId));
     await this.rewards.recalcUserLevelConsideringStrikes(strike.userId);
+    await this.rewards.recalcQuestProgressForUser(strike.userId);
     await this.logAudit('strike_removed', 'strike', String(strikeId), undefined, {
       userId: strike.userId,
       reason: reason?.trim() || undefined,
