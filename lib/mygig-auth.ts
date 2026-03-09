@@ -8,11 +8,16 @@ import { getToken, setToken, clearToken } from "./rewards-api"
 import type { MeResponse } from "./rewards-api"
 
 const getBaseUrl = (): string => {
-  const url = typeof window !== "undefined"
-    ? (process.env.NEXT_PUBLIC_MYGIG_API_URL ?? "")
-    : (process.env.NEXT_PUBLIC_MYGIG_API_URL ?? "")
+  const raw =
+    typeof window !== "undefined"
+      ? (process.env.NEXT_PUBLIC_MYGIG_API_URL ?? "")
+      : (process.env.NEXT_PUBLIC_MYGIG_API_URL ?? "")
+  const url = typeof raw === "string" ? raw.trim() : ""
   return url.replace(/\/$/, "")
 }
+
+const AUTH_ERROR =
+  "NEXT_PUBLIC_MYGIG_API_URL не задан. Добавьте в .env в корне проекта строку NEXT_PUBLIC_MYGIG_API_URL=https://main.test09.mygig.ru и перезапустите npm run dev."
 
 /** Включена ли авторизация через MyGig (задан URL). */
 export function getMyGigApiUrl(): string | null {
@@ -99,7 +104,7 @@ async function fetchMyGig<T>(
   options?: RequestInit & { skipAuth?: boolean }
 ): Promise<T> {
   const base = getBaseUrl()
-  if (!base) throw new Error("NEXT_PUBLIC_MYGIG_API_URL не задан")
+  if (!base) throw new Error(AUTH_ERROR)
   const url = `${base}${path.startsWith("/") ? path : `/${path}`}`
   const headers: HeadersInit = {
     "Content-Type": "application/json",
@@ -132,7 +137,7 @@ async function fetchMyGig<T>(
 /** Запрос кода: POST /auth/phone. В dev-режиме в ответе может быть DEV_MODE с кодом. */
 export async function authPhone(phone: string): Promise<AuthPhoneResponse & AuthPhoneError> {
   const base = getBaseUrl()
-  if (!base) throw new Error("NEXT_PUBLIC_MYGIG_API_URL не задан")
+  if (!base) throw new Error(AUTH_ERROR)
   const normalized = phone.replace(/\D/g, "")
   const num = normalized.startsWith("7") ? parseInt(normalized, 10) : parseInt(`7${normalized}`, 10)
   if (Number.isNaN(num) || num < 79000000000) throw new Error("Введите корректный номер телефона")
@@ -151,7 +156,7 @@ export async function authPhone(phone: string): Promise<AuthPhoneResponse & Auth
 /** Подтверждение кода: POST /auth/code. Телефон передаётся строкой. Только роль worker. */
 export async function authCode(phone: string, code: string): Promise<AuthCodeResponse> {
   const base = getBaseUrl()
-  if (!base) throw new Error("NEXT_PUBLIC_MYGIG_API_URL не задан")
+  if (!base) throw new Error(AUTH_ERROR)
   const phoneStr = phone.replace(/\D/g, "").replace(/^8/, "7")
   const body = { phone: phoneStr.length === 11 ? phoneStr : `7${phoneStr}`, code }
   const res = await fetch(`${base}/auth/code`, {
