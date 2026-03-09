@@ -5,11 +5,15 @@ import { PassportModule } from '@nestjs/passport';
 import type { Envs } from '../../shared/env.validation-schema';
 import { BasicAuthStrategy } from './basic.strategy';
 import { JwtStrategy } from './jwt.strategy';
+import { InternalSecretGuard } from './internal-secret.guard';
 import { AuthDevController } from './auth-dev.controller';
+import { AuthEnsureUserController } from './auth-ensure-user.controller';
+import { AdminModule } from '../admin/admin.module';
 
 @Module({
   imports: [
     PassportModule,
+    AdminModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -22,7 +26,7 @@ import { AuthDevController } from './auth-dev.controller';
       } as JwtModuleOptions),
     }),
   ],
-  controllers: [AuthDevController],
-  providers: [BasicAuthStrategy, JwtStrategy],
+  controllers: [AuthDevController, AuthEnsureUserController],
+  providers: [BasicAuthStrategy, JwtStrategy, InternalSecretGuard],
 })
 export class AuthModule {}

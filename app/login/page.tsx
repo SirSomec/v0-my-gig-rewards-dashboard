@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Field, FieldGroup, FieldLabel, FieldError } from "@/components/ui/field"
-import { authPhone, authCode, type AuthPhoneResponse } from "@/lib/mygig-auth"
+import { authPhone, authCode, syncUserAndGetRewardsToken, type AuthPhoneResponse } from "@/lib/mygig-auth"
+import { setToken } from "@/lib/rewards-api"
 
 const DEV_MODE_AUTO_SUBMIT_DELAY_MS = 800
 
@@ -61,6 +62,8 @@ export default function LoginPage() {
       setLoading(true)
       try {
         await authCode(phone, c)
+        const rewardsToken = await syncUserAndGetRewardsToken()
+        setToken(rewardsToken)
         router.replace("/")
         router.refresh()
       } catch (e) {

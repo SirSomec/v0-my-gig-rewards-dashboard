@@ -98,6 +98,39 @@ export class AdminService {
     return { id: row.id };
   }
 
+  /**
+   * Найти пользователя по external_id или создать нового (для первого входа через MyGig).
+   * Возвращает id пользователя в нашей БД.
+   */
+  async ensureUserByExternalId(externalId: string, name: string): Promise<{ id: number }> {
+    const { users, levels } = schema;
+    const extId = externalId?.trim();
+    const nameVal = name?.trim() || '';
+    if (!extId) throw new BadRequestException('externalId is required');
+    const [existing] = await this.db.select({ id: users.id }).from(users).where(eq(users.externalId, extId)).limit(1);
+    if (existing) return { id: existing.id };
+    const [baseLevel] = await this.db
+      .select({ id: levels.id })
+      .from(levels)
+      .orderBy(asc(levels.sortOrder))
+      .limit(1);
+    if (!baseLevel) throw new BadRequestException('В системе нет ни одного уровня. Создайте уровень в админке.');
+    const [row] = await this.db
+      .insert(users)
+      .values({
+        externalId: extId,
+        name: nameVal || null,
+        email: null,
+        avatarUrl: null,
+        balance: 0,
+        levelId: baseLevel.id,
+        shiftsCompleted: 0,
+      })
+      .returning({ id: users.id });
+    if (!row) throw new Error('Insert user failed');
+    return { id: row.id };
+  }
+
   async getUserDetail(userId: number) {
     const { users, levels, strikes, transactions } = schema;
     const [userRow] = await this.db

@@ -23,8 +23,6 @@ import {
 } from "@/lib/rewards-api"
 import {
   isMyGigAuthEnabled,
-  fetchUserProfile,
-  mapProfileToMeResponse,
 } from "@/lib/mygig-auth"
 import type { EarningEntry } from "@/components/mygig/earning-history"
 import type { Quest } from "@/components/mygig/quests"
@@ -206,9 +204,7 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
       setLoading(true)
     }
     try {
-      const meRes: MeResponse = isMyGigAuthEnabled()
-        ? mapProfileToMeResponse(await fetchUserProfile())
-        : await fetchMe()
+      const meRes: MeResponse = await fetchMe()
       const [transactionsRes, strikesRes, questsRes, storeRes, levelsRes] = await Promise.all([
         fetchTransactions(),
         fetchStrikes(),

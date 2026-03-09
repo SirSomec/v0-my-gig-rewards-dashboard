@@ -40,6 +40,8 @@ export interface Envs {
   JWT_SECRET?: string;
   JWT_EXPIRE?: string;
   ADMIN_SECRET?: string;
+  /** Секрет для вызова ensure-user из Next.js (синхронизация пользователя MyGig при первом входе). */
+  REWARDS_INTERNAL_SECRET?: string;
 }
 
 export const EnvValidationSchema = Joi.object<Envs, true>({
@@ -79,4 +81,5 @@ export const EnvValidationSchema = Joi.object<Envs, true>({
   JWT_SECRET: Joi.string().optional(),
   JWT_EXPIRE: Joi.string().optional(),
   ADMIN_SECRET: Joi.string().optional(),
+  REWARDS_INTERNAL_SECRET: Joi.string().optional(),
 }).unknown(true);

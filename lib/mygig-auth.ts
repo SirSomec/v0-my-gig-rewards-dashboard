@@ -173,6 +173,26 @@ export async function authCode(phone: string, code: string): Promise<AuthCodeRes
   return data
 }
 
+/**
+ * Синхронизация пользователя с нашей БД при первом входе через MyGig.
+ * Вызывает /api/auth/sync-user с текущим (MyGig) токеном, возвращает наш JWT для дашборда.
+ * После успешного authCode() нужно вызвать эту функцию и сохранить результат в setToken() из rewards-api.
+ */
+export async function syncUserAndGetRewardsToken(): Promise<string> {
+  const token = getToken()
+  if (!token) throw new Error("Сначала выполните вход (authCode)")
+  const res = await fetch("/api/auth/sync-user", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  const data = (await res.json()) as { accessToken?: string; error?: string }
+  if (!res.ok) {
+    throw new Error(data.error ?? `Ошибка синхронизации: ${res.status}`)
+  }
+  if (!data.accessToken) throw new Error("Сервер не вернул токен дашборда")
+  return data.accessToken
+}
+
 /** Профиль пользователя: GET /user/profile. Идёт через наш API (/api/user/profile), чтобы избежать CORS. */
 export async function fetchUserProfile(): Promise<UserProfile> {
   const token = getToken()

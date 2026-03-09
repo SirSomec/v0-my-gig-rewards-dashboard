@@ -10,5 +10,6 @@ import { TojModule } from '../toj/toj.module';
   imports: [RewardsModule, TojModule],
   controllers: [AdminController, EtlExplorerController],
   providers: [AdminService, EtlExplorerService],
+  exports: [AdminService],
 })
 export class AdminModule {}
