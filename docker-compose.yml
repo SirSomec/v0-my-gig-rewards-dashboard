@@ -4,6 +4,7 @@
 #
 # Конфигурация: один общий файл .env в корне проекта (рядом с docker-compose.yml).
 # Контейнер api монтирует его в /app/.env — приложение читает переменные при старте (в т.ч. ETL_*).
+# Переменные NEXT_PUBLIC_* для фронта (app) передаются при сборке образа через build args — добавьте NEXT_PUBLIC_MYGIG_API_URL в .env для авторизации через MyGig.
 #
 # Подключение к БД по умолчанию (можно переопределить через .env):
 #   Пользователь: POSTGRES_USER=rewards
@@ -20,6 +21,7 @@ services:
         - NEXT_PUBLIC_REWARDS_API_URL=${NEXT_PUBLIC_REWARDS_API_URL:-http://localhost:3001}
         - NEXT_PUBLIC_DEV_USER_ID=${NEXT_PUBLIC_DEV_USER_ID:-1}
         - NEXT_PUBLIC_ADMIN_SECRET=${NEXT_PUBLIC_ADMIN_SECRET:-${ADMIN_SECRET:-admin-dev-secret}}
+        - NEXT_PUBLIC_MYGIG_API_URL=${NEXT_PUBLIC_MYGIG_API_URL:-}
     ports:
       - "3000:3000"
     environment:
