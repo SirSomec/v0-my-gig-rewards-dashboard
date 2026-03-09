@@ -3,8 +3,8 @@
 # При каждом запуске контейнера api автоматически применяются неприменённые миграции БД (entrypoint).
 #
 # Конфигурация: один общий файл .env в корне проекта (рядом с docker-compose.yml).
-# Контейнер api монтирует его в /app/.env — приложение читает переменные при старте (в т.ч. ETL_*).
-# Переменные NEXT_PUBLIC_* для фронта (app) передаются при сборке образа через build args — добавьте NEXT_PUBLIC_MYGIG_API_URL в .env для авторизации через MyGig.
+# Контейнеры app и api получают переменные из этого файла (env_file: .env и монтирование для api).
+# Переменные NEXT_PUBLIC_* для фронта (app) передаются при сборке образа через build args.
 #
 # Подключение к БД по умолчанию (можно переопределить через .env):
 #   Пользователь: POSTGRES_USER=rewards
@@ -24,9 +24,12 @@ services:
         - NEXT_PUBLIC_MYGIG_API_URL=${NEXT_PUBLIC_MYGIG_API_URL:-}
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
       - ADMIN_PANEL_PASSWORD=${ADMIN_PANEL_PASSWORD:-}
+      - REWARDS_INTERNAL_SECRET=${REWARDS_INTERNAL_SECRET:-}
     restart: unless-stopped
 
   # Админ-панель (отдельное приложение на порту 3002)
@@ -40,6 +43,8 @@ services:
         - NEXT_PUBLIC_DASHBOARD_URL=${NEXT_PUBLIC_DASHBOARD_URL:-http://localhost:3000}
     ports:
       - "3002:3002"
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
       - ADMIN_PANEL_PASSWORD=${ADMIN_PANEL_PASSWORD:-}
@@ -78,8 +83,11 @@ services:
       - TOJ_USER=${TOJ_USER:-mock}
       - TOJ_PASSWORD=${TOJ_PASSWORD:-mock}
       - TOJ_SYNC_ENABLED=${TOJ_SYNC_ENABLED:-true}
+      # TOJ_SYNC_*
       - TOJ_SYNC_MAX_JOBS_PER_RUN=${TOJ_SYNC_MAX_JOBS_PER_RUN:-1000}
       - TOJ_SYNC_INITIAL_DAYS_AGO=${TOJ_SYNC_INITIAL_DAYS_AGO:-7}
+      # Синхронизация пользователя MyGig при первом входе (ensure-user). То же значение — в корневом .env для app и api.
+      - REWARDS_INTERNAL_SECRET=${REWARDS_INTERNAL_SECRET:-}
     volumes:
       # Монтируем .env в контейнер — NestJS читает его при старте (ConfigModule envFilePath).
       # На хосте выполните: chmod 644 .env — иначе apiuser в контейнере не прочитает файл и контейнер будет перезапускаться.
