@@ -7,6 +7,7 @@ import {
   adminGetUser,
   adminListLevels,
   adminUpdateUserLevel,
+  adminRemoveStrike,
   type AdminLevel,
 } from "@/lib/admin-api"
 import { Card, CardContent } from "@/components/ui/card"
@@ -28,6 +29,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { format } from "date-fns"
 import { ArrowLeft } from "lucide-react"
 
@@ -84,6 +93,14 @@ export default function AdminUserDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [levelSaving, setLevelSaving] = useState(false)
   const [levelError, setLevelError] = useState<string | null>(null)
+  const [removeStrikeDialog, setRemoveStrikeDialog] = useState<{
+    strikeId: number
+    type: string
+    occurredAt: string
+  } | null>(null)
+  const [removeStrikeReason, setRemoveStrikeReason] = useState("")
+  const [removeStrikeLoading, setRemoveStrikeLoading] = useState(false)
+  const [removeStrikeError, setRemoveStrikeError] = useState<string | null>(null)
 
   const loadUser = useCallback(() => {
     if (Number.isNaN(id) || id < 1) {
@@ -126,6 +143,34 @@ export default function AdminUserDetailPage() {
       })
       .catch((e) => setLevelError(e instanceof Error ? e.message : "Ошибка"))
       .finally(() => setLevelSaving(false))
+  }
+
+  const openRemoveStrike = (s: { id: number; type: string; occurredAt: string | Date }) => {
+    setRemoveStrikeDialog({
+      strikeId: s.id,
+      type: s.type,
+      occurredAt: formatDate(s.occurredAt),
+    })
+    setRemoveStrikeReason("")
+    setRemoveStrikeError(null)
+  }
+
+  const handleRemoveStrike = () => {
+    if (!removeStrikeDialog || !user) return
+    const reason = removeStrikeReason.trim()
+    if (!reason) {
+      setRemoveStrikeError("Укажите причину снятия штрафа")
+      return
+    }
+    setRemoveStrikeLoading(true)
+    setRemoveStrikeError(null)
+    adminRemoveStrike(removeStrikeDialog.strikeId, reason)
+      .then(() => {
+        setRemoveStrikeDialog(null)
+        loadUser()
+      })
+      .catch((e) => setRemoveStrikeError(e instanceof Error ? e.message : "Ошибка"))
+      .finally(() => setRemoveStrikeLoading(false))
   }
 
   if (Number.isNaN(id) || id < 1) {
@@ -270,24 +315,39 @@ export default function AdminUserDetailPage() {
                     <TableHead>Смена (external)</TableHead>
                     <TableHead>Дата</TableHead>
                     <TableHead>Снят</TableHead>
+                    <TableHead className="w-24">Действие</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {user.strikes.map((s) => (
-                    <TableRow key={s.id}>
-                      <TableCell className="font-mono text-muted-foreground">{s.id}</TableCell>
-                      <TableCell>{s.type}</TableCell>
-                      <TableCell className="font-mono text-muted-foreground">
-                        {s.shiftExternalId ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">
-                        {formatDate(s.occurredAt)}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {s.removedAt ? formatDate(s.removedAt) : "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {user.strikes.map((s) => {
+                    const isRemoved = !!s.removedAt
+                    return (
+                      <TableRow key={s.id}>
+                        <TableCell className="font-mono text-muted-foreground">{s.id}</TableCell>
+                        <TableCell>{s.type}</TableCell>
+                        <TableCell className="font-mono text-muted-foreground">
+                          {s.shiftExternalId ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-xs whitespace-nowrap">
+                          {formatDate(s.occurredAt)}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {isRemoved ? formatDate(s.removedAt) : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {!isRemoved && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openRemoveStrike(s)}
+                            >
+                              Снять
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -332,6 +392,50 @@ export default function AdminUserDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog
+        open={!!removeStrikeDialog}
+        onOpenChange={(open) => !open && setRemoveStrikeDialog(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Снять штраф</DialogTitle>
+          </DialogHeader>
+          {removeStrikeDialog && (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Штраф #{removeStrikeDialog.strikeId} ({removeStrikeDialog.type}, {removeStrikeDialog.occurredAt}). Укажите причину снятия (для аудита).
+              </p>
+              <div className="grid gap-2">
+                <Label htmlFor="remove-strike-reason">Причина</Label>
+                <Input
+                  id="remove-strike-reason"
+                  value={removeStrikeReason}
+                  onChange={(e) => setRemoveStrikeReason(e.target.value)}
+                  placeholder="Например: ошибочно занесён"
+                />
+              </div>
+              {removeStrikeError && (
+                <p className="text-sm text-destructive">{removeStrikeError}</p>
+              )}
+            </>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRemoveStrikeDialog(null)}
+            >
+              Отмена
+            </Button>
+            <Button
+              onClick={handleRemoveStrike}
+              disabled={removeStrikeLoading || !removeStrikeReason.trim()}
+            >
+              {removeStrikeLoading ? "Сохранение…" : "Снять штраф"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
