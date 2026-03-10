@@ -64,6 +64,13 @@
       "when": 1731456000000,
       "tag": "0010_user_groups",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1731542400000,
+      "tag": "0011_users_balance_non_negative",
+      "breakpoints": true
     }
   ]
 }

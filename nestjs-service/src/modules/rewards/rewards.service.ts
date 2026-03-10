@@ -353,56 +353,85 @@ export class RewardsService {
 
   async createRedemption(userId: number, storeItemId: number): Promise<{ redemptionId: number }> {
     const { users, storeItems, transactions, redemptions } = schema;
-    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-    const [item] = await this.db.select().from(storeItems).where(eq(storeItems.id, storeItemId)).limit(1);
-    if (!item || item.isActive !== 1) {
-      throw new NotFoundException('Store item not found or inactive');
-    }
-    if (item.deletedAt) {
-      throw new NotFoundException('Store item not found or inactive');
-    }
-    if (user.balance < item.cost) {
-      throw new NotFoundException('Insufficient balance');
-    }
-    if (item.stockLimit != null) {
-      const countResult = await this.db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(redemptions)
-        .where(
-          and(
-            eq(redemptions.storeItemId, storeItemId),
-            or(eq(redemptions.status, 'pending'), eq(redemptions.status, 'fulfilled')),
-          ),
-        );
-      const redeemed = countResult[0]?.count ?? 0;
-      if (redeemed >= item.stockLimit) {
-        throw new NotFoundException('Товар закончился');
-      }
-    }
-    const [redemption] = await this.db
-      .insert(redemptions)
-      .values({
-        userId,
-        storeItemId,
-        status: 'pending',
-        coinsSpent: item.cost,
-      })
-      .returning({ id: redemptions.id });
-    if (!redemption) {
-      throw new Error('Failed to create redemption');
-    }
-    await this.db.update(users).set({ balance: user.balance - item.cost }).where(eq(users.id, userId));
-    await this.db.insert(transactions).values({
-      userId,
-      amount: -item.cost,
-      type: 'redemption',
-      sourceRef: String(redemption.id),
-      title: item.name,
-    });
-    return { redemptionId: redemption.id };
+
+    return this.db.transaction(
+      async (tx) => {
+        // Блокируем строку пользователя (баланс не изменится до коммита)
+        const userRows = await tx
+          .select({ id: users.id, balance: users.balance })
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1)
+          .for('update');
+        const user = userRows[0];
+        if (!user) {
+          throw new NotFoundException('User not found');
+        }
+
+        // Блокируем строку товара (сериализация по товару — остаток не превысим)
+        const itemRows = await tx
+          .select()
+          .from(storeItems)
+          .where(eq(storeItems.id, storeItemId))
+          .limit(1)
+          .for('update');
+        const item = itemRows[0];
+        if (!item || item.isActive !== 1) {
+          throw new NotFoundException('Store item not found or inactive');
+        }
+        if (item.deletedAt) {
+          throw new NotFoundException('Store item not found or inactive');
+        }
+        if (user.balance < item.cost) {
+          throw new NotFoundException('Insufficient balance');
+        }
+        if (item.stockLimit != null) {
+          const countResult = await tx
+            .select({ count: sql<number>`count(*)::int` })
+            .from(redemptions)
+            .where(
+              and(
+                eq(redemptions.storeItemId, storeItemId),
+                or(eq(redemptions.status, 'pending'), eq(redemptions.status, 'fulfilled')),
+              ),
+            );
+          const redeemed = countResult[0]?.count ?? 0;
+          if (redeemed >= item.stockLimit) {
+            throw new NotFoundException('Товар закончился');
+          }
+        }
+
+        const [redemption] = await tx
+          .insert(redemptions)
+          .values({
+            userId,
+            storeItemId,
+            status: 'pending',
+            coinsSpent: item.cost,
+          })
+          .returning({ id: redemptions.id });
+        if (!redemption) {
+          throw new Error('Failed to create redemption');
+        }
+
+        await tx
+          .update(users)
+          .set({ balance: sql`${users.balance} - ${item.cost}` })
+          .where(eq(users.id, userId));
+        await tx.insert(transactions).values({
+          userId,
+          amount: -item.cost,
+          type: 'redemption',
+          sourceRef: String(redemption.id),
+          title: item.name,
+        });
+        return { redemptionId: redemption.id };
+      },
+      {
+        isolationLevel: 'repeatable read',
+        accessMode: 'read write',
+      },
+    );
   }
 
   /**
