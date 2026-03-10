@@ -12,7 +12,7 @@ import {
   devLogin,
   getDevUserId,
   isLoggedIn,
-  clearToken,
+  clearAllAuth,
   setViewAsUserId,
   type MeResponse,
   type TransactionResponse,
@@ -184,7 +184,7 @@ export interface UseRewardsDashboardResult {
   error: string | null
   refetch: () => Promise<void>
   purchaseItem: (storeItemId: number) => Promise<void>
-  /** Выход (dev): сброс токена и повторная загрузка (по ?userId= или повторный dev-login) */
+  /** Выход: сброс токена и всех учётных данных на устройстве, сброс состояния дашборда. */
   logout: () => void
   isLoggedIn: boolean
 }
@@ -322,9 +322,15 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
   )
 
   const logout = useCallback(() => {
-    clearToken()
-    void load()
-  }, [load])
+    clearAllAuth()
+    setUser(null)
+    setTransactions([])
+    setQuests([])
+    setStoreItems([])
+    setLevels([])
+    setError(null)
+    setLoading(false)
+  }, [])
 
   const currentLevelPerks =
     user && levels.length > 0

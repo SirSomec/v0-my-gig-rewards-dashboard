@@ -38,6 +38,13 @@ export function clearToken(): void {
   localStorage.removeItem(TOKEN_STORAGE_KEY);
 }
 
+/** Полная деавторизация: удаляет JWT и «просмотр от имени» на текущем устройстве. */
+export function clearAllAuth(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
+  localStorage.removeItem(VIEW_AS_USER_ID_KEY);
+}
+
 function buildUrl(
   path: string,
   params?: Record<string, string>,

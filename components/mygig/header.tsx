@@ -17,7 +17,7 @@ interface HeaderProps {
   userName: string
   userLevel: string
   avatarUrl?: string
-  /** В dev-режиме: кнопка «Выйти» (сброс JWT) */
+  /** При выходе: кнопка «Выйти» (полная деавторизация на устройстве) */
   onLogout?: () => void
 }
 
@@ -67,7 +67,7 @@ export function Header({ coinBalance, userName, userLevel, avatarUrl, onLogout }
               size="icon"
               className="h-8 w-8 sm:h-9 sm:w-9 rounded-full text-muted-foreground hover:text-foreground flex-shrink-0"
               onClick={onLogout}
-              aria-label="Выйти (dev)"
+              aria-label="Выйти"
             >
               <LogOut size={18} className="shrink-0" />
             </Button>

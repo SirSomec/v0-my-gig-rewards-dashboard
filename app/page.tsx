@@ -33,6 +33,8 @@ export default function MyGigRewards() {
   useEffect(() => {
     if (myGigEnabled && !isLoggedIn && !loading && !user) {
       router.replace("/login")
+    } else if (!myGigEnabled && !user && !loading) {
+      window.location.href = "/"
     }
   }, [myGigEnabled, isLoggedIn, loading, user, router])
 
