@@ -1,26 +1,60 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Users, ShoppingBag, Gift, Layers, Zap, Target, Wallet, FileText, LayoutDashboard, Settings, Database, Briefcase, ShieldCheck, UsersRound } from "lucide-react"
+import { Users, ShoppingBag, Gift, Layers, Zap, Target, Wallet, FileText, LayoutDashboard, Settings, Briefcase, ShieldCheck, UsersRound, UserCog } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { adminAuthMe, type AdminPermissionKey, type AdminSessionUser } from "@/lib/admin-api"
 
-const nav = [
-  { href: "/", label: "Обзор", icon: LayoutDashboard },
-  { href: "/users", label: "Пользователи", icon: Users },
-  { href: "/redemptions", label: "Заявки на обмен", icon: Gift },
-  { href: "/store", label: "Магазин", icon: ShoppingBag },
-  { href: "/quests", label: "Квесты", icon: Target },
-  { href: "/user-groups", label: "Группы пользователей", icon: UsersRound },
-  { href: "/quest-moderation", label: "Модерация квестов", icon: ShieldCheck },
-  { href: "/levels", label: "Уровни", icon: Layers },
-  { href: "/settings", label: "Настройки", icon: Settings },
-  { href: "/balance", label: "Ручные начисления", icon: Wallet },
-  { href: "/audit", label: "Аудит", icon: FileText },
-  // Пункт "Данные ETL" скрыт из меню, но страница /etl-explorer остаётся доступной по прямой ссылке
-  { href: "/mock-toj", label: "Мок TOJ (смены)", icon: Briefcase },
-  { href: "/dev", label: "Мок: смены и штрафы", icon: Zap },
+const nav: { href: string; label: string; icon: typeof LayoutDashboard; permission: AdminPermissionKey }[] = [
+  { href: "/", label: "Обзор", icon: LayoutDashboard, permission: "overview" },
+  { href: "/users", label: "Пользователи", icon: Users, permission: "users" },
+  { href: "/redemptions", label: "Заявки на обмен", icon: Gift, permission: "redemptions" },
+  { href: "/store", label: "Магазин", icon: ShoppingBag, permission: "store" },
+  { href: "/quests", label: "Квесты", icon: Target, permission: "quests" },
+  { href: "/user-groups", label: "Группы пользователей", icon: UsersRound, permission: "user_groups" },
+  { href: "/quest-moderation", label: "Модерация квестов", icon: ShieldCheck, permission: "quest_moderation" },
+  { href: "/levels", label: "Уровни", icon: Layers, permission: "levels" },
+  { href: "/settings", label: "Настройки", icon: Settings, permission: "settings" },
+  { href: "/balance", label: "Ручные начисления", icon: Wallet, permission: "balance" },
+  { href: "/audit", label: "Аудит", icon: FileText, permission: "audit" },
+  { href: "/admin-users", label: "Пользователи админки", icon: UserCog, permission: "admin_users" },
+  { href: "/mock-toj", label: "Мок TOJ (смены)", icon: Briefcase, permission: "mock_toj" },
+  { href: "/dev", label: "Мок: смены и штрафы", icon: Zap, permission: "dev" },
 ]
+
+function canAccess(user: AdminSessionUser | null, permission: AdminPermissionKey): boolean {
+  if (!user) return true
+  if (user.isSuper) return true
+  return user.permissions.includes(permission)
+}
+
+const pathToPermission: Record<string, AdminPermissionKey> = {
+  "/": "overview",
+  "/users": "users",
+  "/redemptions": "redemptions",
+  "/store": "store",
+  "/quests": "quests",
+  "/user-groups": "user_groups",
+  "/quest-moderation": "quest_moderation",
+  "/levels": "levels",
+  "/settings": "settings",
+  "/balance": "balance",
+  "/audit": "audit",
+  "/admin-users": "admin_users",
+  "/mock-toj": "mock_toj",
+  "/dev": "dev",
+  "/etl-explorer": "etl_explorer",
+}
+
+function getPermissionForPath(pathname: string): AdminPermissionKey | null {
+  if (pathToPermission[pathname]) return pathToPermission[pathname]
+  for (const [path, perm] of Object.entries(pathToPermission)) {
+    if (path !== "/" && pathname.startsWith(path + "/")) return perm
+  }
+  return null
+}
 
 export default function DashboardLayout({
   children,
@@ -28,6 +62,20 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const [user, setUser] = useState<AdminSessionUser | null | undefined>(undefined)
+
+  useEffect(() => {
+    adminAuthMe().then(setUser)
+  }, [])
+
+  const permForPath = getPermissionForPath(pathname)
+  useEffect(() => {
+    if (user !== undefined && user !== null && permForPath !== null && !canAccess(user, permForPath)) {
+      window.location.replace("/")
+    }
+  }, [user, pathname, permForPath])
+
+  const visibleNav = user === undefined ? nav : nav.filter((item) => canAccess(user ?? null, item.permission))
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -45,7 +93,7 @@ export default function DashboardLayout({
           </Link>
         </div>
         <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
-          {nav.map(({ href, label, icon: Icon }) => {
+          {visibleNav.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || (href !== "/" && pathname.startsWith(href + "/"))
             return (
               <Link
@@ -73,7 +121,7 @@ export default function DashboardLayout({
           </Link>
         </div>
         <nav className="flex gap-2 mt-3 overflow-x-auto pb-1 -mx-1">
-          {nav.map(({ href, label, icon: Icon }) => {
+          {visibleNav.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || (href !== "/" && pathname.startsWith(href + "/"))
             return (
               <Link

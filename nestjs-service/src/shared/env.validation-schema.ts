@@ -40,6 +40,9 @@ export interface Envs {
   JWT_SECRET?: string;
   JWT_EXPIRE?: string;
   ADMIN_SECRET?: string;
+  /** Суперадмин админ-панели: полный доступ. Задаётся в корневом .env. */
+  ADMIN_SUPER_EMAIL?: string;
+  ADMIN_SUPER_PASSWORD?: string;
   /** Секрет для вызова ensure-user из Next.js (синхронизация пользователя MyGig при первом входе). */
   REWARDS_INTERNAL_SECRET?: string;
 }
@@ -81,5 +84,7 @@ export const EnvValidationSchema = Joi.object<Envs, true>({
   JWT_SECRET: Joi.string().optional(),
   JWT_EXPIRE: Joi.string().optional(),
   ADMIN_SECRET: Joi.string().optional(),
+  ADMIN_SUPER_EMAIL: Joi.string().optional().allow(''),
+  ADMIN_SUPER_PASSWORD: Joi.string().optional().allow(''),
   REWARDS_INTERNAL_SECRET: Joi.string().optional(),
 }).unknown(true);

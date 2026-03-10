@@ -1,12 +1,12 @@
 /**
- * Клиент админ-API. Все запросы отправляют заголовок X-Admin-Key.
- * В development при отсутствии ключа бэкенд может разрешать доступ.
+ * Клиент админ-API. В браузере запросы идут через прокси /api/admin/proxy с cookie (JWT);
+ * на сервере — напрямую к бэкенду с X-Admin-Key.
  */
 
 const getBaseUrl = (): string =>
   typeof window !== "undefined"
-    ? (process.env.NEXT_PUBLIC_REWARDS_API_URL ?? "http://localhost:3001")
-    : process.env.NEXT_PUBLIC_REWARDS_API_URL ?? "http://localhost:3001";
+    ? "/api/admin/proxy"
+    : (process.env.NEXT_PUBLIC_REWARDS_API_URL ?? "http://localhost:3001");
 
 const getAdminKey = (): string =>
   process.env.NEXT_PUBLIC_ADMIN_SECRET ?? "";
@@ -22,13 +22,97 @@ function headers(): HeadersInit {
 
 async function fetchAdmin<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${getBaseUrl().replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
-  const res = await fetch(url, { ...options, headers: { ...headers(), ...options?.headers } });
+  const res = await fetch(url, {
+    ...options,
+    credentials: "include",
+    headers: { ...headers(), ...(options?.headers as Record<string, string>) },
+  });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Admin API ${res.status}: ${text || res.statusText}`);
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
+}
+
+/** Ключи прав доступа к разделам админ-панели (совпадают с бэкендом). */
+export const ADMIN_PERMISSION_KEYS = [
+  "overview",
+  "users",
+  "redemptions",
+  "store",
+  "quests",
+  "user_groups",
+  "quest_moderation",
+  "levels",
+  "settings",
+  "balance",
+  "audit",
+  "admin_users",
+  "mock_toj",
+  "dev",
+  "etl_explorer",
+] as const;
+
+export type AdminPermissionKey = (typeof ADMIN_PERMISSION_KEYS)[number];
+
+export interface AdminSessionUser {
+  id: number | "super";
+  email: string;
+  name: string | null;
+  isSuper: boolean;
+  permissions: AdminPermissionKey[];
+}
+
+export interface AdminPanelUser {
+  id: number;
+  email: string;
+  name: string | null;
+  isActive: number;
+  permissions: AdminPermissionKey[];
+}
+
+export async function adminAuthMe(): Promise<AdminSessionUser | null> {
+  const res = await fetch("/api/admin/auth/me", { credentials: "include" });
+  const data = await res.json().catch(() => ({}));
+  return data.user ?? null;
+}
+
+export async function adminListAdminUsers(): Promise<AdminPanelUser[]> {
+  return fetchAdmin<AdminPanelUser[]>("/v1/admin/admin-users");
+}
+
+export async function adminCreateAdminUser(body: {
+  email: string;
+  password: string;
+  name?: string | null;
+  permissions?: AdminPermissionKey[];
+}): Promise<{ id: number }> {
+  return fetchAdmin("/v1/admin/admin-users", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function adminUpdateAdminUser(
+  id: number,
+  body: {
+    name?: string | null;
+    isActive?: number;
+    permissions?: AdminPermissionKey[];
+    password?: string | null;
+  }
+): Promise<{ id: number }> {
+  return fetchAdmin(`/v1/admin/admin-users/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function adminDeleteAdminUser(id: number): Promise<{ id: number }> {
+  return fetchAdmin(`/v1/admin/admin-users/${id}`, {
+    method: "DELETE",
+  });
 }
 
 export interface AdminUser {

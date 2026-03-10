@@ -1,3 +1,5 @@
+export { adminPanelUsers, ADMIN_PERMISSION_KEYS } from './admin-panel-users.schema';
+export type { AdminPermissionKey } from './admin-panel-users.schema';
 export { auditLog } from './audit-log.schema';
 export { levels } from './levels.schema';
 export { questProgress } from './quest-progress.schema';

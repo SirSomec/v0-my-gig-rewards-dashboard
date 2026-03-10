@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 const LOGIN_PATH = "/login"
-const COOKIE_NAME = "admin_panel_unlocked"
+const COOKIE_NAME = "admin_session"
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
