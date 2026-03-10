@@ -2,7 +2,7 @@
 
 **Миграции применяются автоматически** при каждом запуске приложения:
 
-- **В контейнере (деплой):** в `scripts/docker-entrypoint.sh` перед стартом API выполняется `node dist/infra/db/drizzle/migrate.js` — применяются все неприменённые миграции из каталога `migrations`. Переменные `DATABASE_URL` или `PG_CONNECTION` и при необходимости `MIGRATIONS_PATH` задаются в окружении контейнера.
+- **В контейнере (деплой):** при старте контейнера API в `scripts/docker-entrypoint.sh` до запуска приложения выполняется `node dist/infra/db/drizzle/migrate.js` — применяются все неприменённые миграции из каталога `migrations`. Переменные `DATABASE_URL` или `PG_CONNECTION` и при необходимости `MIGRATIONS_PATH` задаются в окружении контейнера. При временной недоступности БД миграции повторяются до ~30 с. Дополнительных действий при деплое не требуется: после `docker compose build` и `docker compose up -d` новые миграции применятся при старте контейнера api.
 - **Локально:** при старте приложения в `main.ts` вызывается `runMigrations()` с тем же каталогом миграций.
 
 Ручной запуск при необходимости: `npm run db:migrate:local` (локально) или `docker compose exec api node dist/infra/db/drizzle/migrate.js` (в контейнере).

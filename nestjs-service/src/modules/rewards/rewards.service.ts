@@ -574,7 +574,11 @@ export class RewardsService {
         .select({ id: transactions.id })
         .from(transactions)
         .where(
-          and(eq(transactions.type, 'shift'), eq(transactions.sourceRef, sourceRef)),
+          and(
+            eq(transactions.userId, userId),
+            eq(transactions.type, 'shift'),
+            eq(transactions.sourceRef, sourceRef),
+          ),
         )
         .limit(1);
       if (existing) {
@@ -1086,66 +1090,54 @@ export class RewardsService {
           .update(questProgress)
           .set({ progress, updatedAt: now })
           .where(eq(questProgress.id, row.id));
-        if (progress >= total) {
-          await this.db
-            .update(questProgress)
-            .set({ completedAt: now })
-            .where(eq(questProgress.id, row.id));
-          const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
-          if (user) {
-            await this.db
-              .update(users)
-              .set({ balance: user.balance + q.rewardCoins })
-              .where(eq(users.id, userId));
-            await this.db.insert(transactions).values({
-              userId,
-              amount: q.rewardCoins,
-              type: 'quest',
-              sourceRef: String(q.id),
-              title: q.name,
-            });
-          }
-        }
       } else {
-        await this.db.insert(questProgress).values({
-          userId,
-          questId: q.id,
-          periodKey,
-          progress,
-          updatedAt: now,
-        });
-        if (progress >= total) {
-          const [inserted] = await this.db
-            .select()
-            .from(questProgress)
-            .where(
-              and(
-                eq(questProgress.userId, userId),
-                eq(questProgress.questId, q.id),
-                eq(questProgress.periodKey, periodKey),
-              ),
-            )
-            .limit(1);
-          if (inserted) {
-            await this.db
-              .update(questProgress)
-              .set({ completedAt: now })
-              .where(eq(questProgress.id, inserted.id));
-            const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
-            if (user) {
-              await this.db
-                .update(users)
-                .set({ balance: user.balance + q.rewardCoins })
-                .where(eq(users.id, userId));
-              await this.db.insert(transactions).values({
-                userId,
-                amount: q.rewardCoins,
-                type: 'quest',
-                sourceRef: String(q.id),
-                title: q.name,
-              });
-            }
-          }
+        await this.db
+          .insert(questProgress)
+          .values({
+            userId,
+            questId: q.id,
+            periodKey,
+            progress,
+            updatedAt: now,
+          })
+          .onConflictDoUpdate({
+            target: [
+              questProgress.userId,
+              questProgress.questId,
+              questProgress.periodKey,
+            ],
+            set: { progress, updatedAt: now },
+          });
+      }
+
+      // Атомарно помечаем квест выполненным и получаем право на начисление награды только один раз
+      const completedRows = await this.db
+        .update(questProgress)
+        .set({ completedAt: now, updatedAt: now })
+        .where(
+          and(
+            eq(questProgress.userId, userId),
+            eq(questProgress.questId, q.id),
+            eq(questProgress.periodKey, periodKey),
+            isNull(questProgress.completedAt),
+            gte(questProgress.progress, total),
+          ),
+        )
+        .returning({ id: questProgress.id });
+      if (completedRows.length > 0) {
+        const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+        if (user) {
+          await this.db
+            .update(users)
+            .set({ balance: user.balance + q.rewardCoins })
+            .where(eq(users.id, userId));
+          await this.db.insert(transactions).values({
+            userId,
+            amount: q.rewardCoins,
+            type: 'quest',
+            sourceRef: String(q.id),
+            title: q.name,
+          });
         }
       }
     }

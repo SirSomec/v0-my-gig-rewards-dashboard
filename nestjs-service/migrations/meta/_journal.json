@@ -71,6 +71,13 @@
       "when": 1731542400000,
       "tag": "0011_users_balance_non_negative",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1731628800000,
+      "tag": "0012_quest_progress_unique",
+      "breakpoints": true
     }
   ]
 }

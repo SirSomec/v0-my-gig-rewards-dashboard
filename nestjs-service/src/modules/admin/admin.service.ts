@@ -249,14 +249,24 @@ export class AdminService {
     returnCoins = false,
   ) {
     const { redemptions, users } = schema;
-    const [r] = await this.db.select().from(redemptions).where(eq(redemptions.id, redemptionId)).limit(1);
-    if (!r) throw new NotFoundException('Redemption not found');
-    if (r.status !== 'pending') throw new NotFoundException('Redemption already processed');
     const now = new Date();
-    await this.db
+    const updated = await this.db
       .update(redemptions)
       .set({ status, processedAt: now, notes: notes ?? null })
-      .where(eq(redemptions.id, redemptionId));
+      .where(
+        and(eq(redemptions.id, redemptionId), eq(redemptions.status, 'pending')),
+      )
+      .returning();
+    if (updated.length === 0) {
+      const [r] = await this.db
+        .select()
+        .from(redemptions)
+        .where(eq(redemptions.id, redemptionId))
+        .limit(1);
+      if (!r) throw new NotFoundException('Redemption not found');
+      throw new NotFoundException('Redemption already processed');
+    }
+    const r = updated[0]!;
     if (status === 'cancelled' && returnCoins) {
       const [u] = await this.db.select().from(users).where(eq(users.id, r.userId)).limit(1);
       if (u) {
@@ -289,19 +299,30 @@ export class AdminService {
     let updated = 0;
     const now = new Date();
     for (const redemptionId of ids) {
-      const [r] = await this.db.select().from(redemptions).where(eq(redemptions.id, redemptionId)).limit(1);
-      if (!r) {
-        errors.push({ id: redemptionId, reason: 'not_found' });
-        continue;
-      }
-      if (r.status !== 'pending') {
-        errors.push({ id: redemptionId, reason: 'already_processed' });
-        continue;
-      }
-      await this.db
+      const updatedRows = await this.db
         .update(redemptions)
         .set({ status, processedAt: now, notes: notes ?? null })
-        .where(eq(redemptions.id, redemptionId));
+        .where(
+          and(
+            eq(redemptions.id, redemptionId),
+            eq(redemptions.status, 'pending'),
+          ),
+        )
+        .returning();
+      if (updatedRows.length === 0) {
+        const [existing] = await this.db
+          .select()
+          .from(redemptions)
+          .where(eq(redemptions.id, redemptionId))
+          .limit(1);
+        if (!existing) {
+          errors.push({ id: redemptionId, reason: 'not_found' });
+        } else {
+          errors.push({ id: redemptionId, reason: 'already_processed' });
+        }
+        continue;
+      }
+      const r = updatedRows[0]!;
       if (status === 'cancelled' && returnCoins) {
         const [u] = await this.db.select().from(users).where(eq(users.id, r.userId)).limit(1);
         if (u) {
