@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS "admin_panel_users" (
   "is_active" integer DEFAULT 1 NOT NULL,
   "permissions" jsonb DEFAULT '[]'::jsonb,
   "created_at" timestamp with time zone DEFAULT now() NOT NULL,
-  "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+  "updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+  "deleted_at" timestamp with time zone
 );
 
 CREATE INDEX IF NOT EXISTS "admin_panel_users_email_idx" ON "admin_panel_users"("email");
