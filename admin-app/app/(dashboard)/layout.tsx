@@ -17,7 +17,7 @@ const nav = [
   { href: "/settings", label: "Настройки", icon: Settings },
   { href: "/balance", label: "Ручные начисления", icon: Wallet },
   { href: "/audit", label: "Аудит", icon: FileText },
-  { href: "/etl-explorer", label: "Данные ETL", icon: Database },
+  // Пункт "Данные ETL" скрыт из меню, но страница /etl-explorer остаётся доступной по прямой ссылке
   { href: "/mock-toj", label: "Мок TOJ (смены)", icon: Briefcase },
   { href: "/dev", label: "Мок: смены и штрафы", icon: Zap },
 ]
