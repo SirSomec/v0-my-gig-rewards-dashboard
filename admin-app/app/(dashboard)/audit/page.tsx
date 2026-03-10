@@ -16,15 +16,39 @@ import {
 const PAGE_SIZES = [25, 50, 100, 200]
 const ACTION_OPTIONS = [
   { value: "", label: "Все действия" },
-  { value: "user_level_change", label: "Изменение уровня" },
+  { value: "user_level_change", label: "Изменение уровня пользователя" },
   { value: "manual_transaction", label: "Ручное начисление/списание" },
   { value: "strike_removed", label: "Снятие штрафа" },
+  { value: "late_cancel_applied", label: "Штраф «поздняя отмена»" },
+  { value: "store_item_create", label: "Создание товара магазина" },
+  { value: "store_item_update", label: "Редактирование товара магазина" },
+  { value: "store_item_delete", label: "Удаление товара магазина" },
+  { value: "level_update", label: "Редактирование уровня" },
+  { value: "bonus_settings_update", label: "Изменение настроек бонусов" },
+  { value: "quest_create", label: "Создание квеста" },
+  { value: "quest_update", label: "Редактирование квеста" },
+  { value: "quest_delete", label: "Удаление квеста" },
+  { value: "user_group_create", label: "Создание группы пользователей" },
+  { value: "user_group_update", label: "Редактирование группы" },
+  { value: "user_group_delete", label: "Удаление группы" },
+  { value: "group_member_add", label: "Добавление в группу" },
+  { value: "group_member_remove", label: "Удаление из группы" },
+  { value: "group_member_import", label: "Импорт участников группы" },
+  { value: "redemption_update", label: "Изменение заявки" },
+  { value: "redemption_bulk_update", label: "Массовое изменение заявок" },
 ]
 const ENTITY_OPTIONS = [
   { value: "", label: "Все сущности" },
   { value: "user", label: "Пользователь" },
   { value: "transaction", label: "Транзакция" },
   { value: "strike", label: "Штраф" },
+  { value: "store_item", label: "Товар магазина" },
+  { value: "level", label: "Уровень" },
+  { value: "system_settings", label: "Настройки системы" },
+  { value: "quest", label: "Квест" },
+  { value: "user_group", label: "Группа пользователей" },
+  { value: "user_group_member", label: "Участник группы" },
+  { value: "redemption", label: "Заявка" },
 ]
 
 function formatDate(s: string) {
@@ -64,7 +88,10 @@ export default function AdminAuditPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-semibold">Журнал аудита (6.9)</h1>
+      <h1 className="text-lg font-semibold">Журнал аудита</h1>
+      <p className="text-sm text-muted-foreground">
+        Логирование изменений: разделы (уровни, товары, квесты), правила, параметры и операции, влияющие на механики.
+      </p>
 
       <Card>
         <CardHeader className="py-2 text-sm font-medium">Фильтры</CardHeader>
@@ -72,7 +99,7 @@ export default function AdminAuditPage() {
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Действие:</span>
             <Select value={action || "all"} onValueChange={(v) => setAction(v === "all" ? "" : v)}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-[260px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

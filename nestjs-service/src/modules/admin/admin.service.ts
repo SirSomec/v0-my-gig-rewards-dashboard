@@ -284,6 +284,11 @@ export class AdminService {
         });
       }
     }
+    await this.logAudit('redemption_update', 'redemption', String(redemptionId), undefined, {
+      status,
+      notes: notes ?? undefined,
+      returnCoins,
+    });
     return { id: redemptionId, status };
   }
 
@@ -342,6 +347,14 @@ export class AdminService {
       }
       updated += 1;
     }
+    if (updated > 0) {
+      await this.logAudit('redemption_bulk_update', 'redemption', ids.join(','), undefined, {
+        status,
+        count: updated,
+        returnCoins,
+        notes: notes ?? undefined,
+      });
+    }
     return { updated, errors };
   }
 
@@ -373,6 +386,13 @@ export class AdminService {
       })
       .returning({ id: storeItems.id });
     if (!row) throw new Error('Insert failed');
+    await this.logAudit('store_item_create', 'store_item', String(row.id), undefined, {
+      name: dto.name,
+      category: dto.category,
+      cost: dto.cost,
+      isActive: dto.isActive ?? 1,
+      sortOrder: dto.sortOrder ?? 0,
+    });
     return { id: row.id };
   }
 
@@ -394,6 +414,14 @@ export class AdminService {
     if (dto.visibilityRules !== undefined) updates.visibilityRules = dto.visibilityRules;
     if (Object.keys(updates).length === 0) return { id };
     await this.db.update(storeItems).set(updates).where(eq(storeItems.id, id));
+    const oldSnapshot = {
+      name: existing.name,
+      category: existing.category,
+      cost: existing.cost,
+      isActive: existing.isActive,
+      sortOrder: existing.sortOrder,
+    };
+    await this.logAudit('store_item_update', 'store_item', String(id), oldSnapshot, { ...oldSnapshot, ...updates });
     return { id };
   }
 
@@ -406,6 +434,11 @@ export class AdminService {
       .update(storeItems)
       .set({ deletedAt: now, isActive: 0 })
       .where(eq(storeItems.id, id));
+    await this.logAudit('store_item_delete', 'store_item', String(id), {
+      name: existing.name,
+      category: existing.category,
+      cost: existing.cost,
+    }, undefined);
     return { id };
   }
 
@@ -440,6 +473,7 @@ export class AdminService {
     const { systemSettings } = schema;
     const value = Number(dto.shiftBonusDefaultMultiplier);
     if (Number.isNaN(value) || value < 0) throw new Error('shiftBonusDefaultMultiplier must be a non-negative number');
+    const oldSettings = await this.getBonusSettings();
     const now = new Date();
     await this.db
       .insert(systemSettings)
@@ -451,6 +485,13 @@ export class AdminService {
         target: systemSettings.key,
         set: { value: value, updatedAt: now },
       });
+    await this.logAudit(
+      'bonus_settings_update',
+      'system_settings',
+      'shift_bonus_default_multiplier',
+      { shiftBonusDefaultMultiplier: oldSettings.shiftBonusDefaultMultiplier },
+      { shiftBonusDefaultMultiplier: value },
+    );
   }
 
   async updateLevel(id: number, dto: UpdateLevelDto) {
@@ -479,6 +520,15 @@ export class AdminService {
     if (dto.bonusMultiplier !== undefined) updates.bonusMultiplier = dto.bonusMultiplier;
     if (Object.keys(updates).length === 0) return { id };
     await this.db.update(levels).set(updates).where(eq(levels.id, id));
+    const oldSnapshot = {
+      name: existing.name,
+      shiftsRequired: existing.shiftsRequired,
+      strikeLimitPerWeek: existing.strikeLimitPerWeek,
+      strikeLimitPerMonth: existing.strikeLimitPerMonth,
+      sortOrder: existing.sortOrder,
+      bonusMultiplier: existing.bonusMultiplier,
+    };
+    await this.logAudit('level_update', 'level', String(id), oldSnapshot, { ...oldSnapshot, ...updates });
     return { id };
   }
 
@@ -514,6 +564,14 @@ export class AdminService {
       })
       .returning({ id: quests.id });
     if (!row) throw new Error('Insert failed');
+    await this.logAudit('quest_create', 'quest', String(row.id), undefined, {
+      name: dto.name,
+      period: dto.period,
+      conditionType: dto.conditionType,
+      rewardCoins: dto.rewardCoins,
+      isActive: dto.isActive ?? 1,
+      isOneTime: dto.isOneTime ?? 0,
+    });
     return { id: row.id };
   }
 
@@ -555,6 +613,15 @@ export class AdminService {
     if (dto.targetGroupId !== undefined) updates.targetGroupId = dto.targetGroupId;
     if (Object.keys(updates).length === 0) return { id };
     await this.db.update(quests).set(updates).where(eq(quests.id, id));
+    const oldSnapshot = {
+      name: existing.name,
+      period: existing.period,
+      conditionType: existing.conditionType,
+      rewardCoins: existing.rewardCoins,
+      isActive: existing.isActive,
+      isOneTime: existing.isOneTime,
+    };
+    await this.logAudit('quest_update', 'quest', String(id), oldSnapshot, { ...oldSnapshot, ...updates });
     return { id };
   }
 
@@ -563,6 +630,11 @@ export class AdminService {
     const [existing] = await this.db.select().from(quests).where(eq(quests.id, id)).limit(1);
     if (!existing) throw new NotFoundException('Quest not found');
     await this.db.update(quests).set({ isActive: 0 }).where(eq(quests.id, id));
+    await this.logAudit('quest_delete', 'quest', String(id), {
+      name: existing.name,
+      conditionType: existing.conditionType,
+      rewardCoins: existing.rewardCoins,
+    }, undefined);
     return { id };
   }
 
@@ -603,6 +675,10 @@ export class AdminService {
       .values({ name, description: dto.description?.trim() || null })
       .returning({ id: userGroups.id });
     if (!row) throw new Error('Insert user group failed');
+    await this.logAudit('user_group_create', 'user_group', String(row.id), undefined, {
+      name,
+      description: dto.description?.trim() || undefined,
+    });
     return { id: row.id };
   }
 
@@ -619,6 +695,8 @@ export class AdminService {
     if (dto.description !== undefined) updates.description = dto.description?.trim() || null;
     if (Object.keys(updates).length === 0) return { id };
     await this.db.update(userGroups).set(updates).where(eq(userGroups.id, id));
+    const oldSnapshot = { name: existing.name, description: existing.description };
+    await this.logAudit('user_group_update', 'user_group', String(id), oldSnapshot, { ...oldSnapshot, ...updates });
     return { id };
   }
 
@@ -632,6 +710,9 @@ export class AdminService {
     if (!existing) throw new NotFoundException('User group not found');
     const now = new Date();
     await this.db.update(userGroups).set({ deletedAt: now }).where(eq(userGroups.id, id));
+    await this.logAudit('user_group_delete', 'user_group', String(id), {
+      name: existing.name,
+    }, undefined);
     return { id };
   }
 
@@ -683,6 +764,10 @@ export class AdminService {
       .values({ groupId, userId })
       .returning({ id: userGroupMembers.id });
     if (!row) throw new Error('Insert group member failed');
+    await this.logAudit('group_member_add', 'user_group_member', String(row.id), undefined, {
+      groupId,
+      userId,
+    });
     return { id: row.id, added: true };
   }
 
@@ -705,6 +790,10 @@ export class AdminService {
       .update(userGroupMembers)
       .set({ deletedAt: now })
       .where(eq(userGroupMembers.id, existing.id));
+    await this.logAudit('group_member_remove', 'user_group_member', String(existing.id), {
+      groupId,
+      userId,
+    }, undefined);
     return { id: existing.id };
   }
 
@@ -751,6 +840,13 @@ export class AdminService {
       await this.db.insert(userGroupMembers).values({ groupId, userId });
       added++;
       existingSet.add(userId);
+    }
+    if (added > 0) {
+      await this.logAudit('group_member_import', 'user_group', String(groupId), undefined, {
+        added,
+        totalRequested: identifiers.filter((x) => (x ?? '').toString().trim()).length,
+        resolved: userIds.size,
+      });
     }
     return { added, totalRequested: identifiers.filter((x) => (x ?? '').toString().trim()).length, resolved: userIds.size };
   }
@@ -876,10 +972,11 @@ export class AdminService {
     entityId: string,
     oldValues?: Record<string, unknown>,
     newValues?: Record<string, unknown>,
+    adminId?: number | null,
   ) {
     const { auditLog } = schema;
     await this.db.insert(auditLog).values({
-      adminId: null,
+      adminId: adminId ?? null,
       action,
       entityType,
       entityId,
