@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { and, asc, eq, gte, ilike, isNull, lte, or, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type { Envs } from '../../shared/env.validation-schema';
 import * as schema from '../../infra/db/drizzle/schemas';
@@ -988,9 +989,14 @@ export class AdminService {
     });
   }
 
-  /** Список записей аудита с пагинацией (6.9). Возвращает adminDisplay (кто выполнил) и entityExternalId (external_id пользователя, если действие касается user). */
+  /** Список записей аудита с пагинацией (6.9). Возвращает adminDisplay (кто выполнил) и entityExternalId (external_id пользователя при любом отношении к пользователю: user, transaction, strike, redemption, user_group_member). */
   async listAuditLog(opts: { page?: number; pageSize?: number; action?: string; entityType?: string } = {}) {
-    const { auditLog, adminPanelUsers, users } = schema;
+    const { auditLog, adminPanelUsers, users, transactions, strikes, redemptions, userGroupMembers } = schema;
+    const usersViaTx = alias(users, 'users_via_tx');
+    const usersViaStrike = alias(users, 'users_via_strike');
+    const usersViaRedemption = alias(users, 'users_via_redemption');
+    const usersViaMember = alias(users, 'users_via_member');
+
     const page = Math.max(1, opts.page ?? 1);
     const pageSize = Math.min(200, Math.max(1, opts.pageSize ?? 50));
     const conditions: Parameters<typeof and>[0][] = [];
@@ -1020,7 +1026,11 @@ export class AdminService {
         newValues: auditLog.newValues,
         createdAt: auditLog.createdAt,
         adminEmail: adminPanelUsers.email,
-        entityExternalId: users.externalId,
+        entityExternalIdUser: users.externalId,
+        entityExternalIdViaTx: usersViaTx.externalId,
+        entityExternalIdViaStrike: usersViaStrike.externalId,
+        entityExternalIdViaRedemption: usersViaRedemption.externalId,
+        entityExternalIdViaMember: usersViaMember.externalId,
       })
       .from(auditLog)
       .leftJoin(adminPanelUsers, eq(auditLog.adminId, adminPanelUsers.id))
@@ -1031,6 +1041,38 @@ export class AdminService {
           sql`${auditLog.entityId} = (${users.id})::text`,
         ),
       )
+      .leftJoin(
+        transactions,
+        and(
+          eq(auditLog.entityType, 'transaction'),
+          sql`${auditLog.entityId} = (${transactions.id})::text`,
+        ),
+      )
+      .leftJoin(usersViaTx, eq(transactions.userId, usersViaTx.id))
+      .leftJoin(
+        strikes,
+        and(
+          eq(auditLog.entityType, 'strike'),
+          sql`${auditLog.entityId} = (${strikes.id})::text`,
+        ),
+      )
+      .leftJoin(usersViaStrike, eq(strikes.userId, usersViaStrike.id))
+      .leftJoin(
+        redemptions,
+        and(
+          eq(auditLog.entityType, 'redemption'),
+          sql`${auditLog.entityId} = (${redemptions.id})::text`,
+        ),
+      )
+      .leftJoin(usersViaRedemption, eq(redemptions.userId, usersViaRedemption.id))
+      .leftJoin(
+        userGroupMembers,
+        and(
+          eq(auditLog.entityType, 'user_group_member'),
+          sql`${auditLog.entityId} = (${userGroupMembers.id})::text`,
+        ),
+      )
+      .leftJoin(usersViaMember, eq(userGroupMembers.userId, usersViaMember.id))
       .where(whereClause)
       .orderBy(sql`${auditLog.createdAt} desc`)
       .limit(pageSize)
@@ -1044,7 +1086,13 @@ export class AdminService {
       action: r.action,
       entityType: r.entityType,
       entityId: r.entityId,
-      entityExternalId: r.entityExternalId ?? null,
+      entityExternalId:
+        r.entityExternalIdUser ??
+        r.entityExternalIdViaTx ??
+        r.entityExternalIdViaStrike ??
+        r.entityExternalIdViaRedemption ??
+        r.entityExternalIdViaMember ??
+        null,
       oldValues: r.oldValues,
       newValues: r.newValues,
       createdAt: r.createdAt,
