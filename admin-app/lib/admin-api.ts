@@ -564,9 +564,13 @@ export async function adminRemoveStrike(
 export interface AdminAuditEntry {
   id: number;
   adminId: number | null;
+  /** Кто выполнил действие: email админа или «суперадмин» */
+  adminDisplay?: string | null;
   action: string;
   entityType: string | null;
   entityId: string | null;
+  /** external_id пользователя, если действие касается пользователя (entityType = user) */
+  entityExternalId?: string | null;
   oldValues: Record<string, unknown> | null;
   newValues: Record<string, unknown> | null;
   createdAt: string;

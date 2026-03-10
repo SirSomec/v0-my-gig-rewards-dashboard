@@ -90,7 +90,7 @@ export default function AdminAuditPage() {
     <div className="space-y-4">
       <h1 className="text-lg font-semibold">Журнал аудита</h1>
       <p className="text-sm text-muted-foreground">
-        Логирование изменений: разделы (уровни, товары, квесты), правила, параметры и операции, влияющие на механики.
+        Кто из администраторов совершил действие (колонка «Администратор»). Для действий над пользователем (сущность «user») отображается external_id.
       </p>
 
       <Card>
@@ -162,9 +162,11 @@ export default function AdminAuditPage() {
                   <thead>
                     <tr className="border-b bg-muted/50">
                       <th className="p-2 text-left font-medium">Дата</th>
+                      <th className="p-2 text-left font-medium">Администратор</th>
                       <th className="p-2 text-left font-medium">Действие</th>
                       <th className="p-2 text-left font-medium">Сущность</th>
                       <th className="p-2 text-left font-medium">ID</th>
+                      <th className="p-2 text-left font-medium">external_id</th>
                       <th className="p-2 text-left font-medium">Детали</th>
                     </tr>
                   </thead>
@@ -172,9 +174,11 @@ export default function AdminAuditPage() {
                     {data.items.map((row) => (
                       <tr key={row.id} className="border-b">
                         <td className="p-2 text-muted-foreground">{formatDate(row.createdAt)}</td>
+                        <td className="p-2">{row.adminDisplay ?? "—"}</td>
                         <td className="p-2">{row.action}</td>
                         <td className="p-2">{row.entityType ?? "—"}</td>
                         <td className="p-2">{row.entityId ?? "—"}</td>
+                        <td className="p-2 font-mono text-muted-foreground">{row.entityExternalId ?? "—"}</td>
                         <td className="p-2 max-w-[280px] truncate" title={JSON.stringify(row.newValues ?? row.oldValues ?? {})}>
                           {row.newValues
                             ? Object.entries(row.newValues)

@@ -8,6 +8,7 @@ import { drizzleProvider } from '../../infra/db/drizzle/drizzle.module';
 import { Inject } from '@nestjs/common';
 import type { CreateQuestDto, CreateStoreItemDto, UpdateLevelDto, UpdateQuestDto, UpdateStoreItemDto } from './dto/admin.dto';
 import { RewardsService } from '../rewards/rewards.service';
+import { AdminContextService } from './admin-context.service';
 
 @Injectable()
 export class AdminService {
@@ -16,6 +17,7 @@ export class AdminService {
     private readonly db: PostgresJsDatabase<typeof schema>,
     private readonly rewards: RewardsService,
     private readonly config: ConfigService<Envs, true>,
+    private readonly adminContext: AdminContextService,
   ) {}
 
   async listUsers(search?: string, page = 1, pageSize = 20) {
@@ -965,7 +967,7 @@ export class AdminService {
     return result;
   }
 
-  /** Запись в журнал аудита (6.9) */
+  /** Запись в журнал аудита (6.9). adminId подставляется из контекста запроса (кто из админов выполнил действие). */
   async logAudit(
     action: string,
     entityType: string,
@@ -975,8 +977,9 @@ export class AdminService {
     adminId?: number | null,
   ) {
     const { auditLog } = schema;
+    const resolvedAdminId = adminId ?? this.adminContext.getAdminId() ?? null;
     await this.db.insert(auditLog).values({
-      adminId: adminId ?? null,
+      adminId: resolvedAdminId,
       action,
       entityType,
       entityId,
@@ -985,9 +988,9 @@ export class AdminService {
     });
   }
 
-  /** Список записей аудита с пагинацией (6.9) */
+  /** Список записей аудита с пагинацией (6.9). Возвращает adminDisplay (кто выполнил) и entityExternalId (external_id пользователя, если действие касается user). */
   async listAuditLog(opts: { page?: number; pageSize?: number; action?: string; entityType?: string } = {}) {
-    const { auditLog } = schema;
+    const { auditLog, adminPanelUsers, users } = schema;
     const page = Math.max(1, opts.page ?? 1);
     const pageSize = Math.min(200, Math.max(1, opts.pageSize ?? 50));
     const conditions: Parameters<typeof and>[0][] = [];
@@ -1003,13 +1006,50 @@ export class AdminService {
       .from(auditLog)
       .where(whereClause);
     const total = Number(countResult?.count ?? 0);
-    const items = await this.db
-      .select()
+
+    const superEmail = this.config.get<string>('ADMIN_SUPER_EMAIL')?.trim() ?? null;
+
+    const rows = await this.db
+      .select({
+        id: auditLog.id,
+        adminId: auditLog.adminId,
+        action: auditLog.action,
+        entityType: auditLog.entityType,
+        entityId: auditLog.entityId,
+        oldValues: auditLog.oldValues,
+        newValues: auditLog.newValues,
+        createdAt: auditLog.createdAt,
+        adminEmail: adminPanelUsers.email,
+        entityExternalId: users.externalId,
+      })
       .from(auditLog)
+      .leftJoin(adminPanelUsers, eq(auditLog.adminId, adminPanelUsers.id))
+      .leftJoin(
+        users,
+        and(
+          eq(auditLog.entityType, 'user'),
+          sql`${auditLog.entityId} = (${users.id})::text`,
+        ),
+      )
       .where(whereClause)
       .orderBy(sql`${auditLog.createdAt} desc`)
       .limit(pageSize)
       .offset((page - 1) * pageSize);
+
+    const items = rows.map((r) => ({
+      id: r.id,
+      adminId: r.adminId,
+      adminDisplay:
+        r.adminId == null && superEmail ? `суперадмин (${superEmail})` : r.adminEmail ?? (r.adminId == null ? 'суперадмин' : null),
+      action: r.action,
+      entityType: r.entityType,
+      entityId: r.entityId,
+      entityExternalId: r.entityExternalId ?? null,
+      oldValues: r.oldValues,
+      newValues: r.newValues,
+      createdAt: r.createdAt,
+    }));
+
     return { items, total, page, pageSize };
   }
 

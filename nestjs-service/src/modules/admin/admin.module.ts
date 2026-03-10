@@ -8,6 +8,8 @@ import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { AdminAuthController } from './admin-auth.controller';
 import { AdminAuthService } from './admin-auth.service';
+import { AdminContextService } from './admin-context.service';
+import { AdminContextInterceptor } from './admin-context.interceptor';
 import { EtlExplorerController } from './etl-explorer/etl-explorer.controller';
 import { EtlExplorerService } from './etl-explorer/etl-explorer.service';
 import { RewardsModule } from '../rewards/rewards.module';
@@ -31,7 +33,7 @@ import { TojModule } from '../toj/toj.module';
     }),
   ],
   controllers: [AdminController, AdminAuthController, EtlExplorerController],
-  providers: [AdminGuard, AdminService, AdminAuthService, EtlExplorerService],
+  providers: [AdminGuard, AdminContextService, AdminContextInterceptor, AdminService, AdminAuthService, EtlExplorerService],
   exports: [AdminService],
 })
 export class AdminModule {}

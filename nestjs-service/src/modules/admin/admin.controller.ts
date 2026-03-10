@@ -9,9 +9,11 @@ import {
   Post,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AdminGuard } from './admin.guard';
+import { AdminContextInterceptor } from './admin-context.interceptor';
 import { AdminService } from './admin.service';
 import { CreateQuestDto, CreateStoreItemDto, UpdateLevelDto, UpdateQuestDto, UpdateStoreItemDto } from './dto/admin.dto';
 import { RewardsService } from '../rewards/rewards.service';
@@ -20,6 +22,7 @@ import { TojSyncService } from '../toj/toj-sync.service';
 @ApiTags('admin')
 @Controller({ path: 'admin', version: '1' })
 @UseGuards(AdminGuard)
+@UseInterceptors(AdminContextInterceptor)
 export class AdminController {
   constructor(
     private readonly admin: AdminService,
