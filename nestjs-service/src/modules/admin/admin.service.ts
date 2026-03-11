@@ -415,7 +415,7 @@ export class AdminService {
       dateStrings.push(d.toISOString().slice(0, 10));
     }
     for (let i = dateStrings.length - 1; i >= 0; i--) {
-      const dateStr = dateStrings[i];
+      const dateStr = dateStrings[i]!;
       const delta = deltaByDate.get(dateStr) ?? 0;
       runningBalance -= delta;
       byDay.push({
