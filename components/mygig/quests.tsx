@@ -72,9 +72,9 @@ function QuestCard({
             }`}>
               {quest.title}
             </p>
-            <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+            <div className="flex items-center gap-1 flex-shrink-0 ml-1 text-[var(--quest-bonus)]">
               <GigCoinIcon size={14} />
-              <span className="text-[11px] sm:text-xs font-bold text-coin-foreground tabular-nums">
+              <span className="text-[11px] sm:text-xs font-bold tabular-nums">
                 +{quest.reward}
               </span>
             </div>

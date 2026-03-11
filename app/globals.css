@@ -67,6 +67,9 @@
   --level-silver: #9ca3af;
   --level-gold: #ffcc00;
   --level-platinum: #4b5563;
+
+  /* Бонус за выполнение квеста */
+  --quest-bonus: #22c55e;
 }
 
 /* Тёмная тема — тёмно-серый фон с тем же жёлтым акцентом */
@@ -120,6 +123,9 @@
   --level-silver: #9ca3af;
   --level-gold: #ffdd55;
   --level-platinum: #e5e7eb;
+
+  /* Бонус за выполнение квеста */
+  --quest-bonus: #22c55e;
 }
 
 @theme inline {
@@ -165,6 +171,7 @@
   --color-coin-foreground: var(--coin-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-quest-bonus: var(--quest-bonus);
 }
 
 @layer base {

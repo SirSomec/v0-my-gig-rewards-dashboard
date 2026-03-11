@@ -123,6 +123,8 @@ export function EarningHistory({
                 className={
                   entry.amount < 0
                     ? "text-xs sm:text-sm font-bold text-destructive tabular-nums"
+                    : entry.type === "quest"
+                    ? "text-xs sm:text-sm font-bold tabular-nums text-[var(--quest-bonus)]"
                     : "text-xs sm:text-sm font-bold text-success tabular-nums"
                 }
               >
