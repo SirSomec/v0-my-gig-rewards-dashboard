@@ -18,6 +18,8 @@ export interface TojSyncResult {
   skipped: number;
   /** Штрафов «поздняя отмена» начислено за смены со статусом cancelled (initiator=worker, <24ч до начала) */
   lateCancelApplied?: number;
+  /** Штрафов «прогул» начислено за смены со статусом failed */
+  noShowApplied?: number;
   /** Сколько раз зафиксировано бронирование (статус booked); идемпотентно по jobId */
   bookedRecorded?: number;
   /** Причины пропуска: счётчики по коду причины */
@@ -174,6 +176,7 @@ export class TojSyncService {
     let processed = 0;
     let skipped = 0;
     let lateCancelApplied = 0;
+    let noShowApplied = 0;
     let bookedRecorded = 0;
     const skippedReasons: { noUser: number; jobBeforeUser: number; alreadySynced: number; wrongStatus: number } = {
       noUser: 0,
@@ -189,7 +192,7 @@ export class TojSyncService {
       const batch = workerIds.slice(b, b + workerBatchSize);
       let skip = 0;
       while (true) {
-        if (processed + skipped + lateCancelApplied + bookedRecorded >= maxJobsPerRun) break;
+        if (processed + skipped + lateCancelApplied + bookedRecorded + noShowApplied >= maxJobsPerRun) break;
         const { items } = await this.tojClient.findJobs(
           {
             workerIds: batch,
@@ -199,7 +202,7 @@ export class TojSyncService {
         );
         if (items.length === 0) break;
         for (const job of items) {
-          if (processed + skipped + lateCancelApplied + bookedRecorded >= maxJobsPerRun) break;
+          if (processed + skipped + lateCancelApplied + bookedRecorded + noShowApplied >= maxJobsPerRun) break;
           const jobUpdatedAt = job.updatedAt || job.createdAt;
           if (jobUpdatedAt && jobUpdatedAt > maxUpdatedAt) {
             maxUpdatedAt = jobUpdatedAt;
@@ -233,7 +236,9 @@ export class TojSyncService {
           }
 
           // Подтверждённая смена (только статус confirmed) — начисление
+          // Если по этой смене ранее был штраф (прогул или поздняя отмена) — снимаем его и восстанавливаем уровень
           if (status === 'confirmed') {
+            await this.rewards.removeStrikeByShiftExternalId(String(job._id));
             const jobDate = job.start || job.createdAt;
             if (jobDate && user.createdAt && new Date(jobDate) < new Date(user.createdAt)) {
               skipped++;
@@ -301,6 +306,21 @@ export class TojSyncService {
             continue;
           }
 
+          // Смена в статусе failed — засчитываем как прогул (no_show)
+          if (status === 'failed') {
+            try {
+              const result = await this.rewards.processNoShowIfEligible({
+                jobId: String(job._id),
+                workerId: String(job.workerId ?? '').trim(),
+              });
+              if (result.applied) noShowApplied++;
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              errors.push(`Job ${job._id} (no_show): ${msg}`);
+            }
+            continue;
+          }
+
           // Остальные статусы — пока не обрабатываем
           skipped++;
           skippedReasons.wrongStatus++;
@@ -314,7 +334,7 @@ export class TojSyncService {
       await this.setWatermark(maxUpdatedAt);
     }
 
-    if (processed === 0 && skipped === 0 && lateCancelApplied === 0 && bookedRecorded === 0 && errors.length === 0) {
+    if (processed === 0 && skipped === 0 && lateCancelApplied === 0 && noShowApplied === 0 && bookedRecorded === 0 && errors.length === 0) {
       errors.push(
         'В TOJ не найдено смен для ваших работников (workerId = external_id) за период watermark. Сгенерируйте смены в разделе «Мок TOJ» или проверьте фильтры.',
       );
@@ -327,6 +347,7 @@ export class TojSyncService {
       watermark: maxUpdatedAt,
     };
     if (lateCancelApplied > 0) result.lateCancelApplied = lateCancelApplied;
+    if (noShowApplied > 0) result.noShowApplied = noShowApplied;
     if (bookedRecorded > 0) result.bookedRecorded = bookedRecorded;
     if (skipped > 0) {
       result.skippedReasons = {};

@@ -948,6 +948,68 @@ export class RewardsService {
   }
 
   /**
+   * Засчитать прогул по смене (статус failed в TOJ): запись штрафа no_show, привязка к jobId.
+   * Идемпотентно по jobId: если штраф по этой смене уже есть — не дублируем.
+   * При смене статуса смены на confirmed штраф снимается через removeStrikeByShiftExternalId.
+   */
+  async processNoShowIfEligible(params: { jobId: string; workerId: string }): Promise<{ applied: boolean; strikeId?: number; reason?: string }> {
+    const { jobId, workerId } = params;
+    const { users, strikes } = schema;
+
+    const [userRow] = await this.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.externalId, workerId.trim()))
+      .limit(1);
+    if (!userRow) {
+      return { applied: false, reason: 'user_not_found' };
+    }
+
+    const [existing] = await this.db
+      .select({ id: strikes.id })
+      .from(strikes)
+      .where(
+        and(eq(strikes.shiftExternalId, jobId), isNull(strikes.removedAt)),
+      )
+      .limit(1);
+    if (existing) {
+      return { applied: false, reason: 'strike_already_applied' };
+    }
+
+    const { strikeId } = await this.registerStrike(userRow.id, 'no_show', jobId);
+    return { applied: true, strikeId };
+  }
+
+  /**
+   * Снять штраф по внешнему ID смены (jobId). Используется когда смена из TOJ переходит в confirmed:
+   * ранее мог быть начислен прогул (failed) или поздняя отмена (cancelled) — снимаем и восстанавливаем уровень/привилегии.
+   */
+  async removeStrikeByShiftExternalId(shiftExternalId: string): Promise<{ removed: boolean; userId?: number }> {
+    const { strikes } = schema;
+    const [strike] = await this.db
+      .select()
+      .from(strikes)
+      .where(
+        and(eq(strikes.shiftExternalId, shiftExternalId), isNull(strikes.removedAt)),
+      )
+      .limit(1);
+    if (!strike) {
+      return { removed: false };
+    }
+    const now = new Date();
+    await this.db
+      .update(strikes)
+      .set({
+        removedAt: now,
+        removalReason: 'Смена подтверждена (confirmed)',
+      })
+      .where(eq(strikes.id, strike.id));
+    await this.recalcUserLevelConsideringStrikes(strike.userId);
+    await this.recalcQuestProgressForUser(strike.userId);
+    return { removed: true, userId: strike.userId };
+  }
+
+  /**
    * Пересчёт прогресса по квестам пользователя после смены (или вручную).
    * Условие shifts_count: число транзакций type=shift за период (день/неделя). При достижении total — начисление награды.
    */
