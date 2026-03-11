@@ -20,6 +20,8 @@ type TimeSeriesPoint = {
   value: number
 }
 
+const MAX_ITEMS_FOR_CHART = 1000
+
 type OverviewStats = {
   totalUsers: number
   totalRedemptions: number
@@ -113,8 +115,13 @@ export function useAdminOverview(): AdminOverviewState {
           pendingRedemptions: pendingRedemptionsRes.total ?? 0,
         }
 
-        const userRegistrationsByDay = groupByDate(usersRes.items)
-        const redemptionsByDay = groupByDate(redemptionsRes.items)
+        // Ограничиваем объём данных, используемых для построения графиков,
+        // чтобы не взрывать память, даже если бэкенд вернёт очень большую выборку.
+        const usersForCharts = (usersRes.items ?? []).slice(0, MAX_ITEMS_FOR_CHART)
+        const redemptionsForCharts = (redemptionsRes.items ?? []).slice(0, MAX_ITEMS_FOR_CHART)
+
+        const userRegistrationsByDay = groupByDate(usersForCharts)
+        const redemptionsByDay = groupByDate(redemptionsForCharts)
 
         // Обновляем основные данные и снимаем общий лоадер
         setState((prev) => ({
@@ -166,9 +173,10 @@ export function useAdminOverview(): AdminOverviewState {
               })
             }
 
-            const topQuests = [...quests].sort((a, b) => b.rewardCoins - a.rewardCoins).slice(0, 5)
+            const topQuests = [...quests].slice(0, MAX_ITEMS_FOR_CHART).sort((a, b) => b.rewardCoins - a.rewardCoins).slice(0, 5)
 
             const topStoreItems = [...storeItems]
+              .slice(0, MAX_ITEMS_FOR_CHART)
               .sort((a, b) => (b.redeemedCount ?? 0) - (a.redeemedCount ?? 0))
               .slice(0, 5)
 
