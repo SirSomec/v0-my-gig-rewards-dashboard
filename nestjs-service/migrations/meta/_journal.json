@@ -99,6 +99,13 @@
       "when": 1731974400000,
       "tag": "0015_quest_monthly_bonus_cap",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1732060800000,
+      "tag": "0016_page_views",
+      "breakpoints": true
     }
   ]
 }
