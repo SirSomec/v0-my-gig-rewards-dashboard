@@ -164,6 +164,13 @@ export class AdminController {
     return this.admin.getCoinsOverview(Number.isNaN(n) || n < 1 ? 14 : Math.min(n, 90));
   }
 
+  @Get('stats/page-views-overview')
+  @ApiOperation({ summary: 'Аналитика посещаемости: просмотры вкладок по дням и по путям' })
+  async getPageViewsOverview(@Query('days') days?: string) {
+    const n = days ? parseInt(days, 10) : 14;
+    return this.admin.getPageViewsOverview(Number.isNaN(n) || n < 1 ? 14 : Math.min(n, 90));
+  }
+
   @Post('store-items')
   @ApiOperation({ summary: 'Создать товар' })
   async createStoreItem(@Body() body: CreateStoreItemDto) {

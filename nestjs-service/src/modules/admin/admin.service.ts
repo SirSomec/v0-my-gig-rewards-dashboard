@@ -370,6 +370,70 @@ export class AdminService {
       .orderBy(storeItems.sortOrder, storeItems.id);
   }
 
+  /** Обзор посещаемости: просмотры вкладок по дням и по путям (последние N дней). */
+  async getPageViewsOverview(days = 14): Promise<{
+    byDay: Array<{ date: string; views: number; uniqueUsers: number }>;
+    byPath: Array<{ path: string; views: number }>;
+    totalViews: number;
+    totalUniqueUsers: number;
+  }> {
+    const { pageViews } = schema;
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const startDate = new Date(today);
+    startDate.setUTCDate(today.getUTCDate() - days);
+
+    const byDayRows = await this.db
+      .select({
+        date: sql<string>`(${pageViews.createdAt} at time zone 'UTC')::date::text`,
+        views: sql<number>`count(*)::int`,
+        uniqueUsers: sql<number>`count(distinct ${pageViews.userId})::int`,
+      })
+      .from(pageViews)
+      .where(gte(pageViews.createdAt, startDate))
+      .groupBy(sql`(${pageViews.createdAt} at time zone 'UTC')::date`);
+    const byDayMap = new Map<string, { views: number; uniqueUsers: number }>();
+    for (const r of byDayRows) {
+      byDayMap.set(r.date, { views: Number(r.views), uniqueUsers: Number(r.uniqueUsers) });
+    }
+    const dateStrings: string[] = [];
+    for (let i = 0; i < days; i++) {
+      const d = new Date(today);
+      d.setUTCDate(today.getUTCDate() - (days - 1 - i));
+      dateStrings.push(d.toISOString().slice(0, 10));
+    }
+    const byDay = dateStrings.map((date) => {
+      const v = byDayMap.get(date) ?? { views: 0, uniqueUsers: 0 };
+      return { date, views: v.views, uniqueUsers: v.uniqueUsers };
+    });
+
+    const byPathRows = await this.db
+      .select({
+        path: pageViews.path,
+        views: sql<number>`count(*)::int`,
+      })
+      .from(pageViews)
+      .where(gte(pageViews.createdAt, startDate))
+      .groupBy(pageViews.path)
+      .orderBy(sql`count(*) desc`)
+      .limit(20);
+    const byPath = byPathRows.map((r) => ({ path: r.path, views: Number(r.views) }));
+
+    const [totals] = await this.db
+      .select({
+        totalViews: sql<number>`count(*)::int`,
+        totalUniqueUsers: sql<number>`count(distinct ${pageViews.userId})::int`,
+      })
+      .from(pageViews)
+      .where(gte(pageViews.createdAt, startDate));
+    return {
+      byDay,
+      byPath,
+      totalViews: Number(totals?.totalViews ?? 0),
+      totalUniqueUsers: Number(totals?.totalUniqueUsers ?? 0),
+    };
+  }
+
   /** Для обзора: суммарный баланс и динамика по дням (баланс на счетах и потрачено за день). */
   async getCoinsOverview(days = 14): Promise<{
     totalBalanceToday: number;

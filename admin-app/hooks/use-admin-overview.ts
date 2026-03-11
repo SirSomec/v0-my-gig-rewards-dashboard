@@ -8,6 +8,7 @@ import {
   adminListQuests,
   adminListStoreItems,
   adminGetCoinsOverview,
+  adminGetPageViewsOverview,
   adminEtlExplorerStatus,
   adminMockTojStatus,
   adminTojSyncStatus,
@@ -47,6 +48,13 @@ export interface AdminOverviewState {
   balanceByDay: TimeSeriesPoint[]
   /** Количество потраченных бонусов по дням */
   spentByDay: TimeSeriesPoint[]
+  /** Аналитика посещаемости: просмотры вкладок по дням и по путям */
+  pageViewsOverview: {
+    byDay: Array<{ date: string; views: number; uniqueUsers: number }>
+    byPath: Array<{ path: string; views: number }>
+    totalViews: number
+    totalUniqueUsers: number
+  } | null
   levels: AdminLevel[]
   topQuests: AdminQuest[]
   topStoreItems: AdminStoreItem[]
@@ -97,6 +105,7 @@ export function useAdminOverview(): AdminOverviewState {
     totalCoinsInSystem: null,
     balanceByDay: [],
     spentByDay: [],
+    pageViewsOverview: null,
     levels: [],
     topQuests: [],
     topStoreItems: [],
@@ -161,9 +170,10 @@ export function useAdminOverview(): AdminOverviewState {
         // 2. Тихая дозагрузка: обзор монет (баланс/траты по дням), уровни, квесты, магазин, статусы
         void (async () => {
           try {
-            const [coinsOverview, levels, quests, storeItems, etlStatus, mockTojStatus, tojSyncStatus] =
+            const [coinsOverview, pageViewsOverviewRes, levels, quests, storeItems, etlStatus, mockTojStatus, tojSyncStatus] =
               await Promise.all([
                 adminGetCoinsOverview(14).catch(() => null),
+                adminGetPageViewsOverview(14).catch(() => null),
                 adminListLevels(),
                 adminListQuests(),
                 adminListStoreItems(),
@@ -228,6 +238,7 @@ export function useAdminOverview(): AdminOverviewState {
               topQuests,
               topStoreItems,
               alerts,
+              pageViewsOverview: pageViewsOverviewRes ?? null,
               ...(totalFromApi != null && { totalCoinsInSystem: totalFromApi }),
               balanceByDay,
               spentByDay,

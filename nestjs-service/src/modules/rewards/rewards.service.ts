@@ -113,6 +113,13 @@ export class RewardsService {
     return num;
   }
 
+  /** Записать просмотр вкладки/страницы пользователем (для аналитики посещаемости в админке). */
+  async recordPageView(userId: number, path: string): Promise<void> {
+    const { pageViews } = schema;
+    const pathNorm = (path ?? '').toString().trim().slice(0, 128) || 'home';
+    await this.db.insert(pageViews).values({ userId, path: pathNorm });
+  }
+
   async getMe(userId: number): Promise<MeResponseDto> {
     await this.recalcUserLevel(userId);
     const { users, levels, strikes, transactions } = schema;

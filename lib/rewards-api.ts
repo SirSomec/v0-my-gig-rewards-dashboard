@@ -231,6 +231,20 @@ export async function createRedemption(storeItemId: number): Promise<CreateRedem
   });
 }
 
+/** Записать просмотр вкладки (для аналитики посещаемости в админке). Вызывать при смене вкладки. */
+export async function recordPageView(path: string): Promise<void> {
+  const url = buildUrl("/v1/rewards/page-view");
+  await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
+    },
+    credentials: "same-origin",
+    body: JSON.stringify({ path: path || "home" }),
+  }).catch(() => { /* игнорируем ошибки трекинга */ });
+}
+
 /** ID пользователя для отображения кабинета: сначала из выбора в админке (localStorage), затем из env. */
 export function getDevUserId(): string | null {
   if (typeof window !== "undefined") {

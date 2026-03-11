@@ -13,7 +13,7 @@ import { BottomNav, type NavTab } from "@/components/mygig/bottom-nav"
 import { LevelsView } from "@/components/mygig/levels-view"
 import { DashboardSkeleton } from "@/components/mygig/dashboard-skeleton"
 import { useRewardsDashboard } from "@/hooks/use-rewards-dashboard"
-import { getApiConfigForDisplay } from "@/lib/rewards-api"
+import { getApiConfigForDisplay, recordPageView } from "@/lib/rewards-api"
 import { isMyGigAuthEnabled } from "@/lib/mygig-auth"
 import { Button } from "@/components/ui/button"
 import { AlertCircle } from "lucide-react"
@@ -37,6 +37,13 @@ export default function MyGigRewards() {
       window.location.href = "/"
     }
   }, [myGigEnabled, isLoggedIn, loading, user, router])
+
+  // Счётчик просмотров вкладок для аналитики в админке
+  useEffect(() => {
+    if (user) {
+      recordPageView(activeTab)
+    }
+  }, [user, activeTab])
 
   if (loading && !user) {
     return (

@@ -362,6 +362,24 @@ export async function adminGetCoinsOverview(days?: number): Promise<{
   return fetchAdmin(`/v1/admin/stats/coins-overview${params}`);
 }
 
+export interface PageViewsOverviewDay {
+  date: string;
+  views: number;
+  uniqueUsers: number;
+}
+
+export interface PageViewsOverview {
+  byDay: PageViewsOverviewDay[];
+  byPath: Array<{ path: string; views: number }>;
+  totalViews: number;
+  totalUniqueUsers: number;
+}
+
+export async function adminGetPageViewsOverview(days?: number): Promise<PageViewsOverview> {
+  const params = days != null ? `?days=${days}` : "";
+  return fetchAdmin(`/v1/admin/stats/page-views-overview${params}`);
+}
+
 export async function adminListStoreItems(): Promise<AdminStoreItem[]> {
   return fetchAdmin<AdminStoreItem[]>("/v1/admin/store-items");
 }

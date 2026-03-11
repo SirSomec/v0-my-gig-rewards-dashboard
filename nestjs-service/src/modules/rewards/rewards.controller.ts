@@ -112,6 +112,18 @@ export class RewardsController {
     return this.rewards.createRedemption(id, storeItemId);
   }
 
+  @Post('page-view')
+  @ApiOperation({ summary: 'Записать просмотр вкладки/страницы (для аналитики посещаемости)' })
+  async recordPageView(
+    @Req() req: RequestWithUser,
+    @Query('userId') userId: string | undefined,
+    @Body() body: { path?: string },
+  ): Promise<void> {
+    const id = this.getUserId(req, userId);
+    const path = body?.path?.trim()?.slice(0, 128) || 'home';
+    await this.rewards.recordPageView(id, path);
+  }
+
   @Post('shifts/complete')
   @ApiOperation({
     summary: '[Dev/Admin] Засчитать завершённую смену: начисление монет, +1 к сменам, пересчёт уровня.',
