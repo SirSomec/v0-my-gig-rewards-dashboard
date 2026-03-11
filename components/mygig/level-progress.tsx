@@ -101,7 +101,7 @@ export function LevelProgress({
         </div>
 
         {/* Progress bar */}
-        <div className="relative h-2.5 sm:h-3 bg-secondary rounded-full overflow-hidden mb-1.5 sm:mb-2">
+        <div className="relative h-3.5 sm:h-4 bg-secondary rounded-full overflow-hidden mb-1.5 sm:mb-2">
           <motion.div
             className="absolute inset-y-0 left-0 rounded-full"
             style={{
