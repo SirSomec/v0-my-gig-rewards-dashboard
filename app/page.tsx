@@ -40,8 +40,8 @@ export default function MyGigRewards() {
 
   if (loading && !user) {
     return (
-      <div className="min-h-screen min-h-[100dvh] bg-background flex flex-col max-w-md mx-auto relative">
-        <header className="sticky top-0 z-50 bg-card/90 backdrop-blur-md border-b border-border">
+      <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative">
+        <header className="sticky top-0 z-50 bg-card border-b border-border sm:bg-card/90 sm:backdrop-blur-md">
           <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3">
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-secondary animate-pulse shrink-0" />
@@ -64,7 +64,7 @@ export default function MyGigRewards() {
   if (error && !user) {
     const { apiUrl, hasDevUserId } = getApiConfigForDisplay()
     return (
-      <div className="min-h-screen min-h-[100dvh] bg-background flex flex-col max-w-md mx-auto relative">
+      <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative">
         <main className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
           <div className="p-4 rounded-full bg-destructive/10 text-destructive">
             <AlertCircle size={32} />
@@ -94,7 +94,7 @@ export default function MyGigRewards() {
   }
 
   return (
-    <div className="min-h-screen min-h-[100dvh] bg-background flex flex-col max-w-md mx-auto relative">
+    <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative">
       <Header
         coinBalance={user.balance}
         userName={user.name}

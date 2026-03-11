@@ -77,7 +77,7 @@ export default function LoginPage() {
   )
 
   return (
-    <div className="min-h-screen min-h-[100dvh] bg-background flex flex-col items-center justify-center px-4 max-w-md mx-auto">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 max-w-md mx-auto">
       <div className="w-full space-y-6">
         <div className="text-center space-y-1">
           <h1 className="text-xl font-semibold">Вход в дашборд наград</h1>

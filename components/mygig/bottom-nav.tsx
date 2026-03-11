@@ -1,6 +1,5 @@
 "use client"
 
-import { motion } from "framer-motion"
 import { Home, Clock, ShoppingBag, Award } from "lucide-react"
 
 export type NavTab = "home" | "history" | "store" | "levels"
@@ -19,7 +18,7 @@ const tabs: { id: NavTab; label: string; icon: typeof Home }[] = [
 
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border" role="navigation" aria-label="Основная навигация">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border sm:bg-card/95 sm:backdrop-blur-md" role="navigation" aria-label="Основная навигация">
       <div className="max-w-md mx-auto flex items-center justify-around px-1 py-1 sm:px-2 sm:py-1 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
         {tabs.map((tab) => {
           const Icon = tab.icon
@@ -34,10 +33,9 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
               aria-label={tab.label}
             >
               {isActive && (
-                <motion.div
-                  layoutId="nav-indicator"
+                <div
                   className="absolute inset-0 bg-primary/10 rounded-xl"
-                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                  aria-hidden
                 />
               )}
               <Icon

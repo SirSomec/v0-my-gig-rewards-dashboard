@@ -26,7 +26,7 @@ export function Header({ coinBalance, userName, userLevel, avatarUrl, onLogout }
   const isDark = resolvedTheme === "dark"
 
   return (
-    <header className="sticky top-0 z-50 bg-card/90 backdrop-blur-md border-b border-border">
+    <header className="sticky top-0 z-50 bg-card border-b border-border sm:bg-card/90 sm:backdrop-blur-md">
       <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3">
         <div className="flex items-center gap-2 sm:gap-3">
           <Avatar className="h-9 w-9 sm:h-10 sm:w-10 border-2 border-primary/40">
