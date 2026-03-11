@@ -123,6 +123,14 @@ export function useAdminOverview(): AdminOverviewState {
         const userRegistrationsByDay = groupByDate(usersForCharts)
         const redemptionsByDay = groupByDate(redemptionsForCharts)
 
+        // Подготовим локальную карту «сколько обменов по каждому товару»
+        const redemptionCounts = new Map<number, number>()
+        for (const r of redemptionsForCharts) {
+          if (!r.storeItemId) continue
+          const key = r.storeItemId
+          redemptionCounts.set(key, (redemptionCounts.get(key) ?? 0) + 1)
+        }
+
         // Обновляем основные данные и снимаем общий лоадер
         setState((prev) => ({
           ...prev,
@@ -173,10 +181,19 @@ export function useAdminOverview(): AdminOverviewState {
               })
             }
 
-            const topQuests = [...quests].slice(0, MAX_ITEMS_FOR_CHART).sort((a, b) => b.rewardCoins - a.rewardCoins).slice(0, 5)
+            const topQuests = [...quests]
+              .slice(0, MAX_ITEMS_FOR_CHART)
+              .sort((a, b) => b.rewardCoins - a.rewardCoins)
+              .slice(0, 5)
 
+            // «Счётчик обменов» в обзоре считаем по последним заявкам,
+            // которые уже загружены в redemptionsForCharts.
             const topStoreItems = [...storeItems]
               .slice(0, MAX_ITEMS_FOR_CHART)
+              .map((item) => ({
+                ...item,
+                redeemedCount: redemptionCounts.get(item.id) ?? 0,
+              }))
               .sort((a, b) => (b.redeemedCount ?? 0) - (a.redeemedCount ?? 0))
               .slice(0, 5)
 

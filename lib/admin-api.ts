@@ -82,6 +82,8 @@ export interface AdminStoreItem {
   isActive: number;
   sortOrder: number;
   visibilityRules?: Record<string, unknown> | null;
+  /** Сколько уже выкуплено (pending + fulfilled) по этому товару. Может не приходить из API. */
+  redeemedCount?: number;
 }
 
 export type CreateStoreItemBody = {
