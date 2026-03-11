@@ -47,6 +47,8 @@ export interface DashboardUser {
   strikesCountMonth: number
   strikesLimitPerWeek: number | null
   strikesLimitPerMonth: number | null
+  /** true, если новые квесты ограничены до конца месяца (достигнут порог бонусов) */
+  questsLimitedByCap?: boolean
 }
 
 function mapMe(m: MeResponse): DashboardUser {
@@ -66,6 +68,7 @@ function mapMe(m: MeResponse): DashboardUser {
     strikesCountMonth: m.strikesCountMonth ?? 0,
     strikesLimitPerWeek: m.strikesLimitPerWeek ?? null,
     strikesLimitPerMonth: m.strikesLimitPerMonth ?? null,
+    questsLimitedByCap: m.questsLimitedByCap ?? false,
   }
 }
 

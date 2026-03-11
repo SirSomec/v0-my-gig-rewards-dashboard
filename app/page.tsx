@@ -127,7 +127,7 @@ export default function MyGigRewards() {
                 strikesLimitPerMonth={user.strikesLimitPerMonth}
                 currentLevelPerks={currentLevelPerks}
               />
-              <Quests quests={quests} />
+              <Quests quests={quests} questsLimitedByCap={user.questsLimitedByCap} />
               <EarningHistory
                 entries={transactions.slice(0, 3)}
                 onViewAllClick={() => setActiveTab("history")}

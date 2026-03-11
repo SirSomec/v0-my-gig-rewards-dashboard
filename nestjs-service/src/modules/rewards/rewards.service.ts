@@ -115,7 +115,7 @@ export class RewardsService {
 
   async getMe(userId: number): Promise<MeResponseDto> {
     await this.recalcUserLevel(userId);
-    const { users, levels, strikes } = schema;
+    const { users, levels, strikes, transactions } = schema;
     const rows = await this.db
       .select({
         user: users,
@@ -183,6 +183,21 @@ export class RewardsService {
     dto.strikesCountMonth = countMonthVal;
     dto.strikesLimitPerWeek = level.strikeLimitPerWeek ?? null;
     dto.strikesLimitPerMonth = level.strikeLimitPerMonth ?? null;
+    const [monthlySumRow] = await this.db
+      .select({ sum: sql<number>`coalesce(sum(${transactions.amount}), 0)` })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          inArray(transactions.type, ['shift', 'quest']),
+          gte(transactions.createdAt, monthStart),
+          lt(transactions.createdAt, nextMonthStart),
+        ),
+      );
+    dto.monthlyBonusTotal = Number(monthlySumRow?.sum ?? 0);
+    dto.questMonthlyBonusCap = await this.getQuestMonthlyBonusCap();
+    dto.questsLimitedByCap =
+      dto.questMonthlyBonusCap > 0 && dto.monthlyBonusTotal >= dto.questMonthlyBonusCap;
     return dto;
   }
 
@@ -227,14 +242,14 @@ export class RewardsService {
   }
 
   async getQuests(userId: number): Promise<QuestResponseDto[]> {
-    const { quests, questProgress, userGroupMembers } = schema;
+    const { quests, questProgress, userGroupMembers, transactions } = schema;
     const now = new Date();
     const todayKey = now.toISOString().slice(0, 10);
     const weekStart = startOfWeekUTC(now);
     const weekKey = weekStart.toISOString().slice(0, 10);
     const monthStart = startOfMonthUTC(now);
     const monthKey = monthStart.toISOString().slice(0, 7);
-    const rows = await this.db.select().from(quests).where(eq(quests.isActive, 1));
+    const nextMonthStart = startOfNextMonthUTC(now);
 
     const userGroupIds = new Set(
       (
@@ -245,6 +260,25 @@ export class RewardsService {
       ).map((r) => r.groupId),
     );
 
+    const cap = await this.getQuestMonthlyBonusCap();
+    let capExceeded = false;
+    if (cap > 0) {
+      const [sumRow] = await this.db
+        .select({ sum: sql<number>`coalesce(sum(${transactions.amount}), 0)` })
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.userId, userId),
+            inArray(transactions.type, ['shift', 'quest']),
+            gte(transactions.createdAt, monthStart),
+            lt(transactions.createdAt, nextMonthStart),
+          ),
+        );
+      const monthlyBonusSum = Number(sumRow?.sum ?? 0);
+      capExceeded = monthlyBonusSum >= cap;
+    }
+
+    const rows = await this.db.select().from(quests).where(eq(quests.isActive, 1));
     const result: QuestResponseDto[] = [];
     for (const q of rows) {
       if (q.targetType === 'group' && q.targetGroupId != null) {
@@ -276,6 +310,7 @@ export class RewardsService {
           ),
         )
         .limit(1);
+      if (capExceeded && prog.length === 0) continue;
       const progress = prog[0]?.progress ?? 0;
       const completed = !!prog[0]?.completedAt;
       const isHoursCondition =
@@ -699,6 +734,25 @@ export class RewardsService {
     return Number.isNaN(parsed) ? 10 : parsed;
   }
 
+  /** Порог бонусов за месяц (shift + quest): при достижении новые квесты не выдаются до конца месяца. 0 = без ограничения. */
+  private async getQuestMonthlyBonusCap(): Promise<number> {
+    const { systemSettings } = schema;
+    const [row] = await this.db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'quest_monthly_bonus_cap'))
+      .limit(1);
+    if (!row) return 0;
+    const v = row.value;
+    if (typeof v === 'number' && !Number.isNaN(v) && v >= 0) return v;
+    if (typeof v === 'object' && v != null && typeof (v as { value?: number }).value === 'number') {
+      const val = (v as { value: number }).value;
+      return val >= 0 ? val : 0;
+    }
+    const parsed = Number(v);
+    return Number.isNaN(parsed) || parsed < 0 ? 0 : parsed;
+  }
+
   /**
    * Зарегистрировать штраф (no_show / late_cancel). Запись в strikes; при превышении лимита за неделю или месяц — понижение на 1 уровень.
    */
@@ -921,6 +975,24 @@ export class RewardsService {
       ).map((r) => r.groupId),
     );
 
+    const cap = await this.getQuestMonthlyBonusCap();
+    let capExceeded = false;
+    if (cap > 0) {
+      const [sumRow] = await this.db
+        .select({ sum: sql<number>`coalesce(sum(${transactions.amount}), 0)` })
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.userId, userId),
+            inArray(transactions.type, ['shift', 'quest']),
+            gte(transactions.createdAt, monthStart),
+            lt(transactions.createdAt, nextMonthStart),
+          ),
+        );
+      const monthlyBonusSum = Number(sumRow?.sum ?? 0);
+      capExceeded = monthlyBonusSum >= cap;
+    }
+
     const rows = await this.db.select().from(quests).where(eq(quests.isActive, 1));
     for (const q of rows) {
       if (q.targetType === 'group' && q.targetGroupId != null) {
@@ -1091,6 +1163,7 @@ export class RewardsService {
           .set({ progress, updatedAt: now })
           .where(eq(questProgress.id, row.id));
       } else {
+        if (capExceeded) continue;
         await this.db
           .insert(questProgress)
           .values({

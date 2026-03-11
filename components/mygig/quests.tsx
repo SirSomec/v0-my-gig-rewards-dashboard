@@ -29,6 +29,8 @@ const iconMap = {
 
 interface QuestsProps {
   quests: Quest[]
+  /** Показывать сообщение, что новые квесты ограничены до конца месяца */
+  questsLimitedByCap?: boolean
 }
 
 function QuestCard({
@@ -98,7 +100,7 @@ function QuestCard({
   )
 }
 
-export function Quests({ quests }: QuestsProps) {
+export function Quests({ quests, questsLimitedByCap }: QuestsProps) {
   const dailyQuests = quests.filter((q) => q.period === "daily" && !q.isOneTime)
   const weeklyQuests = quests.filter((q) => q.period === "weekly" && !q.isOneTime)
   const monthlyQuests = quests.filter((q) => q.period === "monthly" && !q.isOneTime)
@@ -107,6 +109,11 @@ export function Quests({ quests }: QuestsProps) {
   return (
     <Card className="bg-card border-border">
       <CardContent className="p-3 sm:p-4">
+        {questsLimitedByCap && (
+          <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 mb-3 sm:mb-4">
+            Вы достигли порога бонусов за месяц. Новые квесты будут доступны с 1-го числа следующего месяца. Текущие цели можно выполнять и получать награды.
+          </p>
+        )}
         {dailyQuests.length > 0 && (
           <>
             <div className="flex items-center justify-between mb-2 sm:mb-3">

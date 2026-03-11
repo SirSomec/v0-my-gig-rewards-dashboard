@@ -508,8 +508,11 @@ export class AdminService {
     return this.db.select().from(levels).orderBy(levels.sortOrder);
   }
 
-  /** Настройки бонусов: множитель по умолчанию (монет за 1 час смены) */
-  async getBonusSettings(): Promise<{ shiftBonusDefaultMultiplier: number }> {
+  /** Настройки бонусов: множитель по умолчанию (монет за 1 час смены), порог бонусов за месяц для ограничения квестов */
+  async getBonusSettings(): Promise<{
+    shiftBonusDefaultMultiplier: number;
+    questMonthlyBonusCap: number;
+  }> {
     const { systemSettings } = schema;
     const [row] = await this.db
       .select()
@@ -527,13 +530,37 @@ export class AdminService {
         if (!Number.isNaN(n)) value = n;
       }
     }
-    return { shiftBonusDefaultMultiplier: value };
+    const [capRow] = await this.db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'quest_monthly_bonus_cap'))
+      .limit(1);
+    let cap = 0;
+    if (capRow?.value != null) {
+      const v = capRow.value;
+      if (typeof v === 'number' && !Number.isNaN(v) && v >= 0) cap = v;
+      else if (typeof v === 'object' && typeof (v as { value?: number }).value === 'number') {
+        const val = (v as { value: number }).value;
+        cap = val >= 0 ? val : 0;
+      } else {
+        const n = Number(v);
+        if (!Number.isNaN(n) && n >= 0) cap = n;
+      }
+    }
+    return { shiftBonusDefaultMultiplier: value, questMonthlyBonusCap: cap };
   }
 
-  async updateBonusSettings(dto: { shiftBonusDefaultMultiplier: number }): Promise<void> {
+  async updateBonusSettings(dto: {
+    shiftBonusDefaultMultiplier: number;
+    questMonthlyBonusCap?: number;
+  }): Promise<void> {
     const { systemSettings } = schema;
     const value = Number(dto.shiftBonusDefaultMultiplier);
     if (Number.isNaN(value) || value < 0) throw new Error('shiftBonusDefaultMultiplier must be a non-negative number');
+    const cap =
+      dto.questMonthlyBonusCap !== undefined
+        ? Math.max(0, Math.floor(Number(dto.questMonthlyBonusCap)) || 0)
+        : undefined;
     const oldSettings = await this.getBonusSettings();
     const now = new Date();
     await this.db
@@ -546,12 +573,30 @@ export class AdminService {
         target: systemSettings.key,
         set: { value: value, updatedAt: now },
       });
+    if (cap !== undefined) {
+      await this.db
+        .insert(systemSettings)
+        .values({
+          key: 'quest_monthly_bonus_cap',
+          value: cap,
+        })
+        .onConflictDoUpdate({
+          target: systemSettings.key,
+          set: { value: cap, updatedAt: now },
+        });
+    }
     await this.logAudit(
       'bonus_settings_update',
       'system_settings',
-      'shift_bonus_default_multiplier',
-      { shiftBonusDefaultMultiplier: oldSettings.shiftBonusDefaultMultiplier },
-      { shiftBonusDefaultMultiplier: value },
+      'bonus_settings',
+      {
+        shiftBonusDefaultMultiplier: oldSettings.shiftBonusDefaultMultiplier,
+        questMonthlyBonusCap: oldSettings.questMonthlyBonusCap,
+      },
+      {
+        shiftBonusDefaultMultiplier: value,
+        questMonthlyBonusCap: cap !== undefined ? cap : oldSettings.questMonthlyBonusCap,
+      },
     );
   }
 

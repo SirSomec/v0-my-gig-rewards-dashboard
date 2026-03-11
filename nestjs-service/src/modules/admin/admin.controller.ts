@@ -196,14 +196,16 @@ export class AdminController {
   }
 
   @Get('settings/bonus')
-  @ApiOperation({ summary: 'Настройки бонусов за смену: множитель по умолчанию' })
+  @ApiOperation({ summary: 'Настройки бонусов: множитель по умолчанию, порог бонусов за месяц для квестов' })
   async getBonusSettings() {
     return this.admin.getBonusSettings();
   }
 
   @Patch('settings/bonus')
-  @ApiOperation({ summary: 'Обновить настройки бонусов за смену (множитель по умолчанию)' })
-  async updateBonusSettings(@Body() body: { shiftBonusDefaultMultiplier: number }) {
+  @ApiOperation({ summary: 'Обновить настройки бонусов (множитель по умолчанию, порог квестов)' })
+  async updateBonusSettings(
+    @Body() body: { shiftBonusDefaultMultiplier: number; questMonthlyBonusCap?: number },
+  ) {
     if (body.shiftBonusDefaultMultiplier == null || typeof body.shiftBonusDefaultMultiplier !== 'number') {
       throw new Error('shiftBonusDefaultMultiplier required');
     }

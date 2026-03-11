@@ -92,6 +92,13 @@
       "when": 1731888000000,
       "tag": "0014_admin_panel_users_add_deleted_at",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1731974400000,
+      "tag": "0015_quest_monthly_bonus_cap",
+      "breakpoints": true
     }
   ]
 }

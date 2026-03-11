@@ -403,13 +403,15 @@ export async function adminUpdateLevel(
 
 export async function adminGetBonusSettings(): Promise<{
   shiftBonusDefaultMultiplier: number;
+  questMonthlyBonusCap: number;
 }> {
   return fetchAdmin("/v1/admin/settings/bonus");
 }
 
 export async function adminUpdateBonusSettings(body: {
   shiftBonusDefaultMultiplier: number;
-}): Promise<{ shiftBonusDefaultMultiplier: number }> {
+  questMonthlyBonusCap?: number;
+}): Promise<{ shiftBonusDefaultMultiplier: number; questMonthlyBonusCap: number }> {
   return fetchAdmin("/v1/admin/settings/bonus", {
     method: "PATCH",
     body: JSON.stringify(body),

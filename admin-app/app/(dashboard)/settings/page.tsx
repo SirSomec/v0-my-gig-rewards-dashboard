@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast"
 
 export default function AdminSettingsPage() {
   const [shiftBonusDefaultMultiplier, setShiftBonusDefaultMultiplier] = useState<string>("")
+  const [questMonthlyBonusCap, setQuestMonthlyBonusCap] = useState<string>("")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const { toast } = useToast()
@@ -21,7 +22,10 @@ export default function AdminSettingsPage() {
   const load = useCallback(() => {
     setLoading(true)
     adminGetBonusSettings()
-      .then((r) => setShiftBonusDefaultMultiplier(String(r.shiftBonusDefaultMultiplier)))
+      .then((r) => {
+        setShiftBonusDefaultMultiplier(String(r.shiftBonusDefaultMultiplier))
+        setQuestMonthlyBonusCap(String(r.questMonthlyBonusCap))
+      })
       .catch(() => toast({ title: "Ошибка загрузки настроек", variant: "destructive" }))
       .finally(() => setLoading(false))
   }, [toast])
@@ -33,13 +37,22 @@ export default function AdminSettingsPage() {
   const handleSave = () => {
     const v = Number(shiftBonusDefaultMultiplier)
     if (Number.isNaN(v) || v < 0) {
-      toast({ title: "Укажите неотрицательное число", variant: "destructive" })
+      toast({ title: "Укажите неотрицательное число для множителя", variant: "destructive" })
+      return
+    }
+    const capNum = questMonthlyBonusCap.trim() === "" ? 0 : Number(questMonthlyBonusCap)
+    if (questMonthlyBonusCap.trim() !== "" && (Number.isNaN(capNum) || capNum < 0)) {
+      toast({ title: "Порог квестов должен быть неотрицательным числом", variant: "destructive" })
       return
     }
     setSaving(true)
-    adminUpdateBonusSettings({ shiftBonusDefaultMultiplier: v })
+    adminUpdateBonusSettings({
+      shiftBonusDefaultMultiplier: v,
+      questMonthlyBonusCap: capNum,
+    })
       .then((r) => {
         setShiftBonusDefaultMultiplier(String(r.shiftBonusDefaultMultiplier))
+        setQuestMonthlyBonusCap(String(r.questMonthlyBonusCap))
         toast({ title: "Настройки сохранены" })
       })
       .catch((e) => toast({ title: e instanceof Error ? e.message : "Ошибка", variant: "destructive" }))
@@ -70,6 +83,37 @@ export default function AdminSettingsPage() {
                   value={shiftBonusDefaultMultiplier}
                   onChange={(e) => setShiftBonusDefaultMultiplier(e.target.value)}
                   className="w-32"
+                />
+              </div>
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? "Сохранение…" : "Сохранить"}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <h2 className="text-sm font-medium">Ограничение выдачи квестов по бонусам</h2>
+          <p className="text-xs text-muted-foreground">
+            При достижении пользователем суммы начисленных бонусов за месяц (смены + квесты) этого порога новые квесты не выдаются до конца месяца. Уже назначенные квесты остаются доступны для выполнения. Бонусы за смены начисляются без ограничений. 0 = без ограничения.
+          </p>
+          {loading ? (
+            <Skeleton className="h-10 w-32" />
+          ) : (
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="grid gap-2">
+                <Label htmlFor="questMonthlyBonusCap">Порог бонусов за месяц (0 = без ограничения)</Label>
+                <Input
+                  id="questMonthlyBonusCap"
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={questMonthlyBonusCap}
+                  onChange={(e) => setQuestMonthlyBonusCap(e.target.value)}
+                  className="w-32"
+                  placeholder="0"
                 />
               </div>
               <Button onClick={handleSave} disabled={saving}>

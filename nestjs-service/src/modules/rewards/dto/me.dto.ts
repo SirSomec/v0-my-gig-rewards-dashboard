@@ -19,4 +19,10 @@ export class MeResponseDto {
   strikesLimitPerWeek!: number | null;
   /** Лимит штрафов за месяц для текущего уровня (null = не учитывается) */
   strikesLimitPerMonth!: number | null;
+  /** Сумма начисленных бонусов за текущий месяц (смены + квесты) */
+  monthlyBonusTotal!: number;
+  /** Порог бонусов за месяц: при достижении новые квесты не выдаются (0 = без ограничения) */
+  questMonthlyBonusCap!: number;
+  /** true, если новые квесты ограничены до конца месяца из‑за достижения порога */
+  questsLimitedByCap!: boolean;
 }
