@@ -146,7 +146,7 @@ export function EarningHistory({
 
   return (
     <Card className="bg-card border-border relative">
-      <CardContent className="p-3 sm:p-4">
+      <CardContent className="py-1.5 sm:py-2 px-3 sm:px-4">
         <div className="flex items-center justify-between mb-2 sm:mb-3">
           <h2 className="text-xs sm:text-sm font-semibold text-foreground">{title}</h2>
           {showViewAll && (

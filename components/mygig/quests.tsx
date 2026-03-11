@@ -110,7 +110,7 @@ export function Quests({ quests, questsLimitedByCap }: QuestsProps) {
 
   return (
     <Card className="bg-card border-border">
-      <CardContent className="p-3 sm:p-4">
+      <CardContent className="py-1.5 sm:py-2 px-3 sm:px-4">
         {questsLimitedByCap && (
           <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 mb-3 sm:mb-4">
             Вы достигли порога бонусов за месяц. Новые квесты будут доступны с 1-го числа следующего месяца. Текущие цели можно выполнять и получать награды.
