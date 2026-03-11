@@ -98,26 +98,11 @@ export function useAdminOverview(): AdminOverviewState {
       setState((prev) => ({ ...prev, loading: true, error: null }))
 
       try {
-        const [
-          usersRes,
-          redemptionsRes,
-          pendingRedemptionsRes,
-          levels,
-          quests,
-          storeItems,
-          etlStatus,
-          mockTojStatus,
-          tojSyncStatus,
-        ] = await Promise.all([
-          adminListUsers({ pageSize: 100 }),
-          adminListRedemptions({ pageSize: 100 }),
+        // 1. Быстрая часть: только основные метрики (минимум запросов)
+        const [usersRes, redemptionsRes, pendingRedemptionsRes] = await Promise.all([
+          adminListUsers({ pageSize: 50 }),
+          adminListRedemptions({ pageSize: 50 }),
           adminListRedemptions({ status: "pending", pageSize: 1 }),
-          adminListLevels(),
-          adminListQuests(),
-          adminListStoreItems(),
-          adminEtlExplorerStatus().catch(() => null),
-          adminMockTojStatus().catch(() => null),
-          adminTojSyncStatus().catch(() => null),
         ])
 
         if (cancelled) return
@@ -131,49 +116,73 @@ export function useAdminOverview(): AdminOverviewState {
         const userRegistrationsByDay = groupByDate(usersRes.items)
         const redemptionsByDay = groupByDate(redemptionsRes.items)
 
-        const alerts: OverviewAlert[] = []
-
-        if (etlStatus && !etlStatus.configured) {
-          alerts.push({
-            type: "warning",
-            title: "ETL-подключение не настроено",
-            description: "Некоторые данные из внешних источников могут быть недоступны.",
-          })
-        }
-
-        if (tojSyncStatus && !tojSyncStatus.syncEnabled) {
-          alerts.push({
-            type: "info",
-            title: "Синхронизация TOJ отключена",
-            description: "Новые смены из TOJ сейчас не импортируются автоматически.",
-          })
-        }
-
-        if (mockTojStatus && !mockTojStatus.configured) {
-          alerts.push({
-            type: "info",
-            title: "Мок TOJ не сконфигурирован",
-            description: 'Раздел "Мок TOJ" доступен только после настройки подключения.',
-          })
-        }
-
-        const topQuests = [...quests].sort((a, b) => b.rewardCoins - a.rewardCoins).slice(0, 5)
-
-        const topStoreItems = [...storeItems]
-          .sort((a, b) => (b.redeemedCount ?? 0) - (a.redeemedCount ?? 0))
-          .slice(0, 5)
-
-        setState({
+        // Обновляем основные данные и снимаем общий лоадер
+        setState((prev) => ({
+          ...prev,
           loading: false,
           error: null,
           stats,
           userRegistrationsByDay,
           redemptionsByDay,
-          levels,
-          topQuests,
-          topStoreItems,
-          alerts,
-        })
+        }))
+
+        // 2. Тихая дозагрузка: уровни, квесты, магазин и статусы интеграций
+        void (async () => {
+          try {
+            const [levels, quests, storeItems, etlStatus, mockTojStatus, tojSyncStatus] = await Promise.all([
+              adminListLevels(),
+              adminListQuests(),
+              adminListStoreItems(),
+              adminEtlExplorerStatus().catch(() => null),
+              adminMockTojStatus().catch(() => null),
+              adminTojSyncStatus().catch(() => null),
+            ])
+
+            if (cancelled) return
+
+            const alerts: OverviewAlert[] = []
+
+            if (etlStatus && !etlStatus.configured) {
+              alerts.push({
+                type: "warning",
+                title: "ETL-подключение не настроено",
+                description: "Некоторые данные из внешних источников могут быть недоступны.",
+              })
+            }
+
+            if (tojSyncStatus && !tojSyncStatus.syncEnabled) {
+              alerts.push({
+                type: "info",
+                title: "Синхронизация TOJ отключена",
+                description: "Новые смены из TOJ сейчас не импортируются автоматически.",
+              })
+            }
+
+            if (mockTojStatus && !mockTojStatus.configured) {
+              alerts.push({
+                type: "info",
+                title: "Мок TOJ не сконфигурирован",
+                description: 'Раздел "Мок TOJ" доступен только после настройки подключения.',
+              })
+            }
+
+            const topQuests = [...quests].sort((a, b) => b.rewardCoins - a.rewardCoins).slice(0, 5)
+
+            const topStoreItems = [...storeItems]
+              .sort((a, b) => (b.redeemedCount ?? 0) - (a.redeemedCount ?? 0))
+              .slice(0, 5)
+
+            setState((prev) => ({
+              ...prev,
+              levels,
+              topQuests,
+              topStoreItems,
+              alerts,
+            }))
+          } catch {
+            // Ошибки фоновой дозагрузки не блокируют основной дашборд
+          }
+        })()
       } catch (e) {
         if (cancelled) return
         setState((prev) => ({

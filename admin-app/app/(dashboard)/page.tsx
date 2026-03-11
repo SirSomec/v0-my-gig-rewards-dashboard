@@ -1,11 +1,11 @@
 "use client"
 
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts"
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { AlertCircle, Info, Users, Gift, Clock } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ChartContainer, ChartTooltip } from "@/components/ui/chart"
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { useAdminOverview } from "@/hooks/use-admin-overview"
 
 const chartConfig = {
@@ -137,21 +137,19 @@ export default function DashboardHomePage() {
                 }}
                 className="h-56"
               >
-                <ResponsiveContainer>
-                  <BarChart data={userRegistrationsByDay}>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={formatDateLabel}
-                      tickLine={false}
-                      axisLine={false}
-                      minTickGap={16}
-                    />
-                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                    <ChartTooltip content={<Tooltip />} />
-                    <Bar dataKey="value" fill="var(--color-users)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <BarChart data={userRegistrationsByDay}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={formatDateLabel}
+                    tickLine={false}
+                    axisLine={false}
+                    minTickGap={16}
+                  />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="value" fill="var(--color-users)" radius={[4, 4, 0, 0]} />
+                </BarChart>
               </ChartContainer>
             )}
           </CardContent>
@@ -177,21 +175,19 @@ export default function DashboardHomePage() {
                 }}
                 className="h-56"
               >
-                <ResponsiveContainer>
-                  <BarChart data={redemptionsByDay}>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={formatDateLabel}
-                      tickLine={false}
-                      axisLine={false}
-                      minTickGap={16}
-                    />
-                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                    <ChartTooltip content={<Tooltip />} />
-                    <Bar dataKey="value" fill="var(--color-redemptions)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <BarChart data={redemptionsByDay}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={formatDateLabel}
+                    tickLine={false}
+                    axisLine={false}
+                    minTickGap={16}
+                  />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="value" fill="var(--color-redemptions)" radius={[4, 4, 0, 0]} />
+                </BarChart>
               </ChartContainer>
             )}
           </CardContent>
