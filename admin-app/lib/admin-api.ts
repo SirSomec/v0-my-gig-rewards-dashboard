@@ -763,6 +763,7 @@ export async function adminTojSyncRun(): Promise<{
   processed: number;
   skipped: number;
   lateCancelApplied?: number;
+  noShowApplied?: number;
   bookedRecorded?: number;
   skippedReasons?: { noUser?: number; jobBeforeUser?: number; alreadySynced?: number; wrongStatus?: number };
   errors: string[];

@@ -76,6 +76,7 @@ export default function AdminMockTojPage() {
     processed: number
     skipped: number
     lateCancelApplied?: number
+    noShowApplied?: number
     bookedRecorded?: number
     skippedReasons?: { noUser?: number; jobBeforeUser?: number; alreadySynced?: number; wrongStatus?: number }
     errors: string[]
@@ -178,7 +179,7 @@ export default function AdminMockTojPage() {
       .then((r) => {
         setSyncResult(r)
         toast({
-          title: `Обработано: ${r.processed}, пропущено: ${r.skipped}${r.lateCancelApplied != null && r.lateCancelApplied > 0 ? `, штрафов поздняя отмена: ${r.lateCancelApplied}` : ""}${r.bookedRecorded != null && r.bookedRecorded > 0 ? `, забронировано: ${r.bookedRecorded}` : ""}`,
+          title: `Обработано: ${r.processed}, пропущено: ${r.skipped}${r.lateCancelApplied != null && r.lateCancelApplied > 0 ? `, штрафов поздняя отмена: ${r.lateCancelApplied}` : ""}${r.noShowApplied != null && r.noShowApplied > 0 ? `, прогул: ${r.noShowApplied}` : ""}${r.bookedRecorded != null && r.bookedRecorded > 0 ? `, забронировано: ${r.bookedRecorded}` : ""}`,
           variant: r.errors.length ? "destructive" : "default",
         })
       })
@@ -244,6 +245,9 @@ export default function AdminMockTojPage() {
                 {syncResult.lateCancelApplied != null && syncResult.lateCancelApplied > 0 && (
                   <>, штрафов «поздняя отмена»: {syncResult.lateCancelApplied}</>
                 )}
+                {syncResult.noShowApplied != null && syncResult.noShowApplied > 0 && (
+                  <>, прогул: {syncResult.noShowApplied}</>
+                )}
                 {syncResult.bookedRecorded != null && syncResult.bookedRecorded > 0 && (
                   <>, забронировано: {syncResult.bookedRecorded}</>
                 )}
@@ -289,8 +293,21 @@ export default function AdminMockTojPage() {
 
       <Card>
         <CardHeader className="py-2 text-sm font-medium">
-          Пользователь для мок-смен (workerId = external_id)
+          Эмуляция сценариев: прогул и снятие штрафа
         </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-xs text-muted-foreground">
+            <strong>Прогул (failed):</strong> в таблице смен нажмите «Прогул (failed)» у нужной смены — статус в моке станет failed.
+            Затем нажмите «Синхронизировать смены» выше. Система начислит штраф «прогул» (no_show), учтётся лимит штрафов, при превышении — понижение уровня.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            <strong>Подтверждение после прогула (confirmed):</strong> если смена в статусе failed, нажмите «Подтвердить (confirmed)» —
+            статус станет confirmed. Запустите синхронизацию: штраф по этой смене будет снят, уровень лояльности и прогресс по квестам пересчитаны (при необходимости восстановятся).
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardContent>
           {loading ? (
             <p className="text-sm text-muted-foreground">Загрузка...</p>
@@ -521,7 +538,7 @@ export default function AdminMockTojPage() {
                       <TableHead>Конец</TableHead>
                       <TableHead className="text-right">Часы</TableHead>
                       <TableHead className="text-right">Оплата/ч</TableHead>
-                      <TableHead className="w-[140px]">Действия</TableHead>
+                      <TableHead className="w-[200px]">Действия</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -553,21 +570,50 @@ export default function AdminMockTojPage() {
                           {job.paymentPerHour ?? job.salaryPerHour ?? "—"}
                         </TableCell>
                         <TableCell>
-                          {job.status !== "cancelled" ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-xs"
-                              disabled={updatingJobId === job._id}
-                              onClick={() =>
-                                handleUpdateJobStatus(job._id, "cancelled", "worker")
-                              }
-                            >
-                              {updatingJobId === job._id ? "…" : "Отменить (worker)"}
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
+                          <div className="flex flex-wrap gap-1 justify-end">
+                            {job.status === "failed" ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                disabled={updatingJobId === job._id}
+                                onClick={() =>
+                                  handleUpdateJobStatus(job._id, "confirmed")
+                                }
+                              >
+                                {updatingJobId === job._id ? "…" : "Подтвердить (confirmed)"}
+                              </Button>
+                            ) : (
+                              <>
+                                {job.status !== "cancelled" && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs"
+                                    disabled={updatingJobId === job._id}
+                                    onClick={() =>
+                                      handleUpdateJobStatus(job._id, "cancelled", "worker")
+                                    }
+                                  >
+                                    {updatingJobId === job._id ? "…" : "Отменить (worker)"}
+                                  </Button>
+                                )}
+                                {job.status !== "failed" && job.status !== "cancelled" && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs text-amber-600 dark:text-amber-500"
+                                    disabled={updatingJobId === job._id}
+                                    onClick={() =>
+                                      handleUpdateJobStatus(job._id, "failed")
+                                    }
+                                  >
+                                    {updatingJobId === job._id ? "…" : "Прогул (failed)"}
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

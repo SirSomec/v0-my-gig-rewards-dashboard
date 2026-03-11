@@ -114,6 +114,10 @@ app.post('/job.find-many.query', basicAuth, (req, res) => {
   if (finishRange) {
     list = list.filter((j) => j.finish && dateInRange(j.finish, finishRange));
   }
+  const updatedAtRange = parseDateRange(filters.updatedAt);
+  if (updatedAtRange) {
+    list = list.filter((j) => j.updatedAt && dateInRange(j.updatedAt, updatedAtRange));
+  }
 
   const sortKey = typeof sort === 'object' && sort !== null ? Object.keys(sort)[0] : 'createdAt';
   const sortDir = sort && sort[sortKey];
