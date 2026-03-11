@@ -166,102 +166,127 @@ export default function DashboardHomePage() {
         </Card>
       </div>
 
-      {/* Аналитика посещаемости: просмотры вкладок пользователями */}
-      {pageViewsOverview && (
-        <>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Eye className="h-4 w-4 text-muted-foreground" />
-                  Просмотры вкладок
-                </CardTitle>
-                <CardDescription>Всего просмотров вкладок дашборда за последние 14 дней.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-semibold">
-                  {pageViewsOverview.totalViews.toLocaleString("ru-RU")}
+      {/* Аналитика посещаемости: просмотры вкладок пользователями — секция всегда видна */}
+      <div className="space-y-4">
+        <h2 className="text-base font-semibold tracking-tight">Аналитика посещаемости</h2>
+        {pageViewsOverview == null ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Eye className="h-4 w-4 text-muted-foreground" />
+                Просмотры вкладок дашборда
+              </CardTitle>
+              <CardDescription>
+                Счётчики посещаемости и просмотра вкладок пользователями (home, history, store, levels).
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <Skeleton className="h-10 w-48 rounded-lg" />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Данные загружаются или пока недоступны. Убедитесь, что бэкенд API обновлён и применена миграция
+                  <code className="mx-1 rounded bg-muted px-1">page_views</code>.
                 </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
-                  Уникальные пользователи
-                </CardTitle>
-                <CardDescription>Сколько пользователей открывали вкладки за последние 14 дней.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-semibold">
-                  {pageViewsOverview.totalUniqueUsers.toLocaleString("ru-RU")}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="min-h-[260px]">
-              <CardHeader>
-                <CardTitle className="text-base">Просмотры вкладок по дням</CardTitle>
-                <CardDescription>Последние 14 дней: количество просмотров и уникальных пользователей по дням.</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-2">
-                {pageViewsOverview.byDay.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Нет данных за выбранный период.</p>
-                ) : (
-                  <ChartContainer
-                    config={{
-                      views: chartConfig.views,
-                      uniqueUsers: chartConfig.uniqueUsers,
-                    }}
-                    className="h-56"
-                  >
-                    <BarChart data={pageViewsOverview.byDay}>
-                      <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="date"
-                        tickFormatter={formatDateLabel}
-                        tickLine={false}
-                        axisLine={false}
-                        minTickGap={16}
-                      />
-                      <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="views" fill="var(--color-views)" name="Просмотры" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="uniqueUsers" fill="var(--color-uniqueUsers)" name="Уник. пользователи" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ChartContainer>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Топ вкладок по просмотрам</CardTitle>
-                <CardDescription>Самые просматриваемые разделы дашборда пользователями.</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-2 space-y-2">
-                {pageViewsOverview.byPath.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Нет данных.</p>
-                ) : (
-                  <ul className="space-y-1.5">
-                    {pageViewsOverview.byPath.map((row) => (
-                      <li
-                        key={row.path}
-                        className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-sm"
-                      >
-                        <span className="font-medium capitalize">{row.path === "home" ? "Главная" : row.path}</span>
-                        <span className="text-xs font-semibold text-primary">
-                          {row.views.toLocaleString("ru-RU")} просмотров
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </>
-      )}
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                    Просмотры вкладок
+                  </CardTitle>
+                  <CardDescription>Всего просмотров вкладок дашборда за последние 14 дней.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-semibold">
+                    {pageViewsOverview.totalViews.toLocaleString("ru-RU")}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
+                    Уникальные пользователи
+                  </CardTitle>
+                  <CardDescription>Сколько пользователей открывали вкладки за последние 14 дней.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-semibold">
+                    {pageViewsOverview.totalUniqueUsers.toLocaleString("ru-RU")}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card className="min-h-[260px]">
+                <CardHeader>
+                  <CardTitle className="text-base">Просмотры вкладок по дням</CardTitle>
+                  <CardDescription>Последние 14 дней: количество просмотров и уникальных пользователей по дням.</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  {pageViewsOverview.byDay.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Нет данных за выбранный период.</p>
+                  ) : (
+                    <ChartContainer
+                      config={{
+                        views: chartConfig.views,
+                        uniqueUsers: chartConfig.uniqueUsers,
+                      }}
+                      className="h-56"
+                    >
+                      <BarChart data={pageViewsOverview.byDay}>
+                        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="date"
+                          tickFormatter={formatDateLabel}
+                          tickLine={false}
+                          axisLine={false}
+                          minTickGap={16}
+                        />
+                        <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar dataKey="views" fill="var(--color-views)" name="Просмотры" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="uniqueUsers" fill="var(--color-uniqueUsers)" name="Уник. пользователи" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ChartContainer>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Топ вкладок по просмотрам</CardTitle>
+                  <CardDescription>Самые просматриваемые разделы дашборда пользователями.</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-2 space-y-2">
+                  {pageViewsOverview.byPath.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Нет данных.</p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {pageViewsOverview.byPath.map((row) => (
+                        <li
+                          key={row.path}
+                          className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-sm"
+                        >
+                          <span className="font-medium capitalize">{row.path === "home" ? "Главная" : row.path}</span>
+                          <span className="text-xs font-semibold text-primary">
+                            {row.views.toLocaleString("ru-RU")} просмотров
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        )}
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="min-h-[260px]">
