@@ -157,6 +157,13 @@ export class AdminController {
     return this.admin.listStoreItems();
   }
 
+  @Get('stats/coins-overview')
+  @ApiOperation({ summary: 'Обзор монет: суммарный баланс и динамика по дням (баланс на счетах, потрачено за день)' })
+  async getCoinsOverview(@Query('days') days?: string) {
+    const n = days ? parseInt(days, 10) : 14;
+    return this.admin.getCoinsOverview(Number.isNaN(n) || n < 1 ? 14 : Math.min(n, 90));
+  }
+
   @Post('store-items')
   @ApiOperation({ summary: 'Создать товар' })
   async createStoreItem(@Body() body: CreateStoreItemDto) {

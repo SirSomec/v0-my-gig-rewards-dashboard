@@ -7,6 +7,7 @@ import {
   adminListLevels,
   adminListQuests,
   adminListStoreItems,
+  adminGetCoinsOverview,
   adminEtlExplorerStatus,
   adminMockTojStatus,
   adminTojSyncStatus,
@@ -20,11 +21,6 @@ type TimeSeriesPoint = {
   value: number
 }
 
-type DailyCoinsPoint = {
-  date: string
-  earned: number
-  spent: number
-}
 const MAX_ITEMS_FOR_CHART = 1000
 
 type OverviewStats = {
@@ -45,10 +41,12 @@ export interface AdminOverviewState {
   stats: OverviewStats | null
   userRegistrationsByDay: TimeSeriesPoint[]
   redemptionsByDay: TimeSeriesPoint[]
-  /** Суммарные бонусы в системе (приближённо: сумма текущих балансов пользователей) */
+  /** Суммарные бонусы в системе (с API или сумма балансов пользователей до загрузки) */
   totalCoinsInSystem: number | null
-  /** Ежедневная динамика начисленных и потраченных монет (по последним транзакциям/заявкам) */
-  coinsByDay: DailyCoinsPoint[]
+  /** Фактическое количество бонусов на счетах пользователей на конец каждого дня */
+  balanceByDay: TimeSeriesPoint[]
+  /** Количество потраченных бонусов по дням */
+  spentByDay: TimeSeriesPoint[]
   levels: AdminLevel[]
   topQuests: AdminQuest[]
   topStoreItems: AdminStoreItem[]
@@ -97,7 +95,8 @@ export function useAdminOverview(): AdminOverviewState {
     userRegistrationsByDay: [],
     redemptionsByDay: [],
     totalCoinsInSystem: null,
-    coinsByDay: [],
+    balanceByDay: [],
+    spentByDay: [],
     levels: [],
     topQuests: [],
     topStoreItems: [],
@@ -142,43 +141,9 @@ export function useAdminOverview(): AdminOverviewState {
           redemptionCounts.set(key, (redemptionCounts.get(key) ?? 0) + 1)
         }
 
-        // Приблизительный общий объём монет в обороте: сумма текущих балансов
+        // Приблизительный общий объём монет: сумма текущих балансов (до загрузки coins-overview)
         const totalCoinsInSystem =
           usersRes.items?.reduce((acc, u) => acc + (u.balance ?? 0), 0) ?? null
-
-        // Графики по начисленным и потраченным монетам:
-        // - начислено: положительные суммы из транзакций типов shift/bonus/quest/manual_credit
-        // - потрачено: стоимость заявок на обмен (coinsSpent) из redemptions
-        const today = new Date()
-        const days = 14
-        const coinsByDayMap = new Map<string, { earned: number; spent: number }>()
-
-        // Потраченные монеты (по заявкам на обмен)
-        for (const r of redemptionsForCharts) {
-          if (!r.createdAt) continue
-          const d = new Date(r.createdAt)
-          if (Number.isNaN(d.getTime())) continue
-          const key = d.toISOString().slice(0, 10)
-          const entry = coinsByDayMap.get(key) ?? { earned: 0, spent: 0 }
-          entry.spent += r.coinsSpent ?? 0
-          coinsByDayMap.set(key, entry)
-        }
-
-        // Начисленные монеты по дням мы позже будем приближённо считать
-        // как разницу балансов, но для простоты сейчас оставим 0,
-        // чтобы не показывать некорректные значения.
-        const coinsByDay: DailyCoinsPoint[] = []
-        for (let i = days - 1; i >= 0; i -= 1) {
-          const d = new Date(today)
-          d.setDate(today.getDate() - i)
-          const key = d.toISOString().slice(0, 10)
-          const entry = coinsByDayMap.get(key) ?? { earned: 0, spent: 0 }
-          coinsByDay.push({
-            date: key,
-            earned: entry.earned,
-            spent: entry.spent,
-          })
-        }
 
         // Обновляем основные данные и снимаем общий лоадер
         setState((prev) => ({
@@ -189,22 +154,31 @@ export function useAdminOverview(): AdminOverviewState {
           userRegistrationsByDay,
           redemptionsByDay,
           totalCoinsInSystem,
-          coinsByDay,
+          balanceByDay: prev.balanceByDay,
+          spentByDay: prev.spentByDay,
         }))
 
-        // 2. Тихая дозагрузка: уровни, квесты, магазин и статусы интеграций
+        // 2. Тихая дозагрузка: обзор монет (баланс/траты по дням), уровни, квесты, магазин, статусы
         void (async () => {
           try {
-            const [levels, quests, storeItems, etlStatus, mockTojStatus, tojSyncStatus] = await Promise.all([
-              adminListLevels(),
-              adminListQuests(),
-              adminListStoreItems(),
-              adminEtlExplorerStatus().catch(() => null),
-              adminMockTojStatus().catch(() => null),
-              adminTojSyncStatus().catch(() => null),
-            ])
+            const [coinsOverview, levels, quests, storeItems, etlStatus, mockTojStatus, tojSyncStatus] =
+              await Promise.all([
+                adminGetCoinsOverview(14).catch(() => null),
+                adminListLevels(),
+                adminListQuests(),
+                adminListStoreItems(),
+                adminEtlExplorerStatus().catch(() => null),
+                adminMockTojStatus().catch(() => null),
+                adminTojSyncStatus().catch(() => null),
+              ])
 
             if (cancelled) return
+
+            const balanceByDay: TimeSeriesPoint[] =
+              coinsOverview?.byDay?.map((d) => ({ date: d.date, value: d.balanceAtEndOfDay })) ?? []
+            const spentByDay: TimeSeriesPoint[] =
+              coinsOverview?.byDay?.map((d) => ({ date: d.date, value: d.spentThatDay })) ?? []
+            const totalFromApi = coinsOverview?.totalBalanceToday ?? null
 
             const alerts: OverviewAlert[] = []
 
@@ -254,6 +228,9 @@ export function useAdminOverview(): AdminOverviewState {
               topQuests,
               topStoreItems,
               alerts,
+              ...(totalFromApi != null && { totalCoinsInSystem: totalFromApi }),
+              balanceByDay,
+              spentByDay,
             }))
           } catch {
             // Ошибки фоновой дозагрузки не блокируют основной дашборд

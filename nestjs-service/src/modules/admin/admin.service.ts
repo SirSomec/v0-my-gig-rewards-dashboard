@@ -370,6 +370,64 @@ export class AdminService {
       .orderBy(storeItems.sortOrder, storeItems.id);
   }
 
+  /** Для обзора: суммарный баланс и динамика по дням (баланс на счетах и потрачено за день). */
+  async getCoinsOverview(days = 14): Promise<{
+    totalBalanceToday: number;
+    byDay: Array<{ date: string; balanceAtEndOfDay: number; spentThatDay: number }>;
+  }> {
+    const { users, transactions, redemptions } = schema;
+    const [sumRow] = await this.db.select({ total: sql<number>`coalesce(sum(${users.balance}), 0)::bigint` }).from(users);
+    const totalBalanceToday = Number(sumRow?.total ?? 0);
+
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const startDate = new Date(today);
+    startDate.setUTCDate(today.getUTCDate() - days);
+
+    const txRows = await this.db
+      .select({
+        date: sql<string>`(${transactions.createdAt} at time zone 'UTC')::date::text`,
+        delta: sql<number>`coalesce(sum(${transactions.amount}), 0)::bigint`,
+      })
+      .from(transactions)
+      .where(gte(transactions.createdAt, startDate))
+      .groupBy(sql`(${transactions.createdAt} at time zone 'UTC')::date`);
+    const deltaByDate = new Map<string, number>();
+    for (const r of txRows) deltaByDate.set(r.date, Number(r.delta));
+
+    const redRows = await this.db
+      .select({
+        date: sql<string>`(${redemptions.createdAt} at time zone 'UTC')::date::text`,
+        spent: sql<number>`coalesce(sum(${redemptions.coinsSpent}), 0)::bigint`,
+      })
+      .from(redemptions)
+      .where(gte(redemptions.createdAt, startDate))
+      .groupBy(sql`(${redemptions.createdAt} at time zone 'UTC')::date`);
+    const spentByDate = new Map<string, number>();
+    for (const r of redRows) spentByDate.set(r.date, Number(r.spent));
+
+    const byDay: Array<{ date: string; balanceAtEndOfDay: number; spentThatDay: number }> = [];
+    let runningBalance = totalBalanceToday;
+    const dateStrings: string[] = [];
+    for (let i = 0; i < days; i++) {
+      const d = new Date(today);
+      d.setUTCDate(today.getUTCDate() - (days - 1 - i));
+      dateStrings.push(d.toISOString().slice(0, 10));
+    }
+    for (let i = dateStrings.length - 1; i >= 0; i--) {
+      const dateStr = dateStrings[i];
+      const delta = deltaByDate.get(dateStr) ?? 0;
+      runningBalance -= delta;
+      byDay.push({
+        date: dateStr,
+        balanceAtEndOfDay: runningBalance,
+        spentThatDay: spentByDate.get(dateStr) ?? 0,
+      });
+    }
+    byDay.reverse();
+    return { totalBalanceToday, byDay };
+  }
+
   async createStoreItem(dto: CreateStoreItemDto) {
     const { storeItems } = schema;
     const [row] = await this.db

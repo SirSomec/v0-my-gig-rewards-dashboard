@@ -17,6 +17,18 @@ const chartConfig = {
     label: "Заявки на обмен",
     color: "hsl(var(--chart-2))",
   },
+  balance: {
+    label: "Бонусы на счетах",
+    color: "hsl(var(--primary))",
+  },
+  value: {
+    label: "Значение",
+    color: "hsl(var(--primary))",
+  },
+  spent: {
+    label: "Потрачено",
+    color: "hsl(var(--destructive))",
+  },
 }
 
 function formatDateLabel(isoDate: string): string {
@@ -33,7 +45,8 @@ export default function DashboardHomePage() {
     userRegistrationsByDay,
     redemptionsByDay,
     totalCoinsInSystem,
-    coinsByDay,
+    balanceByDay,
+    spentByDay,
     topQuests,
     topStoreItems,
     alerts,
@@ -225,25 +238,27 @@ export default function DashboardHomePage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="min-h-[260px]">
           <CardHeader>
-            <CardTitle className="text-base">Начисленные и потраченные монеты по дням</CardTitle>
-            <CardDescription>Последние 14 дней: сколько монет списано через заявки на обмен.</CardDescription>
+            <CardTitle className="text-base">Бонусы на счетах по дням</CardTitle>
+            <CardDescription>
+              Фактическое количество бонусов на счетах пользователей на конец каждого дня (последние 14 дней).
+            </CardDescription>
           </CardHeader>
           <CardContent className="pt-2">
-            {loading && coinsByDay.length === 0 ? (
+            {loading && balanceByDay.length === 0 ? (
               <Skeleton className="h-40 w-full rounded-lg" />
-            ) : coinsByDay.length === 0 ? (
+            ) : balanceByDay.length === 0 ? (
               <p className="text-sm text-muted-foreground">Недостаточно данных для построения графика.</p>
             ) : (
               <ChartContainer
                 config={{
-                  spent: {
-                    label: "Потрачено",
-                    color: "hsl(var(--destructive))",
+                  value: {
+                    label: chartConfig.balance.label,
+                    color: chartConfig.balance.color,
                   },
                 }}
                 className="h-56"
               >
-                <BarChart data={coinsByDay}>
+                <BarChart data={balanceByDay}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
                   <XAxis
                     dataKey="date"
@@ -254,7 +269,47 @@ export default function DashboardHomePage() {
                   />
                   <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="spent" fill="var(--color-spent)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="value" fill="var(--color-value)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="min-h-[260px]">
+          <CardHeader>
+            <CardTitle className="text-base">Потраченные бонусы по дням</CardTitle>
+            <CardDescription>
+              Количество потраченных бонусов по дням (заявки на обмен, последние 14 дней).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-2">
+            {loading && spentByDay.length === 0 ? (
+              <Skeleton className="h-40 w-full rounded-lg" />
+            ) : spentByDay.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Недостаточно данных для построения графика.</p>
+            ) : (
+              <ChartContainer
+                config={{
+                  value: {
+                    label: chartConfig.spent.label,
+                    color: chartConfig.spent.color,
+                  },
+                }}
+                className="h-56"
+              >
+                <BarChart data={spentByDay}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={formatDateLabel}
+                    tickLine={false}
+                    axisLine={false}
+                    minTickGap={16}
+                  />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="value" fill="var(--color-value)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ChartContainer>
             )}

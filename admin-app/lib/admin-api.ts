@@ -348,6 +348,20 @@ export async function adminListLevels(): Promise<AdminLevel[]> {
   return fetchAdmin<AdminLevel[]>("/v1/admin/levels");
 }
 
+export interface CoinsOverviewDay {
+  date: string;
+  balanceAtEndOfDay: number;
+  spentThatDay: number;
+}
+
+export async function adminGetCoinsOverview(days?: number): Promise<{
+  totalBalanceToday: number;
+  byDay: CoinsOverviewDay[];
+}> {
+  const params = days != null ? `?days=${days}` : "";
+  return fetchAdmin(`/v1/admin/stats/coins-overview${params}`);
+}
+
 export async function adminListStoreItems(): Promise<AdminStoreItem[]> {
   return fetchAdmin<AdminStoreItem[]>("/v1/admin/store-items");
 }
