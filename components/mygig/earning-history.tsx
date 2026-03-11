@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Briefcase, MapPin, AlertTriangle, ArrowUp } from "lucide-react"
+import { Briefcase, MapPin, AlertTriangle, ArrowUp, ShoppingBag } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { GigCoinIcon } from "./gig-coin-icon"
 
@@ -104,15 +104,21 @@ export function EarningHistory({
           transition={{ duration: 0.3, delay: Math.min(i * 0.08, 0.5) }}
           className={`flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl ${entry.type === "strike" ? "bg-destructive/10" : "bg-secondary/40"}`}
         >
-          <div className={`flex-shrink-0 p-1.5 sm:p-2 rounded-lg ${entry.type === "strike" ? "bg-destructive/20 text-destructive" : "bg-accent/15 text-accent"}`}>
-            {entry.type === "strike" ? <AlertTriangle size={18} /> : <Briefcase size={18} />}
+          <div className={`flex-shrink-0 p-1.5 sm:p-2 rounded-lg ${
+            entry.type === "strike" ? "bg-destructive/20 text-destructive" : entry.type === "redemption" ? "bg-muted text-muted-foreground" : "bg-accent/15 text-accent"
+          }`}>
+            {entry.type === "strike" ? <AlertTriangle size={18} /> : entry.type === "redemption" ? <ShoppingBag size={18} /> : <Briefcase size={18} />}
           </div>
           <div className="flex-1 min-w-0">
             <p className={`text-xs sm:text-sm font-medium truncate ${entry.type === "strike" ? "text-destructive" : "text-foreground"}`}>{entry.title}</p>
             <div className="flex items-center gap-1 mt-0.5">
-              <MapPin size={10} className="text-muted-foreground flex-shrink-0" />
-              <span className="text-[10px] sm:text-[11px] text-muted-foreground truncate">{entry.location}</span>
-              <span className="text-[11px] text-muted-foreground/50 mx-1">{"/"}</span>
+              {entry.type !== "redemption" && (
+                <>
+                  <MapPin size={10} className="text-muted-foreground flex-shrink-0" />
+                  <span className="text-[10px] sm:text-[11px] text-muted-foreground truncate">{entry.location}</span>
+                  <span className="text-[11px] text-muted-foreground/50 mx-1">{"/"}</span>
+                </>
+              )}
               <span className="text-[10px] sm:text-[11px] text-muted-foreground">{entry.date}</span>
             </div>
           </div>
