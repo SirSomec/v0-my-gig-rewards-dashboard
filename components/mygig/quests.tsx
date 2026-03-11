@@ -52,7 +52,7 @@ function QuestCard({
       className={`relative p-2.5 sm:p-3 rounded-xl border transition-colors ${
         quest.completed
           ? "bg-success/10 border-success/20"
-          : "bg-secondary/40 border-transparent"
+          : "bg-muted border-border"
       }`}
     >
       <div className="flex items-start gap-2 sm:gap-3">

@@ -84,7 +84,7 @@ export function RedemptionStore({ items, userBalance, onPurchase, purchasingId }
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.3, delay: i * 0.08 }}
-                className={`flex flex-col p-2.5 sm:p-3 bg-secondary/40 rounded-xl border border-transparent hover:border-primary/20 transition-colors ${!inStock ? "opacity-75" : ""}`}
+                className={`flex flex-col p-2.5 sm:p-3 bg-muted rounded-xl border border-border hover:border-primary/20 transition-colors ${!inStock ? "opacity-75" : ""}`}
               >
                 <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
                   <div className="p-1 sm:p-1.5 rounded-lg bg-accent/15 text-accent shrink-0">
