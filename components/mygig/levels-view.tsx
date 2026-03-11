@@ -70,7 +70,7 @@ export function LevelsView({ currentLevelName, shiftsCompleted = 0 }: LevelsView
               <div className="flex items-center justify-between mb-1.5 sm:mb-2">
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   {level.isUnlocked ? (
-                    <div className={`p-1 rounded-full shrink-0 ${level.isCurrent ? "bg-primary/20 text-primary" : "bg-success/20 text-success"}`}>
+                    <div className={`p-1 rounded-full shrink-0 ${level.isCurrent ? "bg-secondary text-accent" : "bg-success/20 text-success"}`}>
                       <Check size={14} />
                     </div>
                   ) : (
@@ -78,11 +78,11 @@ export function LevelsView({ currentLevelName, shiftsCompleted = 0 }: LevelsView
                       <Lock size={14} />
                     </div>
                   )}
-                  <span className={`text-xs sm:text-sm font-semibold min-w-0 truncate ${level.isCurrent ? "text-primary" : "text-foreground"}`}>
+                  <span className={`text-xs sm:text-sm font-semibold min-w-0 truncate ${level.isCurrent ? "text-accent" : "text-foreground"}`}>
                     {level.name}
                   </span>
                   {level.isCurrent && (
-                    <span className="text-[9px] sm:text-[10px] bg-primary/20 text-primary px-1 sm:px-1.5 py-0.5 rounded-full font-medium shrink-0">
+                    <span className="text-[9px] sm:text-[10px] bg-secondary text-accent px-1 sm:px-1.5 py-0.5 rounded-full font-medium shrink-0">
                       Текущий
                     </span>
                   )}

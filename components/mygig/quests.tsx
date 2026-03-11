@@ -60,7 +60,7 @@ function QuestCard({
           className={`flex-shrink-0 p-1.5 sm:p-2 rounded-lg ${
             quest.completed
               ? "bg-success/20 text-success"
-              : "bg-primary/15 text-primary"
+              : "bg-secondary text-accent"
           }`}
         >
           <Icon size={16} className="sm:w-[18px] sm:h-[18px]" />
@@ -74,7 +74,9 @@ function QuestCard({
             </p>
             <div className="flex items-center gap-1 flex-shrink-0 ml-1">
               <GigCoinIcon size={14} />
-              <span className="text-[11px] sm:text-xs font-bold text-primary tabular-nums">+{quest.reward}</span>
+              <span className="text-[11px] sm:text-xs font-bold text-coin-foreground tabular-nums">
+                +{quest.reward}
+              </span>
             </div>
           </div>
           <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5">{quest.description}</p>

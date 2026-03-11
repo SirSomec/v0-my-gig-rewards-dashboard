@@ -39,7 +39,7 @@ export function Header({ coinBalance, userName, userLevel, avatarUrl, onLogout }
             <span className="text-xs sm:text-sm font-semibold text-foreground leading-tight truncate">{userName}</span>
             <Badge
               variant="outline"
-              className="mt-0.5 w-fit text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0 border-primary/30 text-primary font-medium"
+              className="mt-0.5 w-fit text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0 border-border text-foreground font-medium"
             >
               {userLevel}
             </Badge>
@@ -56,7 +56,7 @@ export function Header({ coinBalance, userName, userLevel, avatarUrl, onLogout }
               key={coinBalance}
               initial={{ y: -8, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              className="text-xs sm:text-sm font-bold text-primary tabular-nums"
+              className="text-xs sm:text-sm font-bold text-coin-foreground tabular-nums"
             >
               {formatNumber(coinBalance)}
             </motion.span>

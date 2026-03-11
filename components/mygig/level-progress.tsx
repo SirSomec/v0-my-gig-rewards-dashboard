@@ -93,10 +93,10 @@ export function LevelProgress({
           <h2 className="text-xs sm:text-sm font-semibold text-foreground">Прогресс уровня</h2>
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground">{currentLevel}</span>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-primary" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-accent" aria-hidden="true">
               <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <span className="text-xs font-semibold text-primary">{nextLevel}</span>
+            <span className="text-xs font-semibold text-accent">{nextLevel}</span>
           </div>
         </div>
 
@@ -126,7 +126,7 @@ export function LevelProgress({
           <span className="text-xs text-muted-foreground">
             {shiftsCompleted}/{isMaxLevel ? shiftsCompleted : shiftsRequired} смен
           </span>
-          <span className="text-xs font-medium text-primary">
+          <span className="text-xs font-medium text-accent">
             {isMaxLevel ? "Максимальный уровень" : `Ещё ${shiftsRemaining} до ${nextLevel}`}
           </span>
         </div>
@@ -218,7 +218,7 @@ export function LevelProgress({
                     key={benefit.label}
                     className="flex items-start gap-1.5 sm:gap-2 p-2 sm:p-2.5 bg-secondary/40 rounded-lg"
                   >
-                    <div className="flex-shrink-0 p-1 rounded-md bg-primary/15 text-primary">
+                    <div className="flex-shrink-0 p-1 rounded-md bg-secondary text-accent">
                       {benefit.icon}
                     </div>
                     <div className="min-w-0">

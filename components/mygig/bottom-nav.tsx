@@ -43,12 +43,12 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
               <Icon
                 size={18}
                 className={`relative z-10 shrink-0 sm:w-5 sm:h-5 w-[18px] h-[18px] transition-colors ${
-                  isActive ? "text-primary" : "text-muted-foreground"
+                  isActive ? "text-accent" : "text-muted-foreground"
                 }`}
               />
               <span
                 className={`relative z-10 text-[9px] sm:text-[10px] mt-0.5 font-medium transition-colors truncate max-w-full ${
-                  isActive ? "text-primary" : "text-muted-foreground"
+                  isActive ? "text-accent" : "text-muted-foreground"
                 }`}
               >
                 {tab.label}

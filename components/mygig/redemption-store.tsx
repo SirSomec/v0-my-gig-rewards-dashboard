@@ -64,7 +64,9 @@ export function RedemptionStore({ items, userBalance, onPurchase, purchasingId }
           <h2 className="text-xs sm:text-sm font-semibold text-foreground">Магазин наград</h2>
           <div className="flex items-center gap-1">
             <GigCoinIcon size={14} />
-            <span className="text-xs font-semibold text-primary tabular-nums">{formatNumber(userBalance)}</span>
+            <span className="text-xs font-semibold text-coin-foreground tabular-nums">
+              {formatNumber(userBalance)}
+            </span>
           </div>
         </div>
 
