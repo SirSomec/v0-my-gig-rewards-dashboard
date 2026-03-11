@@ -258,28 +258,35 @@ export default function DashboardHomePage() {
                   )}
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="min-h-[260px]">
                 <CardHeader>
                   <CardTitle className="text-base">Уникальные пользователи по дням</CardTitle>
                   <CardDescription>Количество уникальных пользователей, открывавших вкладки дашборда по каждому дню (последние 14 дней).</CardDescription>
                 </CardHeader>
-                <CardContent className="pt-2 space-y-2">
+                <CardContent className="pt-2">
                   {pageViewsOverview.byDay.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Нет данных.</p>
+                    <p className="text-sm text-muted-foreground">Нет данных за выбранный период.</p>
                   ) : (
-                    <ul className="space-y-1.5">
-                      {pageViewsOverview.byDay.map((row) => (
-                        <li
-                          key={row.date}
-                          className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-sm"
-                        >
-                          <span className="font-medium">{formatDateLabel(row.date)}</span>
-                          <span className="text-xs font-semibold text-primary">
-                            {row.uniqueUsers.toLocaleString("ru-RU")} уник. пользователей
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+                    <ChartContainer
+                      config={{
+                        uniqueUsers: chartConfig.uniqueUsers,
+                      }}
+                      className="h-56"
+                    >
+                      <BarChart data={pageViewsOverview.byDay}>
+                        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="date"
+                          tickFormatter={formatDateLabel}
+                          tickLine={false}
+                          axisLine={false}
+                          minTickGap={16}
+                        />
+                        <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar dataKey="uniqueUsers" fill="var(--color-uniqueUsers)" name="Уник. пользователи" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ChartContainer>
                   )}
                 </CardContent>
               </Card>
