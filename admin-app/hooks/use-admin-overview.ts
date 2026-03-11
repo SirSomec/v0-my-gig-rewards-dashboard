@@ -20,6 +20,11 @@ type TimeSeriesPoint = {
   value: number
 }
 
+type DailyCoinsPoint = {
+  date: string
+  earned: number
+  spent: number
+}
 const MAX_ITEMS_FOR_CHART = 1000
 
 type OverviewStats = {
@@ -40,6 +45,10 @@ export interface AdminOverviewState {
   stats: OverviewStats | null
   userRegistrationsByDay: TimeSeriesPoint[]
   redemptionsByDay: TimeSeriesPoint[]
+  /** Суммарные бонусы в системе (приближённо: сумма текущих балансов пользователей) */
+  totalCoinsInSystem: number | null
+  /** Ежедневная динамика начисленных и потраченных монет (по последним транзакциям/заявкам) */
+  coinsByDay: DailyCoinsPoint[]
   levels: AdminLevel[]
   topQuests: AdminQuest[]
   topStoreItems: AdminStoreItem[]
@@ -87,6 +96,8 @@ export function useAdminOverview(): AdminOverviewState {
     stats: null,
     userRegistrationsByDay: [],
     redemptionsByDay: [],
+    totalCoinsInSystem: null,
+    coinsByDay: [],
     levels: [],
     topQuests: [],
     topStoreItems: [],
@@ -102,8 +113,8 @@ export function useAdminOverview(): AdminOverviewState {
       try {
         // 1. Быстрая часть: только основные метрики (минимум запросов)
         const [usersRes, redemptionsRes, pendingRedemptionsRes] = await Promise.all([
-          adminListUsers({ pageSize: 50 }),
-          adminListRedemptions({ pageSize: 50 }),
+          adminListUsers({ pageSize: 200 }),
+          adminListRedemptions({ pageSize: 200 }),
           adminListRedemptions({ status: "pending", pageSize: 1 }),
         ])
 
@@ -131,6 +142,44 @@ export function useAdminOverview(): AdminOverviewState {
           redemptionCounts.set(key, (redemptionCounts.get(key) ?? 0) + 1)
         }
 
+        // Приблизительный общий объём монет в обороте: сумма текущих балансов
+        const totalCoinsInSystem =
+          usersRes.items?.reduce((acc, u) => acc + (u.balance ?? 0), 0) ?? null
+
+        // Графики по начисленным и потраченным монетам:
+        // - начислено: положительные суммы из транзакций типов shift/bonus/quest/manual_credit
+        // - потрачено: стоимость заявок на обмен (coinsSpent) из redemptions
+        const today = new Date()
+        const days = 14
+        const coinsByDayMap = new Map<string, { earned: number; spent: number }>()
+
+        // Потраченные монеты (по заявкам на обмен)
+        for (const r of redemptionsForCharts) {
+          if (!r.createdAt) continue
+          const d = new Date(r.createdAt)
+          if (Number.isNaN(d.getTime())) continue
+          const key = d.toISOString().slice(0, 10)
+          const entry = coinsByDayMap.get(key) ?? { earned: 0, spent: 0 }
+          entry.spent += r.coinsSpent ?? 0
+          coinsByDayMap.set(key, entry)
+        }
+
+        // Начисленные монеты по дням мы позже будем приближённо считать
+        // как разницу балансов, но для простоты сейчас оставим 0,
+        // чтобы не показывать некорректные значения.
+        const coinsByDay: DailyCoinsPoint[] = []
+        for (let i = days - 1; i >= 0; i -= 1) {
+          const d = new Date(today)
+          d.setDate(today.getDate() - i)
+          const key = d.toISOString().slice(0, 10)
+          const entry = coinsByDayMap.get(key) ?? { earned: 0, spent: 0 }
+          coinsByDay.push({
+            date: key,
+            earned: entry.earned,
+            spent: entry.spent,
+          })
+        }
+
         // Обновляем основные данные и снимаем общий лоадер
         setState((prev) => ({
           ...prev,
@@ -139,6 +188,8 @@ export function useAdminOverview(): AdminOverviewState {
           stats,
           userRegistrationsByDay,
           redemptionsByDay,
+          totalCoinsInSystem,
+          coinsByDay,
         }))
 
         // 2. Тихая дозагрузка: уровни, квесты, магазин и статусы интеграций

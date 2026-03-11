@@ -26,8 +26,18 @@ function formatDateLabel(isoDate: string): string {
 }
 
 export default function DashboardHomePage() {
-  const { loading, error, stats, userRegistrationsByDay, redemptionsByDay, topQuests, topStoreItems, alerts } =
-    useAdminOverview()
+  const {
+    loading,
+    error,
+    stats,
+    userRegistrationsByDay,
+    redemptionsByDay,
+    totalCoinsInSystem,
+    coinsByDay,
+    topQuests,
+    topStoreItems,
+    alerts,
+  } = useAdminOverview()
 
   return (
     <div className="space-y-4 lg:space-y-6">
@@ -57,7 +67,7 @@ export default function DashboardHomePage() {
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -110,6 +120,24 @@ export default function DashboardHomePage() {
             ) : (
               <p className="text-2xl font-semibold">
                 {stats ? stats.pendingRedemptions.toLocaleString("ru-RU") : "—"}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              Монеты в системе
+            </CardTitle>
+            <CardDescription>Суммарный текущий баланс всех пользователей (оценка).</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading && totalCoinsInSystem == null ? (
+              <Skeleton className="h-9 w-32 rounded-lg" />
+            ) : (
+              <p className="text-2xl font-semibold">
+                {totalCoinsInSystem != null ? totalCoinsInSystem.toLocaleString("ru-RU") : "—"}
               </p>
             )}
           </CardContent>
@@ -187,6 +215,46 @@ export default function DashboardHomePage() {
                   <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Bar dataKey="value" fill="var(--color-redemptions)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="min-h-[260px]">
+          <CardHeader>
+            <CardTitle className="text-base">Начисленные и потраченные монеты по дням</CardTitle>
+            <CardDescription>Последние 14 дней: сколько монет списано через заявки на обмен.</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-2">
+            {loading && coinsByDay.length === 0 ? (
+              <Skeleton className="h-40 w-full rounded-lg" />
+            ) : coinsByDay.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Недостаточно данных для построения графика.</p>
+            ) : (
+              <ChartContainer
+                config={{
+                  spent: {
+                    label: "Потрачено",
+                    color: "hsl(var(--destructive))",
+                  },
+                }}
+                className="h-56"
+              >
+                <BarChart data={coinsByDay}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={formatDateLabel}
+                    tickLine={false}
+                    axisLine={false}
+                    minTickGap={16}
+                  />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="spent" fill="var(--color-spent)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ChartContainer>
             )}
