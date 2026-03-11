@@ -260,22 +260,22 @@ export default function DashboardHomePage() {
               </Card>
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Топ вкладок по просмотрам</CardTitle>
-                  <CardDescription>Самые просматриваемые разделы дашборда пользователями.</CardDescription>
+                  <CardTitle className="text-base">Уникальные пользователи по дням</CardTitle>
+                  <CardDescription>Количество уникальных пользователей, открывавших вкладки дашборда по каждому дню (последние 14 дней).</CardDescription>
                 </CardHeader>
                 <CardContent className="pt-2 space-y-2">
-                  {pageViewsOverview.byPath.length === 0 ? (
+                  {pageViewsOverview.byDay.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Нет данных.</p>
                   ) : (
                     <ul className="space-y-1.5">
-                      {pageViewsOverview.byPath.map((row) => (
+                      {pageViewsOverview.byDay.map((row) => (
                         <li
-                          key={row.path}
+                          key={row.date}
                           className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-sm"
                         >
-                          <span className="font-medium capitalize">{row.path === "home" ? "Главная" : row.path}</span>
+                          <span className="font-medium">{formatDateLabel(row.date)}</span>
                           <span className="text-xs font-semibold text-primary">
-                            {row.views.toLocaleString("ru-RU")} просмотров
+                            {row.uniqueUsers.toLocaleString("ru-RU")} уник. пользователей
                           </span>
                         </li>
                       ))}
