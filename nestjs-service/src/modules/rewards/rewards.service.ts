@@ -31,14 +31,6 @@ function startOfMonthUTC(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 }
 
-/** Конец текущей недели (понедельник следующей недели 00:00 UTC) */
-function endOfWeekUTC(d: Date): Date {
-  const start = startOfWeekUTC(d);
-  const end = new Date(start);
-  end.setUTCDate(end.getUTCDate() + 7);
-  return end;
-}
-
 /** Первый день следующего месяца (00:00 UTC) */
 function startOfNextMonthUTC(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));

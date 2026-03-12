@@ -671,26 +671,31 @@ export class AdminService {
     reliabilityRatingDecreaseLateCancel: number;
   }> {
     const { systemSettings } = schema;
-    const keys = [
+    const keys: string[] = [
       'reliability_rating_increase_per_shift',
       'reliability_rating_decrease_no_show',
       'reliability_rating_decrease_late_cancel',
-    ] as const;
-    const defaults = [0.1, 0.2, 0.2] as const;
-    const result = {
-      reliabilityRatingIncreasePerShift: defaults[0],
-      reliabilityRatingDecreaseNoShow: defaults[1],
-      reliabilityRatingDecreaseLateCancel: defaults[2],
+    ];
+    const defaults: number[] = [0.1, 0.2, 0.2];
+    const result: {
+      reliabilityRatingIncreasePerShift: number;
+      reliabilityRatingDecreaseNoShow: number;
+      reliabilityRatingDecreaseLateCancel: number;
+    } = {
+      reliabilityRatingIncreasePerShift: defaults[0]!,
+      reliabilityRatingDecreaseNoShow: defaults[1]!,
+      reliabilityRatingDecreaseLateCancel: defaults[2]!,
     };
     for (let i = 0; i < keys.length; i++) {
+      const key = keys[i]!;
       const [row] = await this.db
         .select()
         .from(systemSettings)
-        .where(eq(systemSettings.key, keys[i]))
+        .where(eq(systemSettings.key, key))
         .limit(1);
       if (row?.value != null) {
         const v = row.value;
-        let num = defaults[i];
+        let num: number = defaults[i] ?? 0;
         if (typeof v === 'number' && !Number.isNaN(v)) num = v;
         else if (typeof v === 'object' && v != null && typeof (v as { value?: number }).value === 'number') {
           num = (v as { value: number }).value;
