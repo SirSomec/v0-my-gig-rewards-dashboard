@@ -156,8 +156,14 @@ export function LevelProgress({
               />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span className="text-[11px] sm:text-xs font-semibold text-foreground tabular-nums">
-                {ratingDisplay}/5
+              <span
+                className="text-lg sm:text-xl font-semibold tabular-nums leading-none"
+                style={{ color: ratingStrokeColor }}
+              >
+                {ratingDisplay}
+              </span>
+              <span className="text-[11px] sm:text-xs font-semibold text-foreground tabular-nums -ml-0.5 leading-none">
+                /5
               </span>
             </div>
           </div>
