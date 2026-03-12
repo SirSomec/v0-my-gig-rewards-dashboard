@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
 import * as schema from '../../infra/db/drizzle/schemas';
 import type { Envs } from '../../shared/env.validation-schema';
 import { MeResponseDto } from './dto/me.dto';
@@ -79,10 +79,6 @@ export class RewardsService {
     private readonly rewardsRepository: RewardsRepository,
     private readonly config: ConfigService<Envs, true>,
   ) {}
-
-  private get db() {
-    return this.rewardsRepository.db;
-  }
 
   /**
    * Определяет ID текущего пользователя: из JWT (req.user), затем query, затем DEV_USER_ID.
@@ -177,7 +173,6 @@ export class RewardsService {
   }
 
   async getQuests(userId: number): Promise<QuestResponseDto[]> {
-    const { quests, questProgress, userGroupMembers, transactions } = schema;
     const now = new Date();
     const todayKey = now.toISOString().slice(0, 10);
     const weekStart = startOfWeekUTC(now);
@@ -186,34 +181,20 @@ export class RewardsService {
     const monthKey = monthStart.toISOString().slice(0, 7);
     const nextMonthStart = startOfNextMonthUTC(now);
 
-    const userGroupIds = new Set(
-      (
-        await this.db
-          .select({ groupId: userGroupMembers.groupId })
-          .from(userGroupMembers)
-          .where(and(eq(userGroupMembers.userId, userId), isNull(userGroupMembers.deletedAt)))
-      ).map((r) => r.groupId),
-    );
+    const userGroupIds = new Set(await this.rewardsRepository.listUserGroupIds(userId));
 
     const cap = await this.getQuestMonthlyBonusCap();
     let capExceeded = false;
     if (cap > 0) {
-      const [sumRow] = await this.db
-        .select({ sum: sql<number>`coalesce(sum(${transactions.amount}), 0)` })
-        .from(transactions)
-        .where(
-          and(
-            eq(transactions.userId, userId),
-            inArray(transactions.type, ['shift', 'quest']),
-            gte(transactions.createdAt, monthStart),
-            lt(transactions.createdAt, nextMonthStart),
-          ),
-        );
-      const monthlyBonusSum = Number(sumRow?.sum ?? 0);
+      const monthlyBonusSum = await this.rewardsRepository.getUserMonthlyBonusTotal(
+        userId,
+        monthStart,
+        nextMonthStart,
+      );
       capExceeded = monthlyBonusSum >= cap;
     }
 
-    const rows = await this.db.select().from(quests).where(eq(quests.isActive, 1));
+    const rows = await this.rewardsRepository.listActiveQuests();
     const result: QuestResponseDto[] = [];
     for (const q of rows) {
       if (q.targetType === 'group' && q.targetGroupId != null) {
@@ -234,20 +215,10 @@ export class RewardsService {
                 : todayKey;
       const config = (q.conditionConfig as QuestConditionConfig) ?? {};
       const total = getQuestTarget(config, q.conditionType);
-      const prog = await this.db
-        .select()
-        .from(questProgress)
-        .where(
-          and(
-            eq(questProgress.userId, userId),
-            eq(questProgress.questId, q.id),
-            eq(questProgress.periodKey, periodKey),
-          ),
-        )
-        .limit(1);
-      if (capExceeded && prog.length === 0) continue;
-      const progress = prog[0]?.progress ?? 0;
-      const completed = !!prog[0]?.completedAt;
+      const progressRow = await this.rewardsRepository.getQuestProgress(userId, q.id, periodKey);
+      if (capExceeded && !progressRow) continue;
+      const progress = progressRow?.progress ?? 0;
+      const completed = !!progressRow?.completedAt;
       const isHoursCondition =
         q.conditionType === 'hours_count' ||
         q.conditionType === 'hours_count_client' ||
@@ -271,26 +242,12 @@ export class RewardsService {
   }
 
   async getStoreItems(): Promise<StoreItemResponseDto[]> {
-    const { storeItems, redemptions } = schema;
-    const rows = await this.db
-      .select()
-      .from(storeItems)
-      .where(and(eq(storeItems.isActive, 1), isNull(storeItems.deletedAt)))
-      .orderBy(storeItems.sortOrder, storeItems.id);
+    const rows = await this.rewardsRepository.listActiveStoreItems();
     const result: StoreItemResponseDto[] = [];
     for (const r of rows) {
       let redeemedCount = 0;
       if (r.stockLimit != null) {
-        const countResult = await this.db
-          .select({ count: sql<number>`count(*)::int` })
-          .from(redemptions)
-          .where(
-            and(
-              eq(redemptions.storeItemId, r.id),
-              or(eq(redemptions.status, 'pending'), eq(redemptions.status, 'fulfilled')),
-            ),
-          );
-        redeemedCount = countResult[0]?.count ?? 0;
+        redeemedCount = await this.rewardsRepository.countActiveRedemptionsByStoreItemId(r.id);
       }
       const dto = new StoreItemResponseDto();
       dto.id = r.id;
@@ -308,8 +265,7 @@ export class RewardsService {
 
   /** Список уровней лояльности для отображения в ЛК (название, порог смен, перки). */
   async getLevels(): Promise<LevelResponseDto[]> {
-    const { levels } = schema;
-    const rows = await this.db.select().from(levels).orderBy(levels.sortOrder);
+    const rows = await this.rewardsRepository.listLevels();
     return rows.map((r) => {
       const dto = new LevelResponseDto();
       dto.id = r.id;
@@ -322,86 +278,24 @@ export class RewardsService {
   }
 
   async createRedemption(userId: number, storeItemId: number): Promise<{ redemptionId: number }> {
-    const { users, storeItems, transactions, redemptions } = schema;
-
-    return this.db.transaction(
-      async (tx) => {
-        // Блокируем строку пользователя (баланс не изменится до коммита)
-        const userRows = await tx
-          .select({ id: users.id, balance: users.balance })
-          .from(users)
-          .where(eq(users.id, userId))
-          .limit(1)
-          .for('update');
-        const user = userRows[0];
-        if (!user) {
-          throw new NotFoundException('User not found');
-        }
-
-        // Блокируем строку товара (сериализация по товару — остаток не превысим)
-        const itemRows = await tx
-          .select()
-          .from(storeItems)
-          .where(eq(storeItems.id, storeItemId))
-          .limit(1)
-          .for('update');
-        const item = itemRows[0];
-        if (!item || item.isActive !== 1) {
-          throw new NotFoundException('Store item not found or inactive');
-        }
-        if (item.deletedAt) {
-          throw new NotFoundException('Store item not found or inactive');
-        }
-        if (user.balance < item.cost) {
-          throw new NotFoundException('Insufficient balance');
-        }
-        if (item.stockLimit != null) {
-          const countResult = await tx
-            .select({ count: sql<number>`count(*)::int` })
-            .from(redemptions)
-            .where(
-              and(
-                eq(redemptions.storeItemId, storeItemId),
-                or(eq(redemptions.status, 'pending'), eq(redemptions.status, 'fulfilled')),
-              ),
-            );
-          const redeemed = countResult[0]?.count ?? 0;
-          if (redeemed >= item.stockLimit) {
-            throw new NotFoundException('Товар закончился');
-          }
-        }
-
-        const [redemption] = await tx
-          .insert(redemptions)
-          .values({
-            userId,
-            storeItemId,
-            status: 'pending',
-            coinsSpent: item.cost,
-          })
-          .returning({ id: redemptions.id });
-        if (!redemption) {
-          throw new Error('Failed to create redemption');
-        }
-
-        await tx
-          .update(users)
-          .set({ balance: sql`${users.balance} - ${item.cost}` })
-          .where(eq(users.id, userId));
-        await tx.insert(transactions).values({
-          userId,
-          amount: -item.cost,
-          type: 'redemption',
-          sourceRef: String(redemption.id),
-          title: item.name,
-        });
-        return { redemptionId: redemption.id };
-      },
-      {
-        isolationLevel: 'repeatable read',
-        accessMode: 'read write',
-      },
-    );
+    try {
+      return await this.rewardsRepository.createRedemption(userId, storeItemId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message === 'USER_NOT_FOUND') {
+        throw new NotFoundException('User not found');
+      }
+      if (message === 'STORE_ITEM_NOT_FOUND_OR_INACTIVE') {
+        throw new NotFoundException('Store item not found or inactive');
+      }
+      if (message === 'INSUFFICIENT_BALANCE') {
+        throw new NotFoundException('Insufficient balance');
+      }
+      if (message === 'OUT_OF_STOCK') {
+        throw new NotFoundException('Товар закончился');
+      }
+      throw error;
+    }
   }
 
   /**
@@ -412,28 +306,13 @@ export class RewardsService {
    * При автоматическом переходе: счётчик смен сбрасывается в 0, новый уровень сохраняется и далее не понижается.
    */
   async recalcUserLevel(userId: number): Promise<void> {
-    const { users, levels } = schema;
-    const [row] = await this.db
-      .select({ user: users, currentLevel: levels })
-      .from(users)
-      .innerJoin(levels, eq(users.levelId, levels.id))
-      .where(eq(users.id, userId))
-      .limit(1);
+    const row = await this.rewardsRepository.getUserWithCurrentLevel(userId);
     if (!row) return;
     const { user, currentLevel } = row;
-    let [newLevel] = await this.db
-      .select()
-      .from(levels)
-      .where(lte(levels.shiftsRequired, user.shiftsCompleted))
-      .orderBy(desc(levels.shiftsRequired))
-      .limit(1);
+    let newLevel = await this.rewardsRepository.findLevelByShiftsRequired(user.shiftsCompleted);
     let usedBaseFallback = false;
     if (!newLevel) {
-      const [baseLevel] = await this.db
-        .select()
-        .from(levels)
-        .orderBy(asc(levels.sortOrder))
-        .limit(1);
+      const baseLevel = await this.rewardsRepository.getBaseLevel();
       if (baseLevel) {
         newLevel = baseLevel;
         usedBaseFallback = true;
@@ -443,13 +322,11 @@ export class RewardsService {
     const isUpgrade = newLevel.sortOrder > currentLevel.sortOrder;
     const assignBaseInitially = usedBaseFallback && user.levelId !== newLevel.id;
     if (assignBaseInitially) {
-      await this.db
-        .update(users)
-        .set({
-          levelId: newLevel.id,
-          shiftsCompleted: user.shiftsCompleted,
-        })
-        .where(eq(users.id, userId));
+      await this.rewardsRepository.updateUserLevelAndShifts(
+        userId,
+        newLevel.id,
+        user.shiftsCompleted,
+      );
       return;
     }
     if (isUpgrade) {
@@ -458,13 +335,7 @@ export class RewardsService {
       if (currentRating < minRatingToUpgradeLevel) {
         return;
       }
-      await this.db
-        .update(users)
-        .set({
-          levelId: newLevel.id,
-          shiftsCompleted: 0,
-        })
-        .where(eq(users.id, userId));
+      await this.rewardsRepository.updateUserLevelAndShifts(userId, newLevel.id, 0);
     }
   }
 
@@ -494,7 +365,7 @@ export class RewardsService {
   ): Promise<{ transactionId: number }> {
     const { users, transactions, levels } = schema;
     if (sourceRef != null && sourceRef !== '') {
-      const [existing] = await this.db
+      const [existing] = await this.rewardsRepository.db
         .select({ id: transactions.id })
         .from(transactions)
         .where(
@@ -509,7 +380,7 @@ export class RewardsService {
         return { transactionId: existing.id };
       }
     }
-    const [user] = await this.db
+    const [user] = await this.rewardsRepository.db
       .select({ user: users, level: levels })
       .from(users)
       .innerJoin(levels, eq(users.levelId, levels.id))
@@ -528,7 +399,7 @@ export class RewardsService {
     } else if (amount < 0) {
       throw new NotFoundException('coins must be >= 0');
     }
-    const [tx] = await this.db
+    const [tx] = await this.rewardsRepository.db
       .insert(transactions)
       .values({
         userId,
@@ -548,7 +419,7 @@ export class RewardsService {
     const newRating = Math.min(5, currentRating + increase);
     const minRatingToCountShift = await this.getReliabilityMinRatingToCountShiftForLevel();
     const canCountShiftForLevel = currentRating >= minRatingToCountShift;
-    await this.db
+    await this.rewardsRepository.db
       .update(users)
       .set({
         balance: user.user.balance + amount,
@@ -575,11 +446,11 @@ export class RewardsService {
     category?: string,
   ): Promise<{ transactionId?: number; recorded: boolean }> {
     const { transactions, users } = schema;
-    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const [user] = await this.rewardsRepository.db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    const [existing] = await this.db
+    const [existing] = await this.rewardsRepository.db
       .select({ id: transactions.id })
       .from(transactions)
       .where(
@@ -593,7 +464,7 @@ export class RewardsService {
     if (existing) {
       return { transactionId: existing.id, recorded: false };
     }
-    const [tx] = await this.db
+    const [tx] = await this.rewardsRepository.db
       .insert(transactions)
       .values({
         userId,
@@ -716,7 +587,7 @@ export class RewardsService {
     const weekKey = weekStart.toISOString().slice(0, 10);
     const monthKey = monthStart.toISOString().slice(0, 7);
 
-    const seriesQuests = await this.db
+    const seriesQuests = await this.rewardsRepository.db
       .select({
         id: quests.id,
         period: quests.period,
@@ -739,7 +610,7 @@ export class RewardsService {
               : q.period === 'monthly'
                 ? monthKey
                 : todayKey;
-      await this.db
+      await this.rewardsRepository.db
         .update(questProgress)
         .set({ progress: 0 })
         .where(
@@ -887,7 +758,7 @@ export class RewardsService {
 
     const userGroupIds = new Set(
       (
-        await this.db
+        await this.rewardsRepository.db
           .select({ groupId: userGroupMembers.groupId })
           .from(userGroupMembers)
           .where(and(eq(userGroupMembers.userId, userId), isNull(userGroupMembers.deletedAt)))
@@ -897,7 +768,7 @@ export class RewardsService {
     const cap = await this.getQuestMonthlyBonusCap();
     let capExceeded = false;
     if (cap > 0) {
-      const [sumRow] = await this.db
+      const [sumRow] = await this.rewardsRepository.db
         .select({ sum: sql<number>`coalesce(sum(${transactions.amount}), 0)` })
         .from(transactions)
         .where(
@@ -912,7 +783,7 @@ export class RewardsService {
       capExceeded = monthlyBonusSum >= cap;
     }
 
-    const rows = await this.db.select().from(quests).where(eq(quests.isActive, 1));
+    const rows = await this.rewardsRepository.db.select().from(quests).where(eq(quests.isActive, 1));
     for (const q of rows) {
       if (q.targetType === 'group' && q.targetGroupId != null) {
         if (!userGroupIds.has(q.targetGroupId)) continue;
@@ -974,51 +845,51 @@ export class RewardsService {
 
       let progress = 0;
       if (q.conditionType === 'bookings_count') {
-        const countResult = await this.db
+        const countResult = await this.rewardsRepository.db
           .select({ count: sql<number>`count(*)::int` })
           .from(transactions)
           .where(baseConditionsBookings);
         progress = Math.min(countResult[0]?.count ?? 0, totalForStorage);
       } else if (q.conditionType === 'shifts_count') {
-        const countResult = await this.db
+        const countResult = await this.rewardsRepository.db
           .select({ count: sql<number>`count(*)::int` })
           .from(transactions)
           .where(baseConditions);
         progress = Math.min(countResult[0]?.count ?? 0, totalForStorage);
       } else if (q.conditionType === 'shifts_count_client' && config.clientId) {
-        const countResult = await this.db
+        const countResult = await this.rewardsRepository.db
           .select({ count: sql<number>`count(*)::int` })
           .from(transactions)
           .where(and(baseConditions, eq(transactions.clientId, config.clientId)));
         progress = Math.min(countResult[0]?.count ?? 0, totalForStorage);
       } else if (q.conditionType === 'shifts_count_clients' && Array.isArray(config.clientIds) && config.clientIds.length > 0) {
-        const countResult = await this.db
+        const countResult = await this.rewardsRepository.db
           .select({ count: sql<number>`count(*)::int` })
           .from(transactions)
           .where(and(baseConditions, inArray(transactions.clientId, config.clientIds)));
         progress = Math.min(countResult[0]?.count ?? 0, totalForStorage);
       } else if (q.conditionType === 'shifts_count_category' && config.category) {
-        const countResult = await this.db
+        const countResult = await this.rewardsRepository.db
           .select({ count: sql<number>`count(*)::int` })
           .from(transactions)
           .where(and(baseConditions, eq(transactions.category, config.category)));
         progress = Math.min(countResult[0]?.count ?? 0, totalForStorage);
       } else if (q.conditionType === 'hours_count') {
-        const sumResult = await this.db
+        const sumResult = await this.rewardsRepository.db
           .select({ sum: sql<number>`coalesce(sum(${transactions.hours}), 0)` })
           .from(transactions)
           .where(baseConditions);
         const sumHours = Number(sumResult[0]?.sum ?? 0);
         progress = Math.min(Math.round(sumHours * 10), totalForStorage);
       } else if (q.conditionType === 'hours_count_client' && config.clientId) {
-        const sumResult = await this.db
+        const sumResult = await this.rewardsRepository.db
           .select({ sum: sql<number>`coalesce(sum(${transactions.hours}), 0)` })
           .from(transactions)
           .where(and(baseConditions, eq(transactions.clientId, config.clientId)));
         const sumHours = Number(sumResult[0]?.sum ?? 0);
         progress = Math.min(Math.round(sumHours * 10), totalForStorage);
       } else if (q.conditionType === 'hours_count_clients' && Array.isArray(config.clientIds) && config.clientIds.length > 0) {
-        const sumResult = await this.db
+        const sumResult = await this.rewardsRepository.db
           .select({ sum: sql<number>`coalesce(sum(${transactions.hours}), 0)` })
           .from(transactions)
           .where(and(baseConditions, inArray(transactions.clientId, config.clientIds)));
@@ -1026,7 +897,7 @@ export class RewardsService {
         progress = Math.min(Math.round(sumHours * 10), totalForStorage);
       } else if (isShiftsSeries) {
         const { strikes } = schema;
-        const [lastStrikeRow] = await this.db
+        const [lastStrikeRow] = await this.rewardsRepository.db
           .select({ occurredAt: strikes.occurredAt })
           .from(strikes)
           .where(
@@ -1042,7 +913,7 @@ export class RewardsService {
         const lastStrikeAt = lastStrikeRow?.occurredAt
           ? new Date(lastStrikeRow.occurredAt)
           : new Date(periodStart.getTime() - 1);
-        const seriesCountResult = await this.db
+        const seriesCountResult = await this.rewardsRepository.db
           .select({ count: sql<number>`count(*)::int` })
           .from(transactions)
           .where(
@@ -1062,7 +933,7 @@ export class RewardsService {
 
       const total = totalForStorage;
 
-      const existing = await this.db
+      const existing = await this.rewardsRepository.db
         .select()
         .from(questProgress)
         .where(
@@ -1077,13 +948,13 @@ export class RewardsService {
 
       if (row) {
         if (row.completedAt) continue;
-        await this.db
+        await this.rewardsRepository.db
           .update(questProgress)
           .set({ progress, updatedAt: now })
           .where(eq(questProgress.id, row.id));
       } else {
         if (capExceeded) continue;
-        await this.db
+        await this.rewardsRepository.db
           .insert(questProgress)
           .values({
             userId,
@@ -1103,7 +974,7 @@ export class RewardsService {
       }
 
       // Атомарно помечаем квест выполненным и получаем право на начисление награды только один раз
-      const completedRows = await this.db
+      const completedRows = await this.rewardsRepository.db
         .update(questProgress)
         .set({ completedAt: now, updatedAt: now })
         .where(
@@ -1117,13 +988,13 @@ export class RewardsService {
         )
         .returning({ id: questProgress.id });
       if (completedRows.length > 0) {
-        const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+        const [user] = await this.rewardsRepository.db.select().from(users).where(eq(users.id, userId)).limit(1);
         if (user) {
-          await this.db
+          await this.rewardsRepository.db
             .update(users)
             .set({ balance: user.balance + q.rewardCoins })
             .where(eq(users.id, userId));
-          await this.db.insert(transactions).values({
+          await this.rewardsRepository.db.insert(transactions).values({
             userId,
             amount: q.rewardCoins,
             type: 'quest',
@@ -1146,7 +1017,7 @@ export class RewardsService {
   ): Promise<{ completed: boolean; alreadyCompleted: boolean }> {
     const { quests, questProgress, users, transactions } = schema;
     const now = new Date();
-    const [quest] = await this.db.select().from(quests).where(eq(quests.id, questId)).limit(1);
+    const [quest] = await this.rewardsRepository.db.select().from(quests).where(eq(quests.id, questId)).limit(1);
     if (!quest) {
       throw new NotFoundException('Quest not found');
     }
@@ -1175,7 +1046,7 @@ export class RewardsService {
               ? monthKey
               : todayKey;
 
-    const [existing] = await this.db
+    const [existing] = await this.rewardsRepository.db
       .select()
       .from(questProgress)
       .where(
@@ -1190,18 +1061,18 @@ export class RewardsService {
       return { completed: false, alreadyCompleted: true };
     }
 
-    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const [user] = await this.rewardsRepository.db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
     if (existing) {
-      await this.db
+      await this.rewardsRepository.db
         .update(questProgress)
         .set({ progress: 1, completedAt: now, updatedAt: now })
         .where(eq(questProgress.id, existing.id));
     } else {
-      await this.db.insert(questProgress).values({
+      await this.rewardsRepository.db.insert(questProgress).values({
         userId,
         questId,
         periodKey,
@@ -1210,11 +1081,11 @@ export class RewardsService {
         updatedAt: now,
       });
     }
-    await this.db
+    await this.rewardsRepository.db
       .update(users)
       .set({ balance: user.balance + quest.rewardCoins })
       .where(eq(users.id, userId));
-    await this.db.insert(transactions).values({
+    await this.rewardsRepository.db.insert(transactions).values({
       userId,
       amount: quest.rewardCoins,
       type: 'quest',

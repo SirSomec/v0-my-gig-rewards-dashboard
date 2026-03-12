@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../../infra/db/drizzle/schemas';
 import { drizzleProvider } from '../../infra/db/drizzle/drizzle.module';
@@ -164,5 +164,194 @@ export class RewardsRepository {
       .where(eq(transactions.userId, userId))
       .orderBy(sql`${transactions.createdAt} desc`)
       .limit(limit);
+  }
+
+  async listUserGroupIds(userId: number): Promise<number[]> {
+    const { userGroupMembers } = schema;
+    const rows = await this.client
+      .select({ groupId: userGroupMembers.groupId })
+      .from(userGroupMembers)
+      .where(and(eq(userGroupMembers.userId, userId), isNull(userGroupMembers.deletedAt)));
+    return rows.map((row) => row.groupId);
+  }
+
+  async listActiveQuests(): Promise<(typeof schema.quests.$inferSelect)[]> {
+    return this.client
+      .select()
+      .from(schema.quests)
+      .where(eq(schema.quests.isActive, 1));
+  }
+
+  async getQuestProgress(
+    userId: number,
+    questId: number,
+    periodKey: string,
+  ): Promise<(typeof schema.questProgress.$inferSelect) | null> {
+    const { questProgress } = schema;
+    const [row] = await this.client
+      .select()
+      .from(questProgress)
+      .where(
+        and(
+          eq(questProgress.userId, userId),
+          eq(questProgress.questId, questId),
+          eq(questProgress.periodKey, periodKey),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
+  }
+
+  async listActiveStoreItems(): Promise<(typeof schema.storeItems.$inferSelect)[]> {
+    const { storeItems } = schema;
+    return this.client
+      .select()
+      .from(storeItems)
+      .where(and(eq(storeItems.isActive, 1), isNull(storeItems.deletedAt)))
+      .orderBy(storeItems.sortOrder, storeItems.id);
+  }
+
+  async countActiveRedemptionsByStoreItemId(storeItemId: number): Promise<number> {
+    const { redemptions } = schema;
+    const [row] = await this.client
+      .select({ count: sql<number>`count(*)::int` })
+      .from(redemptions)
+      .where(
+        and(
+          eq(redemptions.storeItemId, storeItemId),
+          or(eq(redemptions.status, 'pending'), eq(redemptions.status, 'fulfilled')),
+        ),
+      );
+    return row?.count ?? 0;
+  }
+
+  async listLevels(): Promise<(typeof schema.levels.$inferSelect)[]> {
+    return this.client
+      .select()
+      .from(schema.levels)
+      .orderBy(schema.levels.sortOrder);
+  }
+
+  async createRedemption(userId: number, storeItemId: number): Promise<{ redemptionId: number }> {
+    const { users, storeItems, transactions, redemptions } = schema;
+    return this.client.transaction(
+      async (tx) => {
+        const userRows = await tx
+          .select({ id: users.id, balance: users.balance })
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1)
+          .for('update');
+        const user = userRows[0];
+        if (!user) {
+          throw new Error('USER_NOT_FOUND');
+        }
+
+        const itemRows = await tx
+          .select()
+          .from(storeItems)
+          .where(eq(storeItems.id, storeItemId))
+          .limit(1)
+          .for('update');
+        const item = itemRows[0];
+        if (!item || item.isActive !== 1 || item.deletedAt) {
+          throw new Error('STORE_ITEM_NOT_FOUND_OR_INACTIVE');
+        }
+        if (user.balance < item.cost) {
+          throw new Error('INSUFFICIENT_BALANCE');
+        }
+        if (item.stockLimit != null) {
+          const countResult = await tx
+            .select({ count: sql<number>`count(*)::int` })
+            .from(redemptions)
+            .where(
+              and(
+                eq(redemptions.storeItemId, storeItemId),
+                or(eq(redemptions.status, 'pending'), eq(redemptions.status, 'fulfilled')),
+              ),
+            );
+          const redeemed = countResult[0]?.count ?? 0;
+          if (redeemed >= item.stockLimit) {
+            throw new Error('OUT_OF_STOCK');
+          }
+        }
+
+        const [redemption] = await tx
+          .insert(redemptions)
+          .values({
+            userId,
+            storeItemId,
+            status: 'pending',
+            coinsSpent: item.cost,
+          })
+          .returning({ id: redemptions.id });
+        if (!redemption) {
+          throw new Error('FAILED_TO_CREATE_REDEMPTION');
+        }
+
+        await tx
+          .update(users)
+          .set({ balance: sql`${users.balance} - ${item.cost}` })
+          .where(eq(users.id, userId));
+        await tx.insert(transactions).values({
+          userId,
+          amount: -item.cost,
+          type: 'redemption',
+          sourceRef: String(redemption.id),
+          title: item.name,
+        });
+        return { redemptionId: redemption.id };
+      },
+      {
+        isolationLevel: 'repeatable read',
+        accessMode: 'read write',
+      },
+    );
+  }
+
+  async getUserWithCurrentLevel(userId: number): Promise<{
+    user: typeof schema.users.$inferSelect;
+    currentLevel: typeof schema.levels.$inferSelect;
+  } | null> {
+    const { users, levels } = schema;
+    const [row] = await this.client
+      .select({ user: users, currentLevel: levels })
+      .from(users)
+      .innerJoin(levels, eq(users.levelId, levels.id))
+      .where(eq(users.id, userId))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async findLevelByShiftsRequired(shiftsCompleted: number): Promise<(typeof schema.levels.$inferSelect) | null> {
+    const { levels } = schema;
+    const [row] = await this.client
+      .select()
+      .from(levels)
+      .where(lte(levels.shiftsRequired, shiftsCompleted))
+      .orderBy(desc(levels.shiftsRequired))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async getBaseLevel(): Promise<(typeof schema.levels.$inferSelect) | null> {
+    const { levels } = schema;
+    const [row] = await this.client
+      .select()
+      .from(levels)
+      .orderBy(asc(levels.sortOrder))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async updateUserLevelAndShifts(userId: number, levelId: number, shiftsCompleted: number): Promise<void> {
+    const { users } = schema;
+    await this.client
+      .update(users)
+      .set({
+        levelId,
+        shiftsCompleted,
+      })
+      .where(eq(users.id, userId));
   }
 }
