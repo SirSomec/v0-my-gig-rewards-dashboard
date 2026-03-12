@@ -220,6 +220,25 @@ export class AdminController {
     return this.admin.getBonusSettings();
   }
 
+  @Get('settings/reliability-rating')
+  @ApiOperation({ summary: 'Настройки рейтинга надёжности: прирост за смену, снижение за прогул/позднюю отмену' })
+  async getReliabilityRatingSettings() {
+    return this.admin.getReliabilityRatingSettings();
+  }
+
+  @Patch('settings/reliability-rating')
+  @ApiOperation({ summary: 'Обновить настройки рейтинга надёжности' })
+  async updateReliabilityRatingSettings(
+    @Body() body: {
+      reliabilityRatingIncreasePerShift?: number;
+      reliabilityRatingDecreaseNoShow?: number;
+      reliabilityRatingDecreaseLateCancel?: number;
+    },
+  ) {
+    await this.admin.updateReliabilityRatingSettings(body);
+    return this.admin.getReliabilityRatingSettings();
+  }
+
   @Patch('levels/:id')
   @ApiOperation({ summary: 'Обновить уровень' })
   async updateLevel(@Param('id') id: string, @Body() body: UpdateLevelDto) {

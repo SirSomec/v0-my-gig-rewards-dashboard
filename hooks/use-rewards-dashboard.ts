@@ -40,13 +40,13 @@ export interface DashboardUser {
   shiftsRequired: number
   /** Порог смен следующего уровня (для перехода). null = максимальный уровень */
   nextLevelShiftsRequired: number | null
+  /** Порог смен следующего уровня (для перехода). null = максимальный уровень */
+  nextLevelShiftsRequired: number | null
   /** Сколько ещё смен до перехода на следующий уровень */
   shiftsRemaining: number
   avatarUrl?: string
-  strikesCountWeek: number
-  strikesCountMonth: number
-  strikesLimitPerWeek: number | null
-  strikesLimitPerMonth: number | null
+  /** Рейтинг надёжности 0–5 (дробное). По умолчанию 4. */
+  reliabilityRating: number
   /** true, если новые квесты ограничены до конца месяца (достигнут порог бонусов) */
   questsLimitedByCap?: boolean
 }
@@ -64,10 +64,7 @@ function mapMe(m: MeResponse): DashboardUser {
     nextLevelShiftsRequired: nextTarget,
     shiftsRemaining,
     avatarUrl: m.avatarUrl ?? undefined,
-    strikesCountWeek: m.strikesCountWeek ?? 0,
-    strikesCountMonth: m.strikesCountMonth ?? 0,
-    strikesLimitPerWeek: m.strikesLimitPerWeek ?? null,
-    strikesLimitPerMonth: m.strikesLimitPerMonth ?? null,
+    reliabilityRating: m.reliabilityRating ?? 4,
     questsLimitedByCap: m.questsLimitedByCap ?? false,
   }
 }

@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react"
 import {
   adminGetBonusSettings,
   adminUpdateBonusSettings,
+  adminGetReliabilityRatingSettings,
+  adminUpdateReliabilityRatingSettings,
 } from "@/lib/admin-api"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -15,16 +17,23 @@ import { useToast } from "@/hooks/use-toast"
 export default function AdminSettingsPage() {
   const [shiftBonusDefaultMultiplier, setShiftBonusDefaultMultiplier] = useState<string>("")
   const [questMonthlyBonusCap, setQuestMonthlyBonusCap] = useState<string>("")
+  const [reliabilityRatingIncreasePerShift, setReliabilityRatingIncreasePerShift] = useState<string>("")
+  const [reliabilityRatingDecreaseNoShow, setReliabilityRatingDecreaseNoShow] = useState<string>("")
+  const [reliabilityRatingDecreaseLateCancel, setReliabilityRatingDecreaseLateCancel] = useState<string>("")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [savingReliability, setSavingReliability] = useState(false)
   const { toast } = useToast()
 
   const load = useCallback(() => {
     setLoading(true)
-    adminGetBonusSettings()
-      .then((r) => {
-        setShiftBonusDefaultMultiplier(String(r.shiftBonusDefaultMultiplier))
-        setQuestMonthlyBonusCap(String(r.questMonthlyBonusCap))
+    Promise.all([adminGetBonusSettings(), adminGetReliabilityRatingSettings()])
+      .then(([bonus, reliability]) => {
+        setShiftBonusDefaultMultiplier(String(bonus.shiftBonusDefaultMultiplier))
+        setQuestMonthlyBonusCap(String(bonus.questMonthlyBonusCap))
+        setReliabilityRatingIncreasePerShift(String(reliability.reliabilityRatingIncreasePerShift))
+        setReliabilityRatingDecreaseNoShow(String(reliability.reliabilityRatingDecreaseNoShow))
+        setReliabilityRatingDecreaseLateCancel(String(reliability.reliabilityRatingDecreaseLateCancel))
       })
       .catch(() => toast({ title: "Ошибка загрузки настроек", variant: "destructive" }))
       .finally(() => setLoading(false))
@@ -57,6 +66,38 @@ export default function AdminSettingsPage() {
       })
       .catch((e) => toast({ title: e instanceof Error ? e.message : "Ошибка", variant: "destructive" }))
       .finally(() => setSaving(false))
+  }
+
+  const handleSaveReliability = () => {
+    const inc = Number(reliabilityRatingIncreasePerShift)
+    const noShow = Number(reliabilityRatingDecreaseNoShow)
+    const lateCancel = Number(reliabilityRatingDecreaseLateCancel)
+    if (Number.isNaN(inc) || inc < 0) {
+      toast({ title: "Прирост рейтинга за смену — неотрицательное число", variant: "destructive" })
+      return
+    }
+    if (Number.isNaN(noShow) || noShow < 0) {
+      toast({ title: "Снижение за прогул — неотрицательное число", variant: "destructive" })
+      return
+    }
+    if (Number.isNaN(lateCancel) || lateCancel < 0) {
+      toast({ title: "Снижение за позднюю отмену — неотрицательное число", variant: "destructive" })
+      return
+    }
+    setSavingReliability(true)
+    adminUpdateReliabilityRatingSettings({
+      reliabilityRatingIncreasePerShift: inc,
+      reliabilityRatingDecreaseNoShow: noShow,
+      reliabilityRatingDecreaseLateCancel: lateCancel,
+    })
+      .then((r) => {
+        setReliabilityRatingIncreasePerShift(String(r.reliabilityRatingIncreasePerShift))
+        setReliabilityRatingDecreaseNoShow(String(r.reliabilityRatingDecreaseNoShow))
+        setReliabilityRatingDecreaseLateCancel(String(r.reliabilityRatingDecreaseLateCancel))
+        toast({ title: "Настройки рейтинга сохранены" })
+      })
+      .catch((e) => toast({ title: e instanceof Error ? e.message : "Ошибка", variant: "destructive" }))
+      .finally(() => setSavingReliability(false))
   }
 
   return (
@@ -118,6 +159,60 @@ export default function AdminSettingsPage() {
               </div>
               <Button onClick={handleSave} disabled={saving}>
                 {saving ? "Сохранение…" : "Сохранить"}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <h2 className="text-sm font-medium">Рейтинг надёжности</h2>
+          <p className="text-xs text-muted-foreground">
+            Рейтинг пользователя от 0 до 5 (дробное). По умолчанию 4. За выполненную смену — прирост, за прогул или позднюю отмену — снижение на заданную величину. При ручном снятии штрафа рейтинг возвращается; при переходе смены в «подтверждена» — возврат рейтинга и прирост за смену.
+          </p>
+          {loading ? (
+            <Skeleton className="h-10 w-32" />
+          ) : (
+            <div className="grid gap-4 max-w-md">
+              <div className="grid gap-2">
+                <Label htmlFor="reliabilityRatingIncreasePerShift">Прирост рейтинга за выполненную смену</Label>
+                <Input
+                  id="reliabilityRatingIncreasePerShift"
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  value={reliabilityRatingIncreasePerShift}
+                  onChange={(e) => setReliabilityRatingIncreasePerShift(e.target.value)}
+                  className="w-32"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="reliabilityRatingDecreaseNoShow">Снижение рейтинга за прогул (no_show)</Label>
+                <Input
+                  id="reliabilityRatingDecreaseNoShow"
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  value={reliabilityRatingDecreaseNoShow}
+                  onChange={(e) => setReliabilityRatingDecreaseNoShow(e.target.value)}
+                  className="w-32"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="reliabilityRatingDecreaseLateCancel">Снижение рейтинга за позднюю отмену</Label>
+                <Input
+                  id="reliabilityRatingDecreaseLateCancel"
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  value={reliabilityRatingDecreaseLateCancel}
+                  onChange={(e) => setReliabilityRatingDecreaseLateCancel(e.target.value)}
+                  className="w-32"
+                />
+              </div>
+              <Button onClick={handleSaveReliability} disabled={savingReliability}>
+                {savingReliability ? "Сохранение…" : "Сохранить настройки рейтинга"}
               </Button>
             </div>
           )}

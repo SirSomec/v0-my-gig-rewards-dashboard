@@ -56,6 +56,8 @@ type UserDetail = {
   shiftsCompleted: number
   levelId: number
   levelName: string
+  /** Рейтинг надёжности 0–5 (дробное). По умолчанию 4. */
+  reliabilityRating?: number
   strikesCount30d: number
   strikes: Array<{
     id: number
@@ -256,6 +258,10 @@ export default function AdminUserDetailPage() {
               <div>
                 <dt className="text-muted-foreground">Смен выполнено</dt>
                 <dd>{user.shiftsCompleted}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Рейтинг надёжности</dt>
+                <dd className="font-medium">{(user.reliabilityRating ?? 4).toFixed(1)} / 5</dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">Создан</dt>

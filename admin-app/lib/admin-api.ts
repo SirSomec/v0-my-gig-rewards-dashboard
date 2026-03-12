@@ -436,6 +436,29 @@ export async function adminUpdateBonusSettings(body: {
   });
 }
 
+export async function adminGetReliabilityRatingSettings(): Promise<{
+  reliabilityRatingIncreasePerShift: number;
+  reliabilityRatingDecreaseNoShow: number;
+  reliabilityRatingDecreaseLateCancel: number;
+}> {
+  return fetchAdmin("/v1/admin/settings/reliability-rating");
+}
+
+export async function adminUpdateReliabilityRatingSettings(body: {
+  reliabilityRatingIncreasePerShift?: number;
+  reliabilityRatingDecreaseNoShow?: number;
+  reliabilityRatingDecreaseLateCancel?: number;
+}): Promise<{
+  reliabilityRatingIncreasePerShift: number;
+  reliabilityRatingDecreaseNoShow: number;
+  reliabilityRatingDecreaseLateCancel: number;
+}> {
+  return fetchAdmin("/v1/admin/settings/reliability-rating", {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function adminListQuests(): Promise<AdminQuest[]> {
   return fetchAdmin<AdminQuest[]>("/v1/admin/quests");
 }

@@ -30,14 +30,8 @@ interface LevelProgressProps {
   shiftsRequired: number
   /** Сколько ещё смен до перехода на следующий уровень */
   shiftsRemaining: number
-  /** Штрафов за текущую неделю */
-  strikesCountWeek?: number
-  /** Штрафов за текущий месяц */
-  strikesCountMonth?: number
-  /** Лимит штрафов за неделю для уровня (при превышении — понижение) */
-  strikesLimitPerWeek?: number | null
-  /** Лимит штрафов за месяц для уровня (при превышении — понижение) */
-  strikesLimitPerMonth?: number | null
+  /** Рейтинг надёжности 0–5 (дробное). По умолчанию 4. */
+  reliabilityRating?: number
   /** Перки текущего уровня из API (синхронно с настройками уровней в админке). Если заданы — отображаются вместо захардкоженного списка. */
   currentLevelPerks?: Array<{ title: string; description?: string; icon?: string }>
 }
@@ -62,19 +56,15 @@ export function LevelProgress({
   shiftsCompleted,
   shiftsRequired,
   shiftsRemaining,
-  strikesCountWeek = 0,
-  strikesCountMonth = 0,
-  strikesLimitPerWeek,
-  strikesLimitPerMonth,
+  reliabilityRating = 4,
   currentLevelPerks: currentLevelPerksFromApi,
 }: LevelProgressProps) {
   const [showBenefits, setShowBenefits] = useState(false)
   const isMaxLevel = nextLevel === "—"
   const targetShifts = shiftsRequired > 0 ? shiftsRequired : 1
   const progress = isMaxLevel ? 100 : Math.min(100, (shiftsCompleted / targetShifts) * 100)
-  const hasWeekLimit = strikesLimitPerWeek != null && strikesLimitPerWeek > 0
-  const hasMonthLimit = strikesLimitPerMonth != null && strikesLimitPerMonth > 0
-  const showStrikesSection = true
+  const ratingPct = Math.min(100, Math.max(0, (reliabilityRating / 5) * 100))
+  const ratingDisplay = Number.isFinite(reliabilityRating) ? reliabilityRating.toFixed(1) : "4.0"
 
   const hardcodedBenefits = benefits[currentLevel] || benefits["Серебряный партнёр"]
   const useApiPerks = currentLevelPerksFromApi != null && currentLevelPerksFromApi.length > 0
@@ -122,7 +112,7 @@ export function LevelProgress({
           />
         </div>
 
-        <div className={`flex items-center justify-between ${showStrikesSection ? "mb-1.5 sm:mb-2" : "mb-3 sm:mb-4"}`}>
+        <div className={`flex items-center justify-between mb-1.5 sm:mb-2`}>
           <span className="text-xs text-muted-foreground">
             {shiftsCompleted}/{isMaxLevel ? shiftsCompleted : shiftsRequired} смен
           </span>
@@ -131,63 +121,24 @@ export function LevelProgress({
           </span>
         </div>
 
-        {showStrikesSection && (
-          <div className="mb-3 sm:mb-4 space-y-2 sm:space-y-3">
-            <p className="text-[11px] sm:text-xs text-muted-foreground">
-              При превышении количества штрафов за неделю или за месяц уровень будет понижен на один шаг. Следите за счётчиками ниже.
-            </p>
-            <div>
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>Штрафы за неделю</span>
-                {hasWeekLimit ? (
-                  <span className={strikesCountWeek > (strikesLimitPerWeek ?? 0) ? "font-medium text-destructive" : ""}>
-                    {strikesCountWeek}/{strikesLimitPerWeek}
-                    {strikesCountWeek > (strikesLimitPerWeek ?? 0) ? " — превышен лимит" : ""}
-                  </span>
-                ) : (
-                  <span>{strikesCountWeek}{strikesCountWeek > 0 ? " — лимит не задан" : ""}</span>
-                )}
-              </div>
-              {hasWeekLimit ? (
-                <div className="relative h-2 bg-secondary rounded-full overflow-hidden">
-                  <motion.div
-                    className={`absolute inset-y-0 left-0 rounded-full ${strikesCountWeek > (strikesLimitPerWeek ?? 0) ? "bg-destructive/90" : "bg-amber-500/80"}`}
-                    initial={{ width: 0 }}
-                    animate={{
-                      width: `${Math.min(100, (strikesCountWeek / (strikesLimitPerWeek ?? 1)) * 100)}%`,
-                    }}
-                    transition={{ duration: 0.5, ease: "easeOut" }}
-                  />
-                </div>
-              ) : null}
-            </div>
-            <div>
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>Штрафы за месяц</span>
-                {hasMonthLimit ? (
-                  <span className={strikesCountMonth > (strikesLimitPerMonth ?? 0) ? "font-medium text-destructive" : ""}>
-                    {strikesCountMonth}/{strikesLimitPerMonth}
-                    {strikesCountMonth > (strikesLimitPerMonth ?? 0) ? " — превышен лимит" : ""}
-                  </span>
-                ) : (
-                  <span>{strikesCountMonth}{strikesCountMonth > 0 ? " — лимит не задан" : ""}</span>
-                )}
-              </div>
-              {hasMonthLimit ? (
-                <div className="relative h-2 bg-secondary rounded-full overflow-hidden">
-                  <motion.div
-                    className={`absolute inset-y-0 left-0 rounded-full ${strikesCountMonth > (strikesLimitPerMonth ?? 0) ? "bg-destructive/90" : "bg-amber-500/80"}`}
-                    initial={{ width: 0 }}
-                    animate={{
-                      width: `${Math.min(100, (strikesCountMonth / (strikesLimitPerMonth ?? 1)) * 100)}%`,
-                    }}
-                    transition={{ duration: 0.5, ease: "easeOut" }}
-                  />
-                </div>
-              ) : null}
-            </div>
+        {/* Рейтинг надёжности 0–5 */}
+        <div className="mb-3 sm:mb-4">
+          <div className="flex justify-between text-xs text-muted-foreground mb-1">
+            <span>Рейтинг надёжности</span>
+            <span className="font-medium text-foreground">{ratingDisplay} / 5</span>
           </div>
-        )}
+          <div className="relative h-2 bg-secondary rounded-full overflow-hidden">
+            <motion.div
+              className="absolute inset-y-0 left-0 rounded-full bg-primary/80"
+              initial={{ width: 0 }}
+              animate={{ width: `${ratingPct}%` }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+            />
+          </div>
+          <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">
+            Растёт за выполнение смен, снижается за прогулы и поздние отмены.
+          </p>
+        </div>
 
         {/* Benefits toggle */}
         <button

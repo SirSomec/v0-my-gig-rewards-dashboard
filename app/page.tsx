@@ -128,10 +128,7 @@ export default function MyGigRewards() {
                 shiftsCompleted={user.shiftsCompleted}
                 shiftsRequired={user.nextLevelShiftsRequired ?? user.shiftsRequired}
                 shiftsRemaining={user.shiftsRemaining}
-                strikesCountWeek={user.strikesCountWeek}
-                strikesCountMonth={user.strikesCountMonth}
-                strikesLimitPerWeek={user.strikesLimitPerWeek}
-                strikesLimitPerMonth={user.strikesLimitPerMonth}
+                reliabilityRating={user.reliabilityRating}
                 currentLevelPerks={currentLevelPerks}
               />
               <Quests quests={quests} questsLimitedByCap={user.questsLimitedByCap} />

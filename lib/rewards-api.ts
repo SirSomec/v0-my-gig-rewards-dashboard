@@ -100,10 +100,8 @@ export interface MeResponse {
   nextLevelShiftsRequired: number | null;
   shiftsCompleted: number;
   shiftsRequired: number;
-  strikesCountWeek: number;
-  strikesCountMonth: number;
-  strikesLimitPerWeek: number | null;
-  strikesLimitPerMonth: number | null;
+  /** Рейтинг надёжности 0–5 (дробное). По умолчанию 4. */
+  reliabilityRating: number;
   /** Сумма начисленных бонусов за текущий месяц (смены + квесты) */
   monthlyBonusTotal?: number;
   /** Порог бонусов за месяц (0 = без ограничения) */

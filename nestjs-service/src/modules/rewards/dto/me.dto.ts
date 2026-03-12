@@ -11,14 +11,8 @@ export class MeResponseDto {
   nextLevelShiftsRequired!: number | null;
   shiftsCompleted!: number;
   shiftsRequired!: number;
-  /** Штрафов за текущую неделю */
-  strikesCountWeek!: number;
-  /** Штрафов за текущий месяц */
-  strikesCountMonth!: number;
-  /** Лимит штрафов за неделю для текущего уровня (null = не учитывается) */
-  strikesLimitPerWeek!: number | null;
-  /** Лимит штрафов за месяц для текущего уровня (null = не учитывается) */
-  strikesLimitPerMonth!: number | null;
+  /** Рейтинг надёжности 0–5 (дробное). По умолчанию 4. */
+  reliabilityRating!: number;
   /** Сумма начисленных бонусов за текущий месяц (смены + квесты) */
   monthlyBonusTotal!: number;
   /** Порог бонусов за месяц: при достижении новые квесты не выдаются (0 = без ограничения) */

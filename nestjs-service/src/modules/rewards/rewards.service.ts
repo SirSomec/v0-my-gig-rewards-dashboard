@@ -122,7 +122,7 @@ export class RewardsService {
 
   async getMe(userId: number): Promise<MeResponseDto> {
     await this.recalcUserLevel(userId);
-    const { users, levels, strikes, transactions } = schema;
+    const { users, levels, transactions } = schema;
     const rows = await this.db
       .select({
         user: users,
@@ -138,36 +138,8 @@ export class RewardsService {
     }
     const { user, level } = row;
     const now = new Date();
-    const weekStart = startOfWeekUTC(now);
-    const weekEnd = endOfWeekUTC(now);
     const monthStart = startOfMonthUTC(now);
     const nextMonthStart = startOfNextMonthUTC(now);
-    const [countWeek, countMonth] = await Promise.all([
-      this.db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(strikes)
-        .where(
-          and(
-            eq(strikes.userId, userId),
-            gte(strikes.occurredAt, weekStart),
-            lt(strikes.occurredAt, weekEnd),
-            isNull(strikes.removedAt),
-          ),
-        ),
-      this.db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(strikes)
-        .where(
-          and(
-            eq(strikes.userId, userId),
-            gte(strikes.occurredAt, monthStart),
-            lt(strikes.occurredAt, nextMonthStart),
-            isNull(strikes.removedAt),
-          ),
-        ),
-    ]);
-    const countWeekVal = countWeek[0]?.count ?? 0;
-    const countMonthVal = countMonth[0]?.count ?? 0;
     const nextLevelRows = await this.db
       .select()
       .from(levels)
@@ -186,10 +158,7 @@ export class RewardsService {
     dto.nextLevelShiftsRequired = nextLevel?.shiftsRequired ?? null;
     dto.shiftsCompleted = user.shiftsCompleted;
     dto.shiftsRequired = level.shiftsRequired;
-    dto.strikesCountWeek = countWeekVal;
-    dto.strikesCountMonth = countMonthVal;
-    dto.strikesLimitPerWeek = level.strikeLimitPerWeek ?? null;
-    dto.strikesLimitPerMonth = level.strikeLimitPerMonth ?? null;
+    dto.reliabilityRating = Number(user.reliabilityRating ?? 4);
     const [monthlySumRow] = await this.db
       .select({ sum: sql<number>`coalesce(sum(${transactions.amount}), 0)` })
       .from(transactions)
@@ -526,72 +495,11 @@ export class RewardsService {
   }
 
   /**
-   * Пересчёт уровня с учётом штрафов: уровень по сменам, затем понижение при превышении лимита штрафов за неделю или месяц.
-   * Вызывается после снятия штрафа (6.7).
+   * Пересчёт уровня по сменам (без учёта штрафов). Вызывается после снятия штрафа и в других местах.
+   * Раньше учитывались лимиты штрафов за неделю/месяц — заменено на рейтинг надёжности.
    */
   async recalcUserLevelConsideringStrikes(userId: number): Promise<void> {
-    const { users, levels, strikes } = schema;
-    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
-    if (!user) return;
-    const now = new Date();
-    const weekStart = startOfWeekUTC(now);
-    const weekEnd = endOfWeekUTC(now);
-    const monthStart = startOfMonthUTC(now);
-    const nextMonthStart = startOfNextMonthUTC(now);
-    const [countWeekRes, countMonthRes] = await Promise.all([
-      this.db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(strikes)
-        .where(
-          and(
-            eq(strikes.userId, userId),
-            gte(strikes.occurredAt, weekStart),
-            lt(strikes.occurredAt, weekEnd),
-            isNull(strikes.removedAt),
-          ),
-        ),
-      this.db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(strikes)
-        .where(
-          and(
-            eq(strikes.userId, userId),
-            gte(strikes.occurredAt, monthStart),
-            lt(strikes.occurredAt, nextMonthStart),
-            isNull(strikes.removedAt),
-          ),
-        ),
-    ]);
-    const countWeek = countWeekRes[0]?.count ?? 0;
-    const countMonth = countMonthRes[0]?.count ?? 0;
-    const [levelByShifts] = await this.db
-      .select()
-      .from(levels)
-      .where(lte(levels.shiftsRequired, user.shiftsCompleted))
-      .orderBy(desc(levels.shiftsRequired))
-      .limit(1);
-    if (!levelByShifts) return;
-    let targetLevel = levelByShifts;
-    while (true) {
-      const exceedWeek =
-        targetLevel.strikeLimitPerWeek != null && countWeek > targetLevel.strikeLimitPerWeek;
-      const exceedMonth =
-        targetLevel.strikeLimitPerMonth != null && countMonth > targetLevel.strikeLimitPerMonth;
-      if (!exceedWeek && !exceedMonth) break;
-      const [prevLevel] = await this.db
-        .select()
-        .from(levels)
-        .where(eq(levels.sortOrder, targetLevel.sortOrder - 1))
-        .limit(1);
-      if (!prevLevel) break;
-      targetLevel = prevLevel;
-    }
-    if (targetLevel.id !== user.levelId) {
-      await this.db
-        .update(users)
-        .set({ levelId: targetLevel.id, shiftsCompleted: 0 })
-        .where(eq(users.id, userId));
-    }
+    await this.recalcUserLevel(userId);
   }
 
   /**
@@ -661,11 +569,14 @@ export class RewardsService {
       })
       .returning({ id: transactions.id });
     if (!tx) throw new Error('Failed to create transaction');
+    const increase = await this.getReliabilityRatingIncreasePerShift();
+    const newRating = Math.min(5, (user.user.reliabilityRating ?? 4) + increase);
     await this.db
       .update(users)
       .set({
         balance: user.user.balance + amount,
         shiftsCompleted: user.user.shiftsCompleted + 1,
+        reliabilityRating: newRating,
       })
       .where(eq(users.id, userId));
     await this.recalcUserLevel(userId);
@@ -760,24 +671,52 @@ export class RewardsService {
     return Number.isNaN(parsed) || parsed < 0 ? 0 : parsed;
   }
 
+  /** Прирост рейтинга надёжности за одну выполненную смену (из system_settings). */
+  private async getReliabilityRatingIncreasePerShift(): Promise<number> {
+    return this.getSystemSettingNumber('reliability_rating_increase_per_shift', 0.1);
+  }
+
+  /** Снижение рейтинга за прогул (no_show). Положительное число — вычитается из рейтинга. */
+  private async getReliabilityRatingDecreaseNoShow(): Promise<number> {
+    return this.getSystemSettingNumber('reliability_rating_decrease_no_show', 0.2);
+  }
+
+  /** Снижение рейтинга за позднюю отмену (late_cancel). Положительное число — вычитается из рейтинга. */
+  private async getReliabilityRatingDecreaseLateCancel(): Promise<number> {
+    return this.getSystemSettingNumber('reliability_rating_decrease_late_cancel', 0.2);
+  }
+
+  private async getSystemSettingNumber(key: string, defaultValue: number): Promise<number> {
+    const { systemSettings } = schema;
+    const [row] = await this.db
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.key, key))
+      .limit(1);
+    if (!row) return defaultValue;
+    const v = row.value;
+    if (typeof v === 'number' && !Number.isNaN(v)) return v;
+    if (typeof v === 'object' && v != null && typeof (v as { value?: number }).value === 'number') {
+      return (v as { value: number }).value;
+    }
+    const parsed = Number(v);
+    return Number.isNaN(parsed) ? defaultValue : parsed;
+  }
+
   /**
-   * Зарегистрировать штраф (no_show / late_cancel). Запись в strikes; при превышении лимита за неделю или месяц — понижение на 1 уровень.
+   * Зарегистрировать штраф (no_show / late_cancel). Запись в strikes; снижение рейтинга надёжности на величину из настроек.
    */
   async registerStrike(
     userId: number,
     type: 'no_show' | 'late_cancel',
     shiftExternalId?: string,
   ): Promise<{ strikeId: number; levelDemoted: boolean }> {
-    const { users, levels, strikes } = schema;
+    const { users, strikes } = schema;
     const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user) {
       throw new NotFoundException('User not found');
     }
     const now = new Date();
-    const weekStart = startOfWeekUTC(now);
-    const weekEnd = endOfWeekUTC(now);
-    const monthStart = startOfMonthUTC(now);
-    const nextMonthStart = startOfNextMonthUTC(now);
     const [strike] = await this.db
       .insert(strikes)
       .values({
@@ -788,58 +727,18 @@ export class RewardsService {
       })
       .returning({ id: strikes.id });
     if (!strike) throw new Error('Failed to create strike');
-    const [countWeekRes, countMonthRes] = await Promise.all([
-      this.db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(strikes)
-        .where(
-          and(
-            eq(strikes.userId, userId),
-            gte(strikes.occurredAt, weekStart),
-            lt(strikes.occurredAt, weekEnd),
-            isNull(strikes.removedAt),
-          ),
-        ),
-      this.db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(strikes)
-        .where(
-          and(
-            eq(strikes.userId, userId),
-            gte(strikes.occurredAt, monthStart),
-            lt(strikes.occurredAt, nextMonthStart),
-            isNull(strikes.removedAt),
-          ),
-        ),
-    ]);
-    const countWeek = countWeekRes[0]?.count ?? 0;
-    const countMonth = countMonthRes[0]?.count ?? 0;
-    const [currentLevel] = await this.db
-      .select()
-      .from(levels)
-      .where(eq(levels.id, user.levelId))
-      .limit(1);
-    let levelDemoted = false;
-    const exceedWeek =
-      currentLevel?.strikeLimitPerWeek != null && countWeek > currentLevel.strikeLimitPerWeek;
-    const exceedMonth =
-      currentLevel?.strikeLimitPerMonth != null && countMonth > currentLevel.strikeLimitPerMonth;
-    if (currentLevel && (exceedWeek || exceedMonth)) {
-      const [prevLevel] = await this.db
-        .select()
-        .from(levels)
-        .where(eq(levels.sortOrder, currentLevel.sortOrder - 1))
-        .limit(1);
-      if (prevLevel) {
-        await this.db
-          .update(users)
-          .set({ levelId: prevLevel.id, shiftsCompleted: 0 })
-          .where(eq(users.id, userId));
-        levelDemoted = true;
-      }
-    }
+    const decrease =
+      type === 'no_show'
+        ? await this.getReliabilityRatingDecreaseNoShow()
+        : await this.getReliabilityRatingDecreaseLateCancel();
+    const currentRating = user.reliabilityRating ?? 4;
+    const newRating = Math.max(0, currentRating - decrease);
+    await this.db
+      .update(users)
+      .set({ reliabilityRating: newRating })
+      .where(eq(users.id, userId));
     await this.resetShiftsSeriesProgressForUser(userId);
-    return { strikeId: strike.id, levelDemoted };
+    return { strikeId: strike.id, levelDemoted: false };
   }
 
   /**
@@ -988,8 +887,29 @@ export class RewardsService {
   }
 
   /**
+   * Восстановить рейтинг надёжности при снятии штрафа (ручное снятие или смена перешла в confirmed).
+   * При смене на confirmed затем вызывается recordShiftCompleted — там начислится прирост за смену.
+   */
+  async restoreReliabilityRatingForStrikeRemoval(
+    userId: number,
+    strikeType: 'no_show' | 'late_cancel',
+  ): Promise<void> {
+    const { users } = schema;
+    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) return;
+    const decrease =
+      strikeType === 'no_show'
+        ? await this.getReliabilityRatingDecreaseNoShow()
+        : await this.getReliabilityRatingDecreaseLateCancel();
+    const currentRating = user.reliabilityRating ?? 4;
+    const newRating = Math.min(5, currentRating + decrease);
+    await this.db.update(users).set({ reliabilityRating: newRating }).where(eq(users.id, userId));
+  }
+
+  /**
    * Снять штраф по внешнему ID смены (jobId). Используется когда смена из TOJ переходит в confirmed:
-   * ранее мог быть начислен прогул (failed) или поздняя отмена (cancelled) — снимаем и восстанавливаем уровень/привилегии.
+   * ранее мог быть начислен прогул (failed) или поздняя отмена (cancelled) — снимаем, восстанавливаем рейтинг.
+   * Прирост за саму смену будет начислен при вызове recordShiftCompleted для этой смены.
    */
   async removeStrikeByShiftExternalId(shiftExternalId: string): Promise<{ removed: boolean; userId?: number }> {
     const { strikes } = schema;
@@ -1011,7 +931,8 @@ export class RewardsService {
         removalReason: 'Смена подтверждена (confirmed)',
       })
       .where(eq(strikes.id, strike.id));
-    await this.recalcUserLevelConsideringStrikes(strike.userId);
+    await this.restoreReliabilityRatingForStrikeRemoval(strike.userId, strike.type as 'no_show' | 'late_cancel');
+    await this.recalcUserLevel(strike.userId);
     await this.recalcQuestProgressForUser(strike.userId);
     return { removed: true, userId: strike.userId };
   }

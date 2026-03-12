@@ -664,6 +664,93 @@ export class AdminService {
     );
   }
 
+  /** Настройки рейтинга надёжности: прирост за смену, снижение за прогул и за позднюю отмену */
+  async getReliabilityRatingSettings(): Promise<{
+    reliabilityRatingIncreasePerShift: number;
+    reliabilityRatingDecreaseNoShow: number;
+    reliabilityRatingDecreaseLateCancel: number;
+  }> {
+    const { systemSettings } = schema;
+    const keys = [
+      'reliability_rating_increase_per_shift',
+      'reliability_rating_decrease_no_show',
+      'reliability_rating_decrease_late_cancel',
+    ] as const;
+    const defaults = [0.1, 0.2, 0.2] as const;
+    const result = {
+      reliabilityRatingIncreasePerShift: defaults[0],
+      reliabilityRatingDecreaseNoShow: defaults[1],
+      reliabilityRatingDecreaseLateCancel: defaults[2],
+    };
+    for (let i = 0; i < keys.length; i++) {
+      const [row] = await this.db
+        .select()
+        .from(systemSettings)
+        .where(eq(systemSettings.key, keys[i]))
+        .limit(1);
+      if (row?.value != null) {
+        const v = row.value;
+        let num = defaults[i];
+        if (typeof v === 'number' && !Number.isNaN(v)) num = v;
+        else if (typeof v === 'object' && v != null && typeof (v as { value?: number }).value === 'number') {
+          num = (v as { value: number }).value;
+        } else {
+          const p = Number(v);
+          if (!Number.isNaN(p)) num = p;
+        }
+        if (i === 0) result.reliabilityRatingIncreasePerShift = num;
+        else if (i === 1) result.reliabilityRatingDecreaseNoShow = num;
+        else result.reliabilityRatingDecreaseLateCancel = num;
+      }
+    }
+    return result;
+  }
+
+  async updateReliabilityRatingSettings(dto: {
+    reliabilityRatingIncreasePerShift?: number;
+    reliabilityRatingDecreaseNoShow?: number;
+    reliabilityRatingDecreaseLateCancel?: number;
+  }): Promise<void> {
+    const { systemSettings } = schema;
+    const oldSettings = await this.getReliabilityRatingSettings();
+    const now = new Date();
+    const updates: Array<{ key: string; value: number }> = [];
+    if (dto.reliabilityRatingIncreasePerShift !== undefined) {
+      const v = Number(dto.reliabilityRatingIncreasePerShift);
+      if (Number.isNaN(v) || v < 0) throw new Error('reliabilityRatingIncreasePerShift must be a non-negative number');
+      updates.push({ key: 'reliability_rating_increase_per_shift', value: v });
+    }
+    if (dto.reliabilityRatingDecreaseNoShow !== undefined) {
+      const v = Number(dto.reliabilityRatingDecreaseNoShow);
+      if (Number.isNaN(v) || v < 0) throw new Error('reliabilityRatingDecreaseNoShow must be a non-negative number');
+      updates.push({ key: 'reliability_rating_decrease_no_show', value: v });
+    }
+    if (dto.reliabilityRatingDecreaseLateCancel !== undefined) {
+      const v = Number(dto.reliabilityRatingDecreaseLateCancel);
+      if (Number.isNaN(v) || v < 0) throw new Error('reliabilityRatingDecreaseLateCancel must be a non-negative number');
+      updates.push({ key: 'reliability_rating_decrease_late_cancel', value: v });
+    }
+    for (const { key, value } of updates) {
+      await this.db
+        .insert(systemSettings)
+        .values({ key, value })
+        .onConflictDoUpdate({
+          target: systemSettings.key,
+          set: { value, updatedAt: now },
+        });
+    }
+    if (updates.length > 0) {
+      const newSettings = await this.getReliabilityRatingSettings();
+      await this.logAudit(
+        'reliability_rating_settings_update',
+        'system_settings',
+        'reliability_rating',
+        oldSettings,
+        newSettings,
+      );
+    }
+  }
+
   async updateLevel(id: number, dto: UpdateLevelDto) {
     const { levels } = schema;
     const [existing] = await this.db.select().from(levels).where(eq(levels.id, id)).limit(1);
@@ -1091,6 +1178,10 @@ export class AdminService {
         removalReason: reason?.trim() || null,
       })
       .where(eq(strikes.id, strikeId));
+    await this.rewards.restoreReliabilityRatingForStrikeRemoval(
+      strike.userId,
+      strike.type as 'no_show' | 'late_cancel',
+    );
     await this.rewards.recalcUserLevelConsideringStrikes(strike.userId);
     await this.rewards.recalcQuestProgressForUser(strike.userId);
     await this.logAudit('strike_removed', 'strike', String(strikeId), undefined, {

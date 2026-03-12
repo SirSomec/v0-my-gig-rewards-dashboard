@@ -1,4 +1,4 @@
-import { integer, pgTable, varchar } from 'drizzle-orm/pg-core';
+import { integer, pgTable, real, varchar } from 'drizzle-orm/pg-core';
 import { timestamps } from './base.schema';
 import { levels } from './levels.schema';
 
@@ -11,5 +11,7 @@ export const users = pgTable('users', {
   balance: integer('balance').notNull().default(0),
   levelId: integer('level_id').references(() => levels.id).notNull(),
   shiftsCompleted: integer('shifts_completed').notNull().default(0),
+  /** Рейтинг надёжности 0–5. По умолчанию 4. Дробное. */
+  reliabilityRating: real('reliability_rating').notNull().default(4),
   ...timestamps,
 });

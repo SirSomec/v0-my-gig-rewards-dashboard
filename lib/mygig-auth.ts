@@ -91,10 +91,7 @@ const MOCK = {
   shiftsRequired: 5,
   nextLevelShiftsRequired: 10,
   balance: 0,
-  strikesCountWeek: 0,
-  strikesCountMonth: 0,
-  strikesLimitPerWeek: 3,
-  strikesLimitPerMonth: 5,
+  reliabilityRating: 4,
 }
 
 // --- Запросы к MyGig API ---
@@ -252,9 +249,6 @@ export function mapProfileToMeResponse(profile: UserProfile): MeResponse {
     nextLevelShiftsRequired,
     shiftsCompleted,
     shiftsRequired,
-    strikesCountWeek: MOCK.strikesCountWeek,
-    strikesCountMonth: MOCK.strikesCountMonth,
-    strikesLimitPerWeek: MOCK.strikesLimitPerWeek,
-    strikesLimitPerMonth: MOCK.strikesLimitPerMonth,
+    reliabilityRating: profile.reliabilityRating ?? MOCK.reliabilityRating,
   }
 }
