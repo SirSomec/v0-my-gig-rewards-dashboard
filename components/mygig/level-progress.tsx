@@ -163,7 +163,7 @@ export function LevelProgress({
                 >
                   {ratingDisplay}
                 </span>
-                <span className="text-[11px] sm:text-xs font-semibold text-foreground tabular-nums -ml-0.5 leading-none">
+                <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground tabular-nums -ml-0.5 leading-none">
                   /5
                 </span>
               </div>
