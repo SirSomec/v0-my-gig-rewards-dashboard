@@ -1,10 +1,4 @@
-import {
-  Logger,
-  MiddlewareConsumer,
-  Module,
-  NestModule,
-  OnModuleDestroy,
-} from '@nestjs/common';
+import { Logger, MiddlewareConsumer, Module, NestModule, OnModuleDestroy } from '@nestjs/common';
 import { RequestLoggerMiddleware } from './shared/request-logger.middleware';
 import { ConfigModule } from '@nestjs/config';
 import { EnvValidationSchema } from './shared/env.validation-schema';
@@ -13,6 +7,7 @@ import { DrizzleModule } from './infra/db/drizzle/drizzle.module';
 import { HealthModule } from './infra/health/health.module';
 import { RewardsModule } from './modules/rewards/rewards.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 const SHUTDOWN_TIMEOUT = 60000;
 
@@ -23,6 +18,7 @@ const SHUTDOWN_TIMEOUT = 60000;
     DrizzleModule,
     RewardsModule,
     AdminModule,
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,

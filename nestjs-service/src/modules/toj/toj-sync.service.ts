@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Envs } from '../../shared/env.validation-schema';
 import { TojClientService } from './toj-client.service';
 import { RewardsService } from '../rewards/rewards.service';
 import { TojSyncRepository } from './toj-sync.repository';
+import { Interval } from '@nestjs/schedule';
 
 const WATERMARK_KEY = 'toj_sync_last_updated_at';
 /** Время последнего запуска синхронизации (для ограничения «не чаще чем раз в N минут»). */
@@ -32,6 +33,8 @@ export class TojSyncService {
     private readonly rewards: RewardsService,
     private readonly tojSyncRepository: TojSyncRepository,
   ) {}
+
+  private readonly logger = new Logger(TojSyncService.name);
 
   isSyncEnabled(): boolean {
     const enabled = this.config.get('TOJ_SYNC_ENABLED', { infer: true });
@@ -88,7 +91,7 @@ export class TojSyncService {
       return { processed: 0, skipped: 0, errors: ['TOJ sync is disabled (TOJ_SYNC_ENABLED)'] };
     }
     const maxJobsPerRun = this.config.get('TOJ_SYNC_MAX_JOBS_PER_RUN', { infer: true }) ?? 1000;
-    const pageSize = this.config.get('TOJ_SYNC_PAGE_SIZE', { infer: true }) ?? 500;
+    const pageSize = this.config.get('TOJ_SYNC_PAGE_SIZE', { infer: true }) ?? 100;
     const workerBatchSize = this.config.get('TOJ_SYNC_WORKER_BATCH_SIZE', { infer: true }) ?? 200;
     const initialDaysAgo = this.config.get('TOJ_SYNC_INITIAL_DAYS_AGO', { infer: true }) ?? 7;
 
@@ -304,5 +307,25 @@ export class TojSyncService {
       if (skippedReasons.wrongStatus > 0) result.skippedReasons.wrongStatus = skippedReasons.wrongStatus;
     }
     return result;
+  }
+
+  /**
+   * Периодическая глобальная синхронизация всех пользователей.
+   * Запускается раз в 10 минут и запрашивает смены только по пользователям,
+   * которые есть в нашей базе (getUsersWithExternalId) блоками по 100 смен.
+   */
+  @Interval(10 * 60 * 1000)
+  async handlePeriodicSync(): Promise<void> {
+    try {
+      const result = await this.runSync();
+      if (result.errors.length > 0) {
+        this.logger.warn(
+          `TOJ periodic sync completed with errors: ${result.errors.join('; ')}`,
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`TOJ periodic sync failed: ${msg}`);
+    }
   }
 }
