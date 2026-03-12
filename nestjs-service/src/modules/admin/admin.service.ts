@@ -669,22 +669,30 @@ export class AdminService {
     reliabilityRatingIncreasePerShift: number;
     reliabilityRatingDecreaseNoShow: number;
     reliabilityRatingDecreaseLateCancel: number;
+    reliabilityMinRatingToCountShiftForLevel: number;
+    reliabilityMinRatingToUpgradeLevel: number;
   }> {
     const { systemSettings } = schema;
     const keys: string[] = [
       'reliability_rating_increase_per_shift',
       'reliability_rating_decrease_no_show',
       'reliability_rating_decrease_late_cancel',
+      'reliability_min_rating_to_count_shift_for_level',
+      'reliability_min_rating_to_upgrade_level',
     ];
-    const defaults: number[] = [0.1, 0.2, 0.2];
+    const defaults: number[] = [0.1, 0.2, 0.2, 0, 0];
     const result: {
       reliabilityRatingIncreasePerShift: number;
       reliabilityRatingDecreaseNoShow: number;
       reliabilityRatingDecreaseLateCancel: number;
+      reliabilityMinRatingToCountShiftForLevel: number;
+      reliabilityMinRatingToUpgradeLevel: number;
     } = {
       reliabilityRatingIncreasePerShift: defaults[0]!,
       reliabilityRatingDecreaseNoShow: defaults[1]!,
       reliabilityRatingDecreaseLateCancel: defaults[2]!,
+      reliabilityMinRatingToCountShiftForLevel: defaults[3]!,
+      reliabilityMinRatingToUpgradeLevel: defaults[4]!,
     };
     for (let i = 0; i < keys.length; i++) {
       const key = keys[i]!;
@@ -705,7 +713,9 @@ export class AdminService {
         }
         if (i === 0) result.reliabilityRatingIncreasePerShift = num;
         else if (i === 1) result.reliabilityRatingDecreaseNoShow = num;
-        else result.reliabilityRatingDecreaseLateCancel = num;
+        else if (i === 2) result.reliabilityRatingDecreaseLateCancel = num;
+        else if (i === 3) result.reliabilityMinRatingToCountShiftForLevel = num;
+        else result.reliabilityMinRatingToUpgradeLevel = num;
       }
     }
     return result;
@@ -715,6 +725,8 @@ export class AdminService {
     reliabilityRatingIncreasePerShift?: number;
     reliabilityRatingDecreaseNoShow?: number;
     reliabilityRatingDecreaseLateCancel?: number;
+    reliabilityMinRatingToCountShiftForLevel?: number;
+    reliabilityMinRatingToUpgradeLevel?: number;
   }): Promise<void> {
     const { systemSettings } = schema;
     const oldSettings = await this.getReliabilityRatingSettings();
@@ -734,6 +746,20 @@ export class AdminService {
       const v = Number(dto.reliabilityRatingDecreaseLateCancel);
       if (Number.isNaN(v) || v < 0) throw new Error('reliabilityRatingDecreaseLateCancel must be a non-negative number');
       updates.push({ key: 'reliability_rating_decrease_late_cancel', value: v });
+    }
+    if (dto.reliabilityMinRatingToCountShiftForLevel !== undefined) {
+      const v = Number(dto.reliabilityMinRatingToCountShiftForLevel);
+      if (Number.isNaN(v) || v < 0) {
+        throw new Error('reliabilityMinRatingToCountShiftForLevel must be a non-negative number');
+      }
+      updates.push({ key: 'reliability_min_rating_to_count_shift_for_level', value: v });
+    }
+    if (dto.reliabilityMinRatingToUpgradeLevel !== undefined) {
+      const v = Number(dto.reliabilityMinRatingToUpgradeLevel);
+      if (Number.isNaN(v) || v < 0) {
+        throw new Error('reliabilityMinRatingToUpgradeLevel must be a non-negative number');
+      }
+      updates.push({ key: 'reliability_min_rating_to_upgrade_level', value: v });
     }
     for (const { key, value } of updates) {
       await this.db

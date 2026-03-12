@@ -475,12 +475,27 @@ export class RewardsService {
     if (!newLevel) return;
     const isUpgrade = newLevel.sortOrder > currentLevel.sortOrder;
     const assignBaseInitially = usedBaseFallback && user.levelId !== newLevel.id;
-    if (isUpgrade || assignBaseInitially) {
+    if (assignBaseInitially) {
       await this.db
         .update(users)
         .set({
           levelId: newLevel.id,
-          shiftsCompleted: assignBaseInitially ? user.shiftsCompleted : 0,
+          shiftsCompleted: user.shiftsCompleted,
+        })
+        .where(eq(users.id, userId));
+      return;
+    }
+    if (isUpgrade) {
+      const minRatingToUpgradeLevel = await this.getReliabilityMinRatingToUpgradeLevel();
+      const currentRating = user.reliabilityRating ?? 4;
+      if (currentRating < minRatingToUpgradeLevel) {
+        return;
+      }
+      await this.db
+        .update(users)
+        .set({
+          levelId: newLevel.id,
+          shiftsCompleted: 0,
         })
         .where(eq(users.id, userId));
     }
@@ -562,12 +577,15 @@ export class RewardsService {
       .returning({ id: transactions.id });
     if (!tx) throw new Error('Failed to create transaction');
     const increase = await this.getReliabilityRatingIncreasePerShift();
-    const newRating = Math.min(5, (user.user.reliabilityRating ?? 4) + increase);
+    const currentRating = user.user.reliabilityRating ?? 4;
+    const newRating = Math.min(5, currentRating + increase);
+    const minRatingToCountShift = await this.getReliabilityMinRatingToCountShiftForLevel();
+    const canCountShiftForLevel = currentRating >= minRatingToCountShift;
     await this.db
       .update(users)
       .set({
         balance: user.user.balance + amount,
-        shiftsCompleted: user.user.shiftsCompleted + 1,
+        shiftsCompleted: canCountShiftForLevel ? user.user.shiftsCompleted + 1 : user.user.shiftsCompleted,
         reliabilityRating: newRating,
       })
       .where(eq(users.id, userId));
@@ -676,6 +694,16 @@ export class RewardsService {
   /** Снижение рейтинга за позднюю отмену (late_cancel). Положительное число — вычитается из рейтинга. */
   private async getReliabilityRatingDecreaseLateCancel(): Promise<number> {
     return this.getSystemSettingNumber('reliability_rating_decrease_late_cancel', 0.2);
+  }
+
+  /** Минимальный рейтинг надёжности, при котором смена учитывается в прогресс уровня (shifts_completed). 0 = не ограничивать. */
+  private async getReliabilityMinRatingToCountShiftForLevel(): Promise<number> {
+    return this.getSystemSettingNumber('reliability_min_rating_to_count_shift_for_level', 0);
+  }
+
+  /** Минимальный рейтинг надёжности для автоматического повышения уровня лояльности. 0 = не ограничивать. */
+  private async getReliabilityMinRatingToUpgradeLevel(): Promise<number> {
+    return this.getSystemSettingNumber('reliability_min_rating_to_upgrade_level', 0);
   }
 
   private async getSystemSettingNumber(key: string, defaultValue: number): Promise<number> {

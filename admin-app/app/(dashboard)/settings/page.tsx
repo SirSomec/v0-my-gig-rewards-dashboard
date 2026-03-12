@@ -20,6 +20,8 @@ export default function AdminSettingsPage() {
   const [reliabilityRatingIncreasePerShift, setReliabilityRatingIncreasePerShift] = useState<string>("")
   const [reliabilityRatingDecreaseNoShow, setReliabilityRatingDecreaseNoShow] = useState<string>("")
   const [reliabilityRatingDecreaseLateCancel, setReliabilityRatingDecreaseLateCancel] = useState<string>("")
+  const [reliabilityMinRatingToCountShiftForLevel, setReliabilityMinRatingToCountShiftForLevel] = useState<string>("")
+  const [reliabilityMinRatingToUpgradeLevel, setReliabilityMinRatingToUpgradeLevel] = useState<string>("")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savingReliability, setSavingReliability] = useState(false)
@@ -34,6 +36,12 @@ export default function AdminSettingsPage() {
         setReliabilityRatingIncreasePerShift(String(reliability.reliabilityRatingIncreasePerShift))
         setReliabilityRatingDecreaseNoShow(String(reliability.reliabilityRatingDecreaseNoShow))
         setReliabilityRatingDecreaseLateCancel(String(reliability.reliabilityRatingDecreaseLateCancel))
+        setReliabilityMinRatingToCountShiftForLevel(
+          String(reliability.reliabilityMinRatingToCountShiftForLevel ?? 0)
+        )
+        setReliabilityMinRatingToUpgradeLevel(
+          String(reliability.reliabilityMinRatingToUpgradeLevel ?? 0)
+        )
       })
       .catch(() => toast({ title: "Ошибка загрузки настроек", variant: "destructive" }))
       .finally(() => setLoading(false))
@@ -72,6 +80,8 @@ export default function AdminSettingsPage() {
     const inc = Number(reliabilityRatingIncreasePerShift)
     const noShow = Number(reliabilityRatingDecreaseNoShow)
     const lateCancel = Number(reliabilityRatingDecreaseLateCancel)
+    const minRatingCountShift = Number(reliabilityMinRatingToCountShiftForLevel)
+    const minRatingUpgradeLevel = Number(reliabilityMinRatingToUpgradeLevel)
     if (Number.isNaN(inc) || inc < 0) {
       toast({ title: "Прирост рейтинга за смену — неотрицательное число", variant: "destructive" })
       return
@@ -84,16 +94,34 @@ export default function AdminSettingsPage() {
       toast({ title: "Снижение за позднюю отмену — неотрицательное число", variant: "destructive" })
       return
     }
+    if (Number.isNaN(minRatingCountShift) || minRatingCountShift < 0 || minRatingCountShift > 5) {
+      toast({
+        title: "Минимальный рейтинг для учёта смены в уровень должен быть в диапазоне 0–5",
+        variant: "destructive",
+      })
+      return
+    }
+    if (Number.isNaN(minRatingUpgradeLevel) || minRatingUpgradeLevel < 0 || minRatingUpgradeLevel > 5) {
+      toast({
+        title: "Минимальный рейтинг для повышения уровня должен быть в диапазоне 0–5",
+        variant: "destructive",
+      })
+      return
+    }
     setSavingReliability(true)
     adminUpdateReliabilityRatingSettings({
       reliabilityRatingIncreasePerShift: inc,
       reliabilityRatingDecreaseNoShow: noShow,
       reliabilityRatingDecreaseLateCancel: lateCancel,
+      reliabilityMinRatingToCountShiftForLevel: minRatingCountShift,
+      reliabilityMinRatingToUpgradeLevel: minRatingUpgradeLevel,
     })
       .then((r) => {
         setReliabilityRatingIncreasePerShift(String(r.reliabilityRatingIncreasePerShift))
         setReliabilityRatingDecreaseNoShow(String(r.reliabilityRatingDecreaseNoShow))
         setReliabilityRatingDecreaseLateCancel(String(r.reliabilityRatingDecreaseLateCancel))
+        setReliabilityMinRatingToCountShiftForLevel(String(r.reliabilityMinRatingToCountShiftForLevel ?? 0))
+        setReliabilityMinRatingToUpgradeLevel(String(r.reliabilityMinRatingToUpgradeLevel ?? 0))
         toast({ title: "Настройки рейтинга сохранены" })
       })
       .catch((e) => toast({ title: e instanceof Error ? e.message : "Ошибка", variant: "destructive" }))
@@ -208,6 +236,36 @@ export default function AdminSettingsPage() {
                   step={0.1}
                   value={reliabilityRatingDecreaseLateCancel}
                   onChange={(e) => setReliabilityRatingDecreaseLateCancel(e.target.value)}
+                  className="w-32"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="reliabilityMinRatingToCountShiftForLevel">
+                  Минимальный рейтинг для учёта смены в прогресс уровня (0 = без ограничения)
+                </Label>
+                <Input
+                  id="reliabilityMinRatingToCountShiftForLevel"
+                  type="number"
+                  min={0}
+                  max={5}
+                  step={0.1}
+                  value={reliabilityMinRatingToCountShiftForLevel}
+                  onChange={(e) => setReliabilityMinRatingToCountShiftForLevel(e.target.value)}
+                  className="w-32"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="reliabilityMinRatingToUpgradeLevel">
+                  Минимальный рейтинг для повышения уровня (0 = без ограничения)
+                </Label>
+                <Input
+                  id="reliabilityMinRatingToUpgradeLevel"
+                  type="number"
+                  min={0}
+                  max={5}
+                  step={0.1}
+                  value={reliabilityMinRatingToUpgradeLevel}
+                  onChange={(e) => setReliabilityMinRatingToUpgradeLevel(e.target.value)}
                   className="w-32"
                 />
               </div>

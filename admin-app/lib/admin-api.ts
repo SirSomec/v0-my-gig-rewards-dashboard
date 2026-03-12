@@ -440,6 +440,8 @@ export async function adminGetReliabilityRatingSettings(): Promise<{
   reliabilityRatingIncreasePerShift: number;
   reliabilityRatingDecreaseNoShow: number;
   reliabilityRatingDecreaseLateCancel: number;
+  reliabilityMinRatingToCountShiftForLevel: number;
+  reliabilityMinRatingToUpgradeLevel: number;
 }> {
   return fetchAdmin("/v1/admin/settings/reliability-rating");
 }
@@ -448,10 +450,14 @@ export async function adminUpdateReliabilityRatingSettings(body: {
   reliabilityRatingIncreasePerShift?: number;
   reliabilityRatingDecreaseNoShow?: number;
   reliabilityRatingDecreaseLateCancel?: number;
+   reliabilityMinRatingToCountShiftForLevel?: number;
+   reliabilityMinRatingToUpgradeLevel?: number;
 }): Promise<{
   reliabilityRatingIncreasePerShift: number;
   reliabilityRatingDecreaseNoShow: number;
   reliabilityRatingDecreaseLateCancel: number;
+  reliabilityMinRatingToCountShiftForLevel: number;
+  reliabilityMinRatingToUpgradeLevel: number;
 }> {
   return fetchAdmin("/v1/admin/settings/reliability-rating", {
     method: "PATCH",

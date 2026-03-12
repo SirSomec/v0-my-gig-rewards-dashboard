@@ -233,6 +233,8 @@ export class AdminController {
       reliabilityRatingIncreasePerShift?: number;
       reliabilityRatingDecreaseNoShow?: number;
       reliabilityRatingDecreaseLateCancel?: number;
+      reliabilityMinRatingToCountShiftForLevel?: number;
+      reliabilityMinRatingToUpgradeLevel?: number;
     },
   ) {
     await this.admin.updateReliabilityRatingSettings(body);
