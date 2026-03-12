@@ -8,7 +8,6 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { and, eq } from 'drizzle-orm';
 import type { Envs } from '../../shared/env.validation-schema';
 import * as schema from '../../infra/db/drizzle/schemas';
 import type { AdminPermissionKey } from '../../infra/db/drizzle/schemas';
@@ -40,10 +39,6 @@ export class AdminAuthService {
     private readonly config: ConfigService<Envs, true>,
     private readonly jwt: JwtService,
   ) {}
-
-  private get db() {
-    return this.adminDbRepository.db;
-  }
 
   /** Проверить суперадмина из .env */
   private checkSuperAdmin(email: string, password: string): boolean {
@@ -83,16 +78,7 @@ export class AdminAuthService {
       };
     }
 
-    const [row] = await this.db
-      .select()
-      .from(schema.adminPanelUsers)
-      .where(
-        and(
-          eq(schema.adminPanelUsers.email, emailNorm),
-          eq(schema.adminPanelUsers.isActive, 1),
-        ),
-      )
-      .limit(1);
+    const row = await this.adminDbRepository.findActiveAdminByEmail(emailNorm);
 
     if (!row) {
       throw new UnauthorizedException('Неверный email или пароль');
@@ -144,20 +130,7 @@ export class AdminAuthService {
   async listAdminUsers(): Promise<
     { id: number; email: string; name: string | null; isActive: number; permissions: AdminPermissionKey[] }[]
   > {
-    const rows = await this.db
-      .select({
-        id: schema.adminPanelUsers.id,
-        email: schema.adminPanelUsers.email,
-        name: schema.adminPanelUsers.name,
-        isActive: schema.adminPanelUsers.isActive,
-        permissions: schema.adminPanelUsers.permissions,
-      })
-      .from(schema.adminPanelUsers)
-      .orderBy(schema.adminPanelUsers.id);
-    return rows.map((r) => ({
-      ...r,
-      permissions: (r.permissions ?? []) as AdminPermissionKey[],
-    }));
+    return this.adminDbRepository.listAdminUsers();
   }
 
   /** Создать пользователя админ-панели. */
@@ -173,29 +146,20 @@ export class AdminAuthService {
       throw new BadRequestException('Пароль не менее 6 символов');
     }
 
-    const [existing] = await this.db
-      .select({ id: schema.adminPanelUsers.id })
-      .from(schema.adminPanelUsers)
-      .where(eq(schema.adminPanelUsers.email, emailNorm))
-      .limit(1);
+    const existing = await this.adminDbRepository.findAdminUserByEmail(emailNorm);
     if (existing) {
       throw new ConflictException('Пользователь с таким email уже существует');
     }
 
     const passwordHash = await bcrypt.hash(params.password, SALT_ROUNDS);
     const permissions = Array.isArray(params.permissions) ? params.permissions : [];
-    const [row] = await this.db
-      .insert(schema.adminPanelUsers)
-      .values({
-        email: emailNorm,
-        passwordHash,
-        name: params.name?.trim() || null,
-        isActive: 1,
-        permissions,
-      })
-      .returning({ id: schema.adminPanelUsers.id });
-    if (!row) throw new Error('Insert admin user failed');
-    return { id: row.id };
+    const id = await this.adminDbRepository.insertAdminUser({
+      email: emailNorm,
+      passwordHash,
+      name: params.name?.trim() || null,
+      permissions,
+    });
+    return { id };
   }
 
   /** Обновить пользователя админ-панели (имя, активность, права; пароль опционально). */
@@ -208,11 +172,7 @@ export class AdminAuthService {
       password?: string | null;
     },
   ): Promise<{ id: number }> {
-    const [existing] = await this.db
-      .select()
-      .from(schema.adminPanelUsers)
-      .where(eq(schema.adminPanelUsers.id, id))
-      .limit(1);
+    const existing = await this.adminDbRepository.findAdminUserById(id);
     if (!existing) throw new NotFoundException('Пользователь не найден');
 
     const updates: Partial<typeof schema.adminPanelUsers.$inferInsert> = {};
@@ -225,22 +185,15 @@ export class AdminAuthService {
     updates.updatedAt = new Date();
 
     if (Object.keys(updates).length <= 1) return { id }; // только updatedAt
-    await this.db
-      .update(schema.adminPanelUsers)
-      .set(updates)
-      .where(eq(schema.adminPanelUsers.id, id));
+    await this.adminDbRepository.updateAdminUser(id, updates);
     return { id };
   }
 
   /** Удалить пользователя админ-панели. */
   async deleteAdminUser(id: number): Promise<{ id: number }> {
-    const [existing] = await this.db
-      .select({ id: schema.adminPanelUsers.id })
-      .from(schema.adminPanelUsers)
-      .where(eq(schema.adminPanelUsers.id, id))
-      .limit(1);
+    const existing = await this.adminDbRepository.findAdminUserById(id);
     if (!existing) throw new NotFoundException('Пользователь не найден');
-    await this.db.delete(schema.adminPanelUsers).where(eq(schema.adminPanelUsers.id, id));
+    await this.adminDbRepository.deleteAdminUser(id);
     return { id };
   }
 }

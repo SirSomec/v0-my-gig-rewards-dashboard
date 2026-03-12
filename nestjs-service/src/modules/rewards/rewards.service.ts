@@ -109,24 +109,13 @@ export class RewardsService {
 
   /** Записать просмотр вкладки/страницы пользователем (для аналитики посещаемости в админке). */
   async recordPageView(userId: number, path: string): Promise<void> {
-    const { pageViews } = schema;
     const pathNorm = (path ?? '').toString().trim().slice(0, 128) || 'home';
-    await this.db.insert(pageViews).values({ userId, path: pathNorm });
+    await this.rewardsRepository.insertPageView(userId, pathNorm);
   }
 
   async getMe(userId: number): Promise<MeResponseDto> {
     await this.recalcUserLevel(userId);
-    const { users, levels, transactions } = schema;
-    const rows = await this.db
-      .select({
-        user: users,
-        level: levels,
-      })
-      .from(users)
-      .innerJoin(levels, eq(users.levelId, levels.id))
-      .where(eq(users.id, userId))
-      .limit(1);
-    const row = rows[0];
+    const row = await this.rewardsRepository.getUserWithLevel(userId);
     if (!row) {
       throw new NotFoundException('User not found');
     }
@@ -134,12 +123,7 @@ export class RewardsService {
     const now = new Date();
     const monthStart = startOfMonthUTC(now);
     const nextMonthStart = startOfNextMonthUTC(now);
-    const nextLevelRows = await this.db
-      .select()
-      .from(levels)
-      .where(sql`${levels.sortOrder} = ${level.sortOrder + 1}`)
-      .limit(1);
-    const nextLevel = nextLevelRows[0];
+    const nextLevel = await this.rewardsRepository.getNextLevelBySortOrder(level.sortOrder);
     const dto = new MeResponseDto();
     dto.id = user.id;
     dto.name = user.name;
@@ -153,18 +137,11 @@ export class RewardsService {
     dto.shiftsCompleted = user.shiftsCompleted;
     dto.shiftsRequired = level.shiftsRequired;
     dto.reliabilityRating = Number(user.reliabilityRating ?? 4);
-    const [monthlySumRow] = await this.db
-      .select({ sum: sql<number>`coalesce(sum(${transactions.amount}), 0)` })
-      .from(transactions)
-      .where(
-        and(
-          eq(transactions.userId, userId),
-          inArray(transactions.type, ['shift', 'quest']),
-          gte(transactions.createdAt, monthStart),
-          lt(transactions.createdAt, nextMonthStart),
-        ),
-      );
-    dto.monthlyBonusTotal = Number(monthlySumRow?.sum ?? 0);
+    dto.monthlyBonusTotal = await this.rewardsRepository.getUserMonthlyBonusTotal(
+      userId,
+      monthStart,
+      nextMonthStart,
+    );
     dto.questMonthlyBonusCap = await this.getQuestMonthlyBonusCap();
     dto.questsLimitedByCap =
       dto.questMonthlyBonusCap > 0 && dto.monthlyBonusTotal >= dto.questMonthlyBonusCap;
@@ -172,13 +149,7 @@ export class RewardsService {
   }
 
   async getStrikes(userId: number, limit = 50): Promise<StrikeResponseDto[]> {
-    const { strikes } = schema;
-    const rows = await this.db
-      .select()
-      .from(strikes)
-      .where(eq(strikes.userId, userId))
-      .orderBy(desc(strikes.occurredAt))
-      .limit(limit);
+    const rows = await this.rewardsRepository.listUserStrikes(userId, limit);
     return rows.map((r) => {
       const dto = new StrikeResponseDto();
       dto.id = r.id;
@@ -191,13 +162,7 @@ export class RewardsService {
   }
 
   async getTransactions(userId: number, limit = 50): Promise<TransactionResponseDto[]> {
-    const { transactions } = schema;
-    const rows = await this.db
-      .select()
-      .from(transactions)
-      .where(eq(transactions.userId, userId))
-      .orderBy(sql`${transactions.createdAt} desc`)
-      .limit(limit);
+    const rows = await this.rewardsRepository.listUserTransactions(userId, limit);
     return rows.map((r) => {
       const dto = new TransactionResponseDto();
       dto.id = r.id;
@@ -648,14 +613,8 @@ export class RewardsService {
 
   /** Множитель бонусов за смену по умолчанию (монет за 1 час) из system_settings */
   private async getDefaultShiftBonusMultiplier(): Promise<number> {
-    const { systemSettings } = schema;
-    const [row] = await this.db
-      .select()
-      .from(systemSettings)
-      .where(eq(systemSettings.key, 'shift_bonus_default_multiplier'))
-      .limit(1);
-    if (!row) return 10;
-    const v = row.value;
+    const v = await this.rewardsRepository.getSystemSettingValue('shift_bonus_default_multiplier');
+    if (v == null) return 10;
     if (typeof v === 'number' && !Number.isNaN(v)) return v;
     if (typeof v === 'object' && v != null && typeof (v as { value?: number }).value === 'number') {
       return (v as { value: number }).value;
@@ -666,14 +625,8 @@ export class RewardsService {
 
   /** Порог бонусов за месяц (shift + quest): при достижении новые квесты не выдаются до конца месяца. 0 = без ограничения. */
   private async getQuestMonthlyBonusCap(): Promise<number> {
-    const { systemSettings } = schema;
-    const [row] = await this.db
-      .select()
-      .from(systemSettings)
-      .where(eq(systemSettings.key, 'quest_monthly_bonus_cap'))
-      .limit(1);
-    if (!row) return 0;
-    const v = row.value;
+    const v = await this.rewardsRepository.getSystemSettingValue('quest_monthly_bonus_cap');
+    if (v == null) return 0;
     if (typeof v === 'number' && !Number.isNaN(v) && v >= 0) return v;
     if (typeof v === 'object' && v != null && typeof (v as { value?: number }).value === 'number') {
       const val = (v as { value: number }).value;
@@ -709,14 +662,8 @@ export class RewardsService {
   }
 
   private async getSystemSettingNumber(key: string, defaultValue: number): Promise<number> {
-    const { systemSettings } = schema;
-    const [row] = await this.db
-      .select()
-      .from(systemSettings)
-      .where(eq(systemSettings.key, key))
-      .limit(1);
-    if (!row) return defaultValue;
-    const v = row.value;
+    const v = await this.rewardsRepository.getSystemSettingValue(key);
+    if (v == null) return defaultValue;
     if (typeof v === 'number' && !Number.isNaN(v)) return v;
     if (typeof v === 'object' && v != null && typeof (v as { value?: number }).value === 'number') {
       return (v as { value: number }).value;
@@ -733,34 +680,26 @@ export class RewardsService {
     type: 'no_show' | 'late_cancel',
     shiftExternalId?: string,
   ): Promise<{ strikeId: number; levelDemoted: boolean }> {
-    const { users, strikes } = schema;
-    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const user = await this.rewardsRepository.getUserById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
     const now = new Date();
-    const [strike] = await this.db
-      .insert(strikes)
-      .values({
-        userId,
-        type,
-        shiftExternalId: shiftExternalId ?? undefined,
-        occurredAt: now,
-      })
-      .returning({ id: strikes.id });
-    if (!strike) throw new Error('Failed to create strike');
+    const strikeId = await this.rewardsRepository.insertStrike({
+      userId,
+      type,
+      ...(shiftExternalId ? { shiftExternalId } : {}),
+      occurredAt: now,
+    });
     const decrease =
       type === 'no_show'
         ? await this.getReliabilityRatingDecreaseNoShow()
         : await this.getReliabilityRatingDecreaseLateCancel();
     const currentRating = user.reliabilityRating ?? 4;
     const newRating = Math.max(0, currentRating - decrease);
-    await this.db
-      .update(users)
-      .set({ reliabilityRating: newRating })
-      .where(eq(users.id, userId));
+    await this.rewardsRepository.updateUserReliabilityRating(userId, newRating);
     await this.resetShiftsSeriesProgressForUser(userId);
-    return { strikeId: strike.id, levelDemoted: false };
+    return { strikeId, levelDemoted: false };
   }
 
   /**
@@ -831,7 +770,6 @@ export class RewardsService {
     initiator?: string;
   }): Promise<{ applied: boolean; strikeId?: number; reason?: string }> {
     const { jobId, workerId, jobStartIso, cancelledAtIso, initiatorType, initiator } = params;
-    const { users, strikes } = schema;
 
     const normalizedType = (initiatorType ?? '').toString().trim().toLowerCase();
     const normalizedInitiator = (initiator ?? '').toString().trim().toLowerCase();
@@ -840,12 +778,8 @@ export class RewardsService {
       return { applied: false, reason: 'initiator_not_worker' };
     }
 
-    const [userRow] = await this.db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.externalId, workerId.trim()))
-      .limit(1);
-    if (!userRow) {
+    const userId = await this.rewardsRepository.findUserIdByExternalId(workerId.trim());
+    if (!userId) {
       return { applied: false, reason: 'user_not_found' };
     }
 
@@ -862,16 +796,11 @@ export class RewardsService {
       return { applied: false, reason: 'cancelled_24h_or_more_before_start' };
     }
 
-    const [existing] = await this.db
-      .select({ id: strikes.id })
-      .from(strikes)
-      .where(eq(strikes.shiftExternalId, jobId))
-      .limit(1);
-    if (existing) {
+    if (await this.rewardsRepository.hasActiveStrikeByShiftExternalId(jobId)) {
       return { applied: false, reason: 'strike_already_applied' };
     }
 
-    const { strikeId } = await this.registerStrike(userRow.id, 'late_cancel', jobId);
+    const { strikeId } = await this.registerStrike(userId, 'late_cancel', jobId);
     return { applied: true, strikeId };
   }
 
@@ -882,29 +811,17 @@ export class RewardsService {
    */
   async processNoShowIfEligible(params: { jobId: string; workerId: string }): Promise<{ applied: boolean; strikeId?: number; reason?: string }> {
     const { jobId, workerId } = params;
-    const { users, strikes } = schema;
 
-    const [userRow] = await this.db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.externalId, workerId.trim()))
-      .limit(1);
-    if (!userRow) {
+    const userId = await this.rewardsRepository.findUserIdByExternalId(workerId.trim());
+    if (!userId) {
       return { applied: false, reason: 'user_not_found' };
     }
 
-    const [existing] = await this.db
-      .select({ id: strikes.id })
-      .from(strikes)
-      .where(
-        and(eq(strikes.shiftExternalId, jobId), isNull(strikes.removedAt)),
-      )
-      .limit(1);
-    if (existing) {
+    if (await this.rewardsRepository.hasActiveStrikeByShiftExternalId(jobId)) {
       return { applied: false, reason: 'strike_already_applied' };
     }
 
-    const { strikeId } = await this.registerStrike(userRow.id, 'no_show', jobId);
+    const { strikeId } = await this.registerStrike(userId, 'no_show', jobId);
     return { applied: true, strikeId };
   }
 
@@ -916,8 +833,7 @@ export class RewardsService {
     userId: number,
     strikeType: 'no_show' | 'late_cancel',
   ): Promise<void> {
-    const { users } = schema;
-    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const user = await this.rewardsRepository.getUserById(userId);
     if (!user) return;
     const decrease =
       strikeType === 'no_show'
@@ -925,7 +841,7 @@ export class RewardsService {
         : await this.getReliabilityRatingDecreaseLateCancel();
     const currentRating = user.reliabilityRating ?? 4;
     const newRating = Math.min(5, currentRating + decrease);
-    await this.db.update(users).set({ reliabilityRating: newRating }).where(eq(users.id, userId));
+    await this.rewardsRepository.updateUserReliabilityRating(userId, newRating);
   }
 
   /**
@@ -934,25 +850,16 @@ export class RewardsService {
    * Прирост за саму смену будет начислен при вызове recordShiftCompleted для этой смены.
    */
   async removeStrikeByShiftExternalId(shiftExternalId: string): Promise<{ removed: boolean; userId?: number }> {
-    const { strikes } = schema;
-    const [strike] = await this.db
-      .select()
-      .from(strikes)
-      .where(
-        and(eq(strikes.shiftExternalId, shiftExternalId), isNull(strikes.removedAt)),
-      )
-      .limit(1);
+    const strike = await this.rewardsRepository.findActiveStrikeByShiftExternalId(shiftExternalId);
     if (!strike) {
       return { removed: false };
     }
     const now = new Date();
-    await this.db
-      .update(strikes)
-      .set({
-        removedAt: now,
-        removalReason: 'Смена подтверждена (confirmed)',
-      })
-      .where(eq(strikes.id, strike.id));
+    await this.rewardsRepository.markStrikeRemoved(
+      strike.id,
+      'Смена подтверждена (confirmed)',
+      now,
+    );
     await this.restoreReliabilityRatingForStrikeRemoval(strike.userId, strike.type as 'no_show' | 'late_cancel');
     await this.recalcUserLevel(strike.userId);
     await this.recalcQuestProgressForUser(strike.userId);

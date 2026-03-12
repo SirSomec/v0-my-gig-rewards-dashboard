@@ -1,7 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, asc, eq, gte, ilike, isNull, lte, or, sql } from 'drizzle-orm';
-import { alias } from 'drizzle-orm/pg-core';
 import type { Envs } from '../../shared/env.validation-schema';
 import * as schema from '../../infra/db/drizzle/schemas';
 import type { CreateQuestDto, CreateStoreItemDto, UpdateLevelDto, UpdateQuestDto, UpdateStoreItemDto } from './dto/admin.dto';
@@ -18,88 +16,31 @@ export class AdminService {
     private readonly adminContext: AdminContextService,
   ) {}
 
-  private get db() {
-    return this.adminDbRepository.db;
-  }
-
   async listUsers(search?: string, page = 1, pageSize = 20) {
-    const { users, levels } = schema;
-    const conditions: Parameters<typeof and>[0][] = [];
-    if (search?.trim()) {
-      const term = `%${search.trim()}%`;
-      conditions.push(
-        or(
-          sql`${users.id}::text LIKE ${term}`,
-          ilike(users.name, term),
-          ilike(users.email, term),
-          ilike(users.externalId, term),
-        )!,
-      );
-    }
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-    const [countResult] = await this.db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(users)
-      .leftJoin(levels, eq(users.levelId, levels.id))
-      .where(whereClause);
-    const total = Number(countResult?.count ?? 0);
-
-    const effectivePageSize = Math.min(100, Math.max(1, pageSize));
-    const effectivePage = Math.max(1, page);
-    const offset = (effectivePage - 1) * effectivePageSize;
-
-    const items = await this.db
-      .select({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        externalId: users.externalId,
-        balance: users.balance,
-        shiftsCompleted: users.shiftsCompleted,
-        levelId: users.levelId,
-        levelName: levels.name,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-      })
-      .from(users)
-      .leftJoin(levels, eq(users.levelId, levels.id))
-      .where(whereClause)
-      .orderBy(users.id)
-      .limit(effectivePageSize)
-      .offset(offset);
-
-    return { items, total, page: effectivePage, pageSize: effectivePageSize };
+    return this.adminDbRepository.listUsers(search, page, pageSize);
   }
 
   /** Создание пользователя по ID основной системы; имя отображается в личном кабинете (имя + фамилия из ETL). */
   async createUser(externalId: string, name: string): Promise<{ id: number }> {
-    const { users, levels } = schema;
     const extId = externalId?.trim();
     const nameVal = name?.trim() || '';
     if (!extId) throw new BadRequestException('externalId is required');
-    const [existing] = await this.db.select({ id: users.id }).from(users).where(eq(users.externalId, extId)).limit(1);
-    if (existing) throw new BadRequestException(`Пользователь с external_id "${extId}" уже существует (id=${existing.id})`);
-    const [baseLevel] = await this.db
-      .select({ id: levels.id })
-      .from(levels)
-      .orderBy(asc(levels.sortOrder))
-      .limit(1);
-    if (!baseLevel) throw new BadRequestException('В системе нет ни одного уровня. Создайте уровень в админке.');
-    const [row] = await this.db
-      .insert(users)
-      .values({
-        externalId: extId,
-        name: nameVal || null,
-        email: null,
-        avatarUrl: null,
-        balance: 0,
-        levelId: baseLevel.id,
-        shiftsCompleted: 0,
-      })
-      .returning({ id: users.id });
-    if (!row) throw new Error('Insert user failed');
-    return { id: row.id };
+    const existingId = await this.adminDbRepository.findUserIdByExternalId(extId);
+    if (existingId != null) {
+      throw new BadRequestException(
+        `Пользователь с external_id "${extId}" уже существует (id=${existingId})`,
+      );
+    }
+    const baseLevelId = await this.adminDbRepository.getBaseLevelId();
+    if (baseLevelId == null) {
+      throw new BadRequestException('В системе нет ни одного уровня. Создайте уровень в админке.');
+    }
+    const id = await this.adminDbRepository.insertUser({
+      externalId: extId,
+      name: nameVal || null,
+      levelId: baseLevelId,
+    });
+    return { id };
   }
 
   /**
@@ -107,66 +48,37 @@ export class AdminService {
    * Возвращает id пользователя в нашей БД.
    */
   async ensureUserByExternalId(externalId: string, name: string): Promise<{ id: number }> {
-    const { users, levels } = schema;
     const extId = externalId?.trim();
     const nameVal = name?.trim() || '';
     if (!extId) throw new BadRequestException('externalId is required');
-    const [existing] = await this.db.select({ id: users.id }).from(users).where(eq(users.externalId, extId)).limit(1);
-    if (existing) return { id: existing.id };
-    const [baseLevel] = await this.db
-      .select({ id: levels.id })
-      .from(levels)
-      .orderBy(asc(levels.sortOrder))
-      .limit(1);
-    if (!baseLevel) throw new BadRequestException('В системе нет ни одного уровня. Создайте уровень в админке.');
-    const [row] = await this.db
-      .insert(users)
-      .values({
-        externalId: extId,
-        name: nameVal || null,
-        email: null,
-        avatarUrl: null,
-        balance: 0,
-        levelId: baseLevel.id,
-        shiftsCompleted: 0,
-      })
-      .returning({ id: users.id });
-    if (!row) throw new Error('Insert user failed');
-    return { id: row.id };
+    const existingId = await this.adminDbRepository.findUserIdByExternalId(extId);
+    if (existingId != null) return { id: existingId };
+    const baseLevelId = await this.adminDbRepository.getBaseLevelId();
+    if (baseLevelId == null) {
+      throw new BadRequestException('В системе нет ни одного уровня. Создайте уровень в админке.');
+    }
+    const id = await this.adminDbRepository.insertUser({
+      externalId: extId,
+      name: nameVal || null,
+      levelId: baseLevelId,
+    });
+    return { id };
   }
 
   async getUserDetail(userId: number) {
-    const { users, levels, strikes, transactions } = schema;
-    const [userRow] = await this.db
-      .select({ user: users, level: levels })
-      .from(users)
-      .innerJoin(levels, eq(users.levelId, levels.id))
-      .where(eq(users.id, userId))
-      .limit(1);
-    if (!userRow) throw new NotFoundException('User not found');
+    const details = await this.adminDbRepository.getUserDetailData(userId);
+    if (!details.user) throw new NotFoundException('User not found');
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const strikesList = await this.db
-      .select()
-      .from(strikes)
-      .where(eq(strikes.userId, userId))
-      .orderBy(sql`${strikes.occurredAt} desc`)
-      .limit(20);
-    const recentTx = await this.db
-      .select()
-      .from(transactions)
-      .where(eq(transactions.userId, userId))
-      .orderBy(sql`${transactions.createdAt} desc`)
-      .limit(20);
-    const activeStrikesIn30d = strikesList.filter(
+    const activeStrikesIn30d = details.strikes.filter(
       (s) => !(s as { removedAt?: Date | null }).removedAt && (s.occurredAt as Date) >= thirtyDaysAgo,
     );
     return {
-      ...userRow.user,
-      levelName: userRow.level.name,
+      ...details.user,
+      levelName: details.levelName,
       strikesCount30d: activeStrikesIn30d.length,
-      strikes: strikesList,
-      recentTransactions: recentTx,
+      strikes: details.strikes,
+      recentTransactions: details.recentTransactions,
     };
   }
 
@@ -180,70 +92,7 @@ export class AdminService {
       pageSize?: number;
     } = {},
   ) {
-    const { redemptions, users, storeItems } = schema;
-    const page = Math.max(1, opts.page ?? 1);
-    const pageSize = Math.min(500, Math.max(1, opts.pageSize ?? 50));
-
-    const conditions: Parameters<typeof and>[0][] = [];
-    if (opts.status?.trim()) {
-      conditions.push(eq(redemptions.status, opts.status.trim()));
-    }
-    if (opts.dateFrom) {
-      const d = new Date(opts.dateFrom);
-      if (!Number.isNaN(d.getTime())) {
-        conditions.push(gte(redemptions.createdAt, d));
-      }
-    }
-    if (opts.dateTo) {
-      const d = new Date(opts.dateTo);
-      if (!Number.isNaN(d.getTime())) {
-        d.setHours(23, 59, 59, 999);
-        conditions.push(lte(redemptions.createdAt, d));
-      }
-    }
-    if (opts.search?.trim()) {
-      const term = `%${opts.search.trim()}%`;
-      conditions.push(
-        or(
-          sql`${redemptions.userId}::text LIKE ${term}`,
-          ilike(users.name, term),
-          ilike(storeItems.name, term),
-        )!,
-      );
-    }
-
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-    const [countResult] = await this.db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(redemptions)
-      .innerJoin(users, eq(redemptions.userId, users.id))
-      .innerJoin(storeItems, eq(redemptions.storeItemId, storeItems.id))
-      .where(whereClause);
-    const total = Number(countResult?.count ?? 0);
-
-    const items = await this.db
-      .select({
-        id: redemptions.id,
-        userId: redemptions.userId,
-        userName: users.name,
-        storeItemId: redemptions.storeItemId,
-        itemName: storeItems.name,
-        status: redemptions.status,
-        coinsSpent: redemptions.coinsSpent,
-        createdAt: redemptions.createdAt,
-        processedAt: redemptions.processedAt,
-        notes: redemptions.notes,
-      })
-      .from(redemptions)
-      .innerJoin(users, eq(redemptions.userId, users.id))
-      .innerJoin(storeItems, eq(redemptions.storeItemId, storeItems.id))
-      .where(whereClause)
-      .orderBy(sql`${redemptions.createdAt} desc`)
-      .limit(pageSize)
-      .offset((page - 1) * pageSize);
-
-    return { items, total, page, pageSize };
+    return this.adminDbRepository.listRedemptions(opts);
   }
 
   async updateRedemption(
@@ -252,41 +101,25 @@ export class AdminService {
     notes?: string,
     returnCoins = false,
   ) {
-    const { redemptions, users } = schema;
     const now = new Date();
-    const updated = await this.db
-      .update(redemptions)
-      .set({ status, processedAt: now, notes: notes ?? null })
-      .where(
-        and(eq(redemptions.id, redemptionId), eq(redemptions.status, 'pending')),
-      )
-      .returning();
-    if (updated.length === 0) {
-      const [r] = await this.db
-        .select()
-        .from(redemptions)
-        .where(eq(redemptions.id, redemptionId))
-        .limit(1);
+    const updated = await this.adminDbRepository.tryUpdatePendingRedemption(
+      redemptionId,
+      status,
+      notes,
+      now,
+    );
+    if (!updated) {
+      const r = await this.adminDbRepository.getRedemptionById(redemptionId);
       if (!r) throw new NotFoundException('Redemption not found');
       throw new NotFoundException('Redemption already processed');
     }
-    const r = updated[0]!;
     if (status === 'cancelled' && returnCoins) {
-      const [u] = await this.db.select().from(users).where(eq(users.id, r.userId)).limit(1);
-      if (u) {
-        await this.db
-          .update(users)
-          .set({ balance: u.balance + r.coinsSpent })
-          .where(eq(users.id, r.userId));
-        await this.db.insert(schema.transactions).values({
-          userId: r.userId,
-          amount: r.coinsSpent,
-          type: 'manual_credit',
-          title: 'Возврат за отмену обмена',
-          description: notes ?? undefined,
-          sourceRef: String(redemptionId),
-        });
-      }
+      await this.adminDbRepository.refundRedemption(
+        updated.userId,
+        updated.coinsSpent,
+        redemptionId,
+        notes,
+      );
     }
     await this.logAudit('redemption_update', 'redemption', String(redemptionId), undefined, {
       status,
@@ -303,27 +136,18 @@ export class AdminService {
     returnCoins = false,
   ): Promise<{ updated: number; errors: Array<{ id: number; reason: string }> }> {
     if (!ids.length) return { updated: 0, errors: [] };
-    const { redemptions, users } = schema;
     const errors: Array<{ id: number; reason: string }> = [];
     let updated = 0;
     const now = new Date();
     for (const redemptionId of ids) {
-      const updatedRows = await this.db
-        .update(redemptions)
-        .set({ status, processedAt: now, notes: notes ?? null })
-        .where(
-          and(
-            eq(redemptions.id, redemptionId),
-            eq(redemptions.status, 'pending'),
-          ),
-        )
-        .returning();
-      if (updatedRows.length === 0) {
-        const [existing] = await this.db
-          .select()
-          .from(redemptions)
-          .where(eq(redemptions.id, redemptionId))
-          .limit(1);
+      const row = await this.adminDbRepository.tryUpdatePendingRedemption(
+        redemptionId,
+        status,
+        notes,
+        now,
+      );
+      if (!row) {
+        const existing = await this.adminDbRepository.getRedemptionById(redemptionId);
         if (!existing) {
           errors.push({ id: redemptionId, reason: 'not_found' });
         } else {
@@ -331,23 +155,13 @@ export class AdminService {
         }
         continue;
       }
-      const r = updatedRows[0]!;
       if (status === 'cancelled' && returnCoins) {
-        const [u] = await this.db.select().from(users).where(eq(users.id, r.userId)).limit(1);
-        if (u) {
-          await this.db
-            .update(users)
-            .set({ balance: u.balance + r.coinsSpent })
-            .where(eq(users.id, r.userId));
-          await this.db.insert(schema.transactions).values({
-            userId: r.userId,
-            amount: r.coinsSpent,
-            type: 'manual_credit',
-            title: 'Возврат за отмену обмена',
-            description: notes ?? undefined,
-            sourceRef: String(redemptionId),
-          });
-        }
+        await this.adminDbRepository.refundRedemption(
+          row.userId,
+          row.coinsSpent,
+          redemptionId,
+          notes,
+        );
       }
       updated += 1;
     }
@@ -363,12 +177,7 @@ export class AdminService {
   }
 
   async listStoreItems() {
-    const { storeItems } = schema;
-    return this.db
-      .select()
-      .from(storeItems)
-      .where(isNull(storeItems.deletedAt))
-      .orderBy(storeItems.sortOrder, storeItems.id);
+    return this.adminDbRepository.listStoreItems();
   }
 
   /** Обзор посещаемости: просмотры вкладок по дням и по путям (последние N дней). */
@@ -378,21 +187,13 @@ export class AdminService {
     totalViews: number;
     totalUniqueUsers: number;
   }> {
-    const { pageViews } = schema;
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
     const startDate = new Date(today);
     startDate.setUTCDate(today.getUTCDate() - days);
-
-    const byDayRows = await this.db
-      .select({
-        date: sql<string>`(${pageViews.createdAt} at time zone 'UTC')::date::text`,
-        views: sql<number>`count(*)::int`,
-        uniqueUsers: sql<number>`count(distinct ${pageViews.userId})::int`,
-      })
-      .from(pageViews)
-      .where(gte(pageViews.createdAt, startDate))
-      .groupBy(sql`(${pageViews.createdAt} at time zone 'UTC')::date`);
+    const { byDayRows, byPathRows, totals } = await this.adminDbRepository.getPageViewsOverviewData(
+      startDate,
+    );
     const byDayMap = new Map<string, { views: number; uniqueUsers: number }>();
     for (const r of byDayRows) {
       byDayMap.set(r.date, { views: Number(r.views), uniqueUsers: Number(r.uniqueUsers) });
@@ -407,31 +208,12 @@ export class AdminService {
       const v = byDayMap.get(date) ?? { views: 0, uniqueUsers: 0 };
       return { date, views: v.views, uniqueUsers: v.uniqueUsers };
     });
-
-    const byPathRows = await this.db
-      .select({
-        path: pageViews.path,
-        views: sql<number>`count(*)::int`,
-      })
-      .from(pageViews)
-      .where(gte(pageViews.createdAt, startDate))
-      .groupBy(pageViews.path)
-      .orderBy(sql`count(*) desc`)
-      .limit(20);
     const byPath = byPathRows.map((r) => ({ path: r.path, views: Number(r.views) }));
-
-    const [totals] = await this.db
-      .select({
-        totalViews: sql<number>`count(*)::int`,
-        totalUniqueUsers: sql<number>`count(distinct ${pageViews.userId})::int`,
-      })
-      .from(pageViews)
-      .where(gte(pageViews.createdAt, startDate));
     return {
       byDay,
       byPath,
-      totalViews: Number(totals?.totalViews ?? 0),
-      totalUniqueUsers: Number(totals?.totalUniqueUsers ?? 0),
+      totalViews: Number(totals.totalViews ?? 0),
+      totalUniqueUsers: Number(totals.totalUniqueUsers ?? 0),
     };
   }
 
@@ -440,36 +222,16 @@ export class AdminService {
     totalBalanceToday: number;
     byDay: Array<{ date: string; balanceAtEndOfDay: number; spentThatDay: number }>;
   }> {
-    const { users, transactions, redemptions } = schema;
-    const [sumRow] = await this.db.select({ total: sql<number>`coalesce(sum(${users.balance}), 0)::bigint` }).from(users);
-    const totalBalanceToday = Number(sumRow?.total ?? 0);
-
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
     const startDate = new Date(today);
     startDate.setUTCDate(today.getUTCDate() - days);
-
-    const txRows = await this.db
-      .select({
-        date: sql<string>`(${transactions.createdAt} at time zone 'UTC')::date::text`,
-        delta: sql<number>`coalesce(sum(${transactions.amount}), 0)::bigint`,
-      })
-      .from(transactions)
-      .where(gte(transactions.createdAt, startDate))
-      .groupBy(sql`(${transactions.createdAt} at time zone 'UTC')::date`);
+    const { totalBalanceToday, txRows, redemptionRows } =
+      await this.adminDbRepository.getCoinsOverviewData(startDate);
     const deltaByDate = new Map<string, number>();
     for (const r of txRows) deltaByDate.set(r.date, Number(r.delta));
-
-    const redRows = await this.db
-      .select({
-        date: sql<string>`(${redemptions.createdAt} at time zone 'UTC')::date::text`,
-        spent: sql<number>`coalesce(sum(${redemptions.coinsSpent}), 0)::bigint`,
-      })
-      .from(redemptions)
-      .where(gte(redemptions.createdAt, startDate))
-      .groupBy(sql`(${redemptions.createdAt} at time zone 'UTC')::date`);
     const spentByDate = new Map<string, number>();
-    for (const r of redRows) spentByDate.set(r.date, Number(r.spent));
+    for (const r of redemptionRows) spentByDate.set(r.date, Number(r.spent));
 
     const byDay: Array<{ date: string; balanceAtEndOfDay: number; spentThatDay: number }> = [];
     let runningBalance = totalBalanceToday;
@@ -494,10 +256,7 @@ export class AdminService {
   }
 
   async createStoreItem(dto: CreateStoreItemDto) {
-    const { storeItems } = schema;
-    const [row] = await this.db
-      .insert(storeItems)
-      .values({
+    const id = await this.adminDbRepository.insertStoreItem({
         name: dto.name,
         description: dto.description ?? null,
         category: dto.category,
@@ -509,23 +268,21 @@ export class AdminService {
         isActive: dto.isActive ?? 1,
         sortOrder: dto.sortOrder ?? 0,
         visibilityRules: dto.visibilityRules ?? null,
-      })
-      .returning({ id: storeItems.id });
-    if (!row) throw new Error('Insert failed');
-    await this.logAudit('store_item_create', 'store_item', String(row.id), undefined, {
+      });
+    await this.logAudit('store_item_create', 'store_item', String(id), undefined, {
       name: dto.name,
       category: dto.category,
       cost: dto.cost,
       isActive: dto.isActive ?? 1,
       sortOrder: dto.sortOrder ?? 0,
     });
-    return { id: row.id };
+    return { id };
   }
 
   async updateStoreItem(id: number, dto: UpdateStoreItemDto) {
-    const { storeItems } = schema;
-    const [existing] = await this.db.select().from(storeItems).where(eq(storeItems.id, id)).limit(1);
+    const existing = await this.adminDbRepository.getStoreItemById(id);
     if (!existing) throw new NotFoundException('Store item not found');
+    const { storeItems } = schema;
     const updates: Partial<typeof storeItems.$inferInsert> = {};
     if (dto.name !== undefined) updates.name = dto.name;
     if (dto.description !== undefined) updates.description = dto.description;
@@ -539,7 +296,7 @@ export class AdminService {
     if (dto.sortOrder !== undefined) updates.sortOrder = dto.sortOrder;
     if (dto.visibilityRules !== undefined) updates.visibilityRules = dto.visibilityRules;
     if (Object.keys(updates).length === 0) return { id };
-    await this.db.update(storeItems).set(updates).where(eq(storeItems.id, id));
+    await this.adminDbRepository.updateStoreItem(id, updates);
     const oldSnapshot = {
       name: existing.name,
       category: existing.category,
@@ -552,14 +309,10 @@ export class AdminService {
   }
 
   async deleteStoreItem(id: number) {
-    const { storeItems } = schema;
-    const [existing] = await this.db.select().from(storeItems).where(eq(storeItems.id, id)).limit(1);
+    const existing = await this.adminDbRepository.getStoreItemById(id);
     if (!existing) throw new NotFoundException('Store item not found');
     const now = new Date();
-    await this.db
-      .update(storeItems)
-      .set({ deletedAt: now, isActive: 0 })
-      .where(eq(storeItems.id, id));
+    await this.adminDbRepository.softDeleteStoreItem(id, now);
     await this.logAudit('store_item_delete', 'store_item', String(id), {
       name: existing.name,
       category: existing.category,
@@ -569,8 +322,7 @@ export class AdminService {
   }
 
   async listLevels() {
-    const { levels } = schema;
-    return this.db.select().from(levels).orderBy(levels.sortOrder);
+    return this.adminDbRepository.listLevels();
   }
 
   /** Настройки бонусов: множитель по умолчанию (монет за 1 час смены), порог бонусов за месяц для ограничения квестов */
@@ -578,15 +330,10 @@ export class AdminService {
     shiftBonusDefaultMultiplier: number;
     questMonthlyBonusCap: number;
   }> {
-    const { systemSettings } = schema;
-    const [row] = await this.db
-      .select()
-      .from(systemSettings)
-      .where(eq(systemSettings.key, 'shift_bonus_default_multiplier'))
-      .limit(1);
+    const valueRaw = await this.adminDbRepository.getSystemSettingValue('shift_bonus_default_multiplier');
     let value = 10;
-    if (row?.value != null) {
-      const v = row.value;
+    if (valueRaw != null) {
+      const v = valueRaw;
       if (typeof v === 'number' && !Number.isNaN(v)) value = v;
       else if (typeof v === 'object' && typeof (v as { value?: number }).value === 'number') {
         value = (v as { value: number }).value;
@@ -595,14 +342,10 @@ export class AdminService {
         if (!Number.isNaN(n)) value = n;
       }
     }
-    const [capRow] = await this.db
-      .select()
-      .from(systemSettings)
-      .where(eq(systemSettings.key, 'quest_monthly_bonus_cap'))
-      .limit(1);
+    const capRaw = await this.adminDbRepository.getSystemSettingValue('quest_monthly_bonus_cap');
     let cap = 0;
-    if (capRow?.value != null) {
-      const v = capRow.value;
+    if (capRaw != null) {
+      const v = capRaw;
       if (typeof v === 'number' && !Number.isNaN(v) && v >= 0) cap = v;
       else if (typeof v === 'object' && typeof (v as { value?: number }).value === 'number') {
         const val = (v as { value: number }).value;
@@ -619,7 +362,6 @@ export class AdminService {
     shiftBonusDefaultMultiplier: number;
     questMonthlyBonusCap?: number;
   }): Promise<void> {
-    const { systemSettings } = schema;
     const value = Number(dto.shiftBonusDefaultMultiplier);
     if (Number.isNaN(value) || value < 0) throw new Error('shiftBonusDefaultMultiplier must be a non-negative number');
     const cap =
@@ -628,27 +370,13 @@ export class AdminService {
         : undefined;
     const oldSettings = await this.getBonusSettings();
     const now = new Date();
-    await this.db
-      .insert(systemSettings)
-      .values({
-        key: 'shift_bonus_default_multiplier',
-        value: value,
-      })
-      .onConflictDoUpdate({
-        target: systemSettings.key,
-        set: { value: value, updatedAt: now },
-      });
+    await this.adminDbRepository.upsertSystemSettingValue(
+      'shift_bonus_default_multiplier',
+      value,
+      now,
+    );
     if (cap !== undefined) {
-      await this.db
-        .insert(systemSettings)
-        .values({
-          key: 'quest_monthly_bonus_cap',
-          value: cap,
-        })
-        .onConflictDoUpdate({
-          target: systemSettings.key,
-          set: { value: cap, updatedAt: now },
-        });
+      await this.adminDbRepository.upsertSystemSettingValue('quest_monthly_bonus_cap', cap, now);
     }
     await this.logAudit(
       'bonus_settings_update',
@@ -673,7 +401,6 @@ export class AdminService {
     reliabilityMinRatingToCountShiftForLevel: number;
     reliabilityMinRatingToUpgradeLevel: number;
   }> {
-    const { systemSettings } = schema;
     const keys: string[] = [
       'reliability_rating_increase_per_shift',
       'reliability_rating_decrease_no_show',
@@ -697,13 +424,9 @@ export class AdminService {
     };
     for (let i = 0; i < keys.length; i++) {
       const key = keys[i]!;
-      const [row] = await this.db
-        .select()
-        .from(systemSettings)
-        .where(eq(systemSettings.key, key))
-        .limit(1);
-      if (row?.value != null) {
-        const v = row.value;
+      const raw = await this.adminDbRepository.getSystemSettingValue(key);
+      if (raw != null) {
+        const v = raw;
         let num: number = defaults[i] ?? 0;
         if (typeof v === 'number' && !Number.isNaN(v)) num = v;
         else if (typeof v === 'object' && v != null && typeof (v as { value?: number }).value === 'number') {
@@ -729,7 +452,6 @@ export class AdminService {
     reliabilityMinRatingToCountShiftForLevel?: number;
     reliabilityMinRatingToUpgradeLevel?: number;
   }): Promise<void> {
-    const { systemSettings } = schema;
     const oldSettings = await this.getReliabilityRatingSettings();
     const now = new Date();
     const updates: Array<{ key: string; value: number }> = [];
@@ -763,13 +485,7 @@ export class AdminService {
       updates.push({ key: 'reliability_min_rating_to_upgrade_level', value: v });
     }
     for (const { key, value } of updates) {
-      await this.db
-        .insert(systemSettings)
-        .values({ key, value })
-        .onConflictDoUpdate({
-          target: systemSettings.key,
-          set: { value, updatedAt: now },
-        });
+      await this.adminDbRepository.upsertSystemSettingValue(key, value, now);
     }
     if (updates.length > 0) {
       const newSettings = await this.getReliabilityRatingSettings();
@@ -785,15 +501,11 @@ export class AdminService {
 
   async updateLevel(id: number, dto: UpdateLevelDto) {
     const { levels } = schema;
-    const [existing] = await this.db.select().from(levels).where(eq(levels.id, id)).limit(1);
+    const existing = await this.adminDbRepository.getLevelById(id);
     if (!existing) throw new NotFoundException('Level not found');
     if (dto.shiftsRequired !== undefined && dto.shiftsRequired !== 0) {
-      const [firstLevel] = await this.db
-        .select({ id: levels.id })
-        .from(levels)
-        .orderBy(asc(levels.sortOrder))
-        .limit(1);
-      if (firstLevel && firstLevel.id === id) {
+      const firstLevelId = await this.adminDbRepository.getFirstLevelId();
+      if (firstLevelId != null && firstLevelId === id) {
         throw new BadRequestException(
           'У базового (первого) уровня лояльности порог смен должен быть 0 — он выдаётся изначально без условий.',
         );
@@ -808,7 +520,7 @@ export class AdminService {
     if (dto.sortOrder !== undefined) updates.sortOrder = dto.sortOrder;
     if (dto.bonusMultiplier !== undefined) updates.bonusMultiplier = dto.bonusMultiplier;
     if (Object.keys(updates).length === 0) return { id };
-    await this.db.update(levels).set(updates).where(eq(levels.id, id));
+    await this.adminDbRepository.updateLevel(id, updates);
     const oldSnapshot = {
       name: existing.name,
       shiftsRequired: existing.shiftsRequired,
@@ -822,38 +534,32 @@ export class AdminService {
   }
 
   async listQuests() {
-    const { quests } = schema;
-    return this.db.select().from(quests).orderBy(quests.id);
+    return this.adminDbRepository.listQuests();
   }
 
   async createQuest(dto: CreateQuestDto) {
-    const { quests } = schema;
     const now = new Date();
     let activeFrom: Date | null = dto.activeFrom ? new Date(dto.activeFrom) : null;
     let activeUntil: Date | null = dto.activeUntil ? new Date(dto.activeUntil) : null;
     if (dto.activeUntilEndOfPeriod && dto.period) {
       activeUntil = this.endOfPeriodUTC(now, dto.period);
     }
-    const [row] = await this.db
-      .insert(quests)
-      .values({
-        name: dto.name,
-        description: dto.description ?? null,
-        period: dto.period,
-        conditionType: dto.conditionType,
-        conditionConfig: dto.conditionConfig ?? {},
-        rewardCoins: dto.rewardCoins,
-        icon: dto.icon ?? 'target',
-        isActive: dto.isActive ?? 1,
-        isOneTime: dto.isOneTime ?? 0,
-        activeFrom,
-        activeUntil,
-        targetType: dto.targetType ?? 'all',
-        targetGroupId: dto.targetGroupId ?? null,
-      })
-      .returning({ id: quests.id });
-    if (!row) throw new Error('Insert failed');
-    await this.logAudit('quest_create', 'quest', String(row.id), undefined, {
+    const id = await this.adminDbRepository.insertQuest({
+      name: dto.name,
+      description: dto.description ?? null,
+      period: dto.period,
+      conditionType: dto.conditionType,
+      conditionConfig: dto.conditionConfig ?? {},
+      rewardCoins: dto.rewardCoins,
+      icon: dto.icon ?? 'target',
+      isActive: dto.isActive ?? 1,
+      isOneTime: dto.isOneTime ?? 0,
+      activeFrom,
+      activeUntil,
+      targetType: dto.targetType ?? 'all',
+      targetGroupId: dto.targetGroupId ?? null,
+    });
+    await this.logAudit('quest_create', 'quest', String(id), undefined, {
       name: dto.name,
       period: dto.period,
       conditionType: dto.conditionType,
@@ -861,7 +567,7 @@ export class AdminService {
       isActive: dto.isActive ?? 1,
       isOneTime: dto.isOneTime ?? 0,
     });
-    return { id: row.id };
+    return { id };
   }
 
   /** Конец текущего периода (последний момент включительно) в UTC */
@@ -883,9 +589,9 @@ export class AdminService {
   }
 
   async updateQuest(id: number, dto: UpdateQuestDto) {
-    const { quests } = schema;
-    const [existing] = await this.db.select().from(quests).where(eq(quests.id, id)).limit(1);
+    const existing = await this.adminDbRepository.getQuestById(id);
     if (!existing) throw new NotFoundException('Quest not found');
+    const { quests } = schema;
     const updates: Partial<typeof quests.$inferInsert> = {};
     if (dto.name !== undefined) updates.name = dto.name;
     if (dto.description !== undefined) updates.description = dto.description;
@@ -901,7 +607,7 @@ export class AdminService {
     if (dto.targetType !== undefined) updates.targetType = dto.targetType;
     if (dto.targetGroupId !== undefined) updates.targetGroupId = dto.targetGroupId;
     if (Object.keys(updates).length === 0) return { id };
-    await this.db.update(quests).set(updates).where(eq(quests.id, id));
+    await this.adminDbRepository.updateQuest(id, updates);
     const oldSnapshot = {
       name: existing.name,
       period: existing.period,
@@ -915,10 +621,9 @@ export class AdminService {
   }
 
   async deleteQuest(id: number) {
-    const { quests } = schema;
-    const [existing] = await this.db.select().from(quests).where(eq(quests.id, id)).limit(1);
+    const existing = await this.adminDbRepository.getQuestById(id);
     if (!existing) throw new NotFoundException('Quest not found');
-    await this.db.update(quests).set({ isActive: 0 }).where(eq(quests.id, id));
+    await this.adminDbRepository.deactivateQuest(id);
     await this.logAudit('quest_delete', 'quest', String(id), {
       name: existing.name,
       conditionType: existing.conditionType,
@@ -929,76 +634,48 @@ export class AdminService {
 
   /** Группы пользователей (для квестов target_type=group) */
   async listUserGroups() {
-    const { userGroups, userGroupMembers } = schema;
-    const groups = await this.db
-      .select()
-      .from(userGroups)
-      .where(isNull(userGroups.deletedAt))
-      .orderBy(userGroups.id);
-    const memberCounts = await this.db
-      .select({ groupId: userGroupMembers.groupId, count: sql<number>`count(*)::int` })
-      .from(userGroupMembers)
-      .where(isNull(userGroupMembers.deletedAt))
-      .groupBy(userGroupMembers.groupId);
-    const countMap = new Map(memberCounts.map((r) => [r.groupId, r.count]));
-    return groups.map((g) => ({ ...g, memberCount: countMap.get(g.id) ?? 0 }));
+    return this.adminDbRepository.listUserGroupsWithMemberCount();
   }
 
   async getUserGroup(id: number) {
-    const { userGroups } = schema;
-    const [row] = await this.db
-      .select()
-      .from(userGroups)
-      .where(and(eq(userGroups.id, id), isNull(userGroups.deletedAt)))
-      .limit(1);
+    const row = await this.adminDbRepository.getActiveUserGroupById(id);
     if (!row) throw new NotFoundException('User group not found');
     return row;
   }
 
   async createUserGroup(dto: { name: string; description?: string | null }) {
-    const { userGroups } = schema;
     const name = (dto.name ?? '').trim();
     if (!name) throw new BadRequestException('name is required');
-    const [row] = await this.db
-      .insert(userGroups)
-      .values({ name, description: dto.description?.trim() || null })
-      .returning({ id: userGroups.id });
-    if (!row) throw new Error('Insert user group failed');
-    await this.logAudit('user_group_create', 'user_group', String(row.id), undefined, {
+    const id = await this.adminDbRepository.insertUserGroup({
+      name,
+      description: dto.description?.trim() || null,
+    });
+    await this.logAudit('user_group_create', 'user_group', String(id), undefined, {
       name,
       description: dto.description?.trim() || undefined,
     });
-    return { id: row.id };
+    return { id };
   }
 
   async updateUserGroup(id: number, dto: { name?: string; description?: string | null }) {
-    const { userGroups } = schema;
-    const [existing] = await this.db
-      .select()
-      .from(userGroups)
-      .where(and(eq(userGroups.id, id), isNull(userGroups.deletedAt)))
-      .limit(1);
+    const existing = await this.adminDbRepository.getActiveUserGroupById(id);
     if (!existing) throw new NotFoundException('User group not found');
+    const { userGroups } = schema;
     const updates: Partial<typeof userGroups.$inferInsert> = {};
     if (dto.name !== undefined) updates.name = dto.name.trim();
     if (dto.description !== undefined) updates.description = dto.description?.trim() || null;
     if (Object.keys(updates).length === 0) return { id };
-    await this.db.update(userGroups).set(updates).where(eq(userGroups.id, id));
+    await this.adminDbRepository.updateUserGroup(id, updates);
     const oldSnapshot = { name: existing.name, description: existing.description };
     await this.logAudit('user_group_update', 'user_group', String(id), oldSnapshot, { ...oldSnapshot, ...updates });
     return { id };
   }
 
   async deleteUserGroup(id: number) {
-    const { userGroups } = schema;
-    const [existing] = await this.db
-      .select()
-      .from(userGroups)
-      .where(and(eq(userGroups.id, id), isNull(userGroups.deletedAt)))
-      .limit(1);
+    const existing = await this.adminDbRepository.getActiveUserGroupById(id);
     if (!existing) throw new NotFoundException('User group not found');
     const now = new Date();
-    await this.db.update(userGroups).set({ deletedAt: now }).where(eq(userGroups.id, id));
+    await this.adminDbRepository.softDeleteUserGroup(id, now);
     await this.logAudit('user_group_delete', 'user_group', String(id), {
       name: existing.name,
     }, undefined);
@@ -1006,79 +683,32 @@ export class AdminService {
   }
 
   async listGroupMembers(groupId: number) {
-    const { userGroupMembers, users } = schema;
-    const [group] = await this.db
-      .select()
-      .from(schema.userGroups)
-      .where(and(eq(schema.userGroups.id, groupId), isNull(schema.userGroups.deletedAt)))
-      .limit(1);
+    const group = await this.adminDbRepository.getActiveUserGroupById(groupId);
     if (!group) throw new NotFoundException('User group not found');
-    const rows = await this.db
-      .select({
-        userId: users.id,
-        userName: users.name,
-        email: users.email,
-        externalId: users.externalId,
-      })
-      .from(userGroupMembers)
-      .innerJoin(users, eq(userGroupMembers.userId, users.id))
-      .where(and(eq(userGroupMembers.groupId, groupId), isNull(userGroupMembers.deletedAt)));
+    const rows = await this.adminDbRepository.listGroupMembers(groupId);
     return { group: { id: group.id, name: group.name, description: group.description }, items: rows };
   }
 
   async addGroupMember(groupId: number, userId: number) {
-    const { userGroups, userGroupMembers, users } = schema;
-    const [group] = await this.db
-      .select()
-      .from(userGroups)
-      .where(and(eq(userGroups.id, groupId), isNull(userGroups.deletedAt)))
-      .limit(1);
+    const group = await this.adminDbRepository.getActiveUserGroupById(groupId);
     if (!group) throw new NotFoundException('User group not found');
-    const [user] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const user = await this.adminDbRepository.getUserById(userId);
     if (!user) throw new NotFoundException('User not found');
-    const [existing] = await this.db
-      .select()
-      .from(userGroupMembers)
-      .where(
-        and(
-          eq(userGroupMembers.groupId, groupId),
-          eq(userGroupMembers.userId, userId),
-          isNull(userGroupMembers.deletedAt),
-        ),
-      )
-      .limit(1);
+    const existing = await this.adminDbRepository.getActiveGroupMember(groupId, userId);
     if (existing) return { id: existing.id, added: false };
-    const [row] = await this.db
-      .insert(userGroupMembers)
-      .values({ groupId, userId })
-      .returning({ id: userGroupMembers.id });
-    if (!row) throw new Error('Insert group member failed');
-    await this.logAudit('group_member_add', 'user_group_member', String(row.id), undefined, {
+    const id = await this.adminDbRepository.insertGroupMember(groupId, userId);
+    await this.logAudit('group_member_add', 'user_group_member', String(id), undefined, {
       groupId,
       userId,
     });
-    return { id: row.id, added: true };
+    return { id, added: true };
   }
 
   async removeGroupMember(groupId: number, userId: number) {
-    const { userGroupMembers } = schema;
-    const [existing] = await this.db
-      .select()
-      .from(userGroupMembers)
-      .where(
-        and(
-          eq(userGroupMembers.groupId, groupId),
-          eq(userGroupMembers.userId, userId),
-          isNull(userGroupMembers.deletedAt),
-        ),
-      )
-      .limit(1);
+    const existing = await this.adminDbRepository.getActiveGroupMember(groupId, userId);
     if (!existing) throw new NotFoundException('Group member not found');
     const now = new Date();
-    await this.db
-      .update(userGroupMembers)
-      .set({ deletedAt: now })
-      .where(eq(userGroupMembers.id, existing.id));
+    await this.adminDbRepository.softDeleteGroupMemberById(existing.id, now);
     await this.logAudit('group_member_remove', 'user_group_member', String(existing.id), {
       groupId,
       userId,
@@ -1091,42 +721,23 @@ export class AdminService {
    * Каждая строка — id (число), email или external_id. Дубликаты и несуществующие пользователи пропускаются.
    */
   async importGroupMembers(groupId: number, identifiers: string[]) {
-    const { userGroups, users, userGroupMembers } = schema;
-    const [group] = await this.db
-      .select()
-      .from(userGroups)
-      .where(and(eq(userGroups.id, groupId), isNull(userGroups.deletedAt)))
-      .limit(1);
+    const group = await this.adminDbRepository.getActiveUserGroupById(groupId);
     if (!group) throw new NotFoundException('User group not found');
 
     const userIds = new Set<number>();
     for (const raw of identifiers) {
       const s = (raw ?? '').toString().trim();
       if (!s) continue;
-      const asId = /^\d+$/.test(s) ? parseInt(s, 10) : null;
-      let found: { id: number } | undefined;
-      if (asId != null && !Number.isNaN(asId)) {
-        [found] = await this.db.select({ id: users.id }).from(users).where(eq(users.id, asId)).limit(1);
-      }
-      if (!found) {
-        [found] = await this.db.select({ id: users.id }).from(users).where(eq(users.email, s)).limit(1);
-      }
-      if (!found) {
-        [found] = await this.db.select({ id: users.id }).from(users).where(eq(users.externalId, s)).limit(1);
-      }
-      if (found) userIds.add(found.id);
+      const foundUserId = await this.adminDbRepository.resolveUserIdByIdentifier(s);
+      if (foundUserId != null) userIds.add(foundUserId);
     }
 
-    const existingMembers = await this.db
-      .select({ userId: userGroupMembers.userId })
-      .from(userGroupMembers)
-      .where(and(eq(userGroupMembers.groupId, groupId), isNull(userGroupMembers.deletedAt)));
-    const existingSet = new Set(existingMembers.map((r) => r.userId));
+    const existingSet = new Set(await this.adminDbRepository.listActiveGroupMemberUserIds(groupId));
     const toAdd = [...userIds].filter((id) => !existingSet.has(id));
 
     let added = 0;
     for (const userId of toAdd) {
-      await this.db.insert(userGroupMembers).values({ groupId, userId });
+      await this.adminDbRepository.insertGroupMember(groupId, userId);
       added++;
       existingSet.add(userId);
     }
@@ -1142,16 +753,12 @@ export class AdminService {
 
   /** Ручное изменение уровня пользователя (6.5) */
   async updateUserLevel(userId: number, levelId: number) {
-    const { users, levels } = schema;
-    const [levelRow] = await this.db.select().from(levels).where(eq(levels.id, levelId)).limit(1);
+    const levelRow = await this.adminDbRepository.findLevelById(levelId);
     if (!levelRow) throw new NotFoundException('Level not found');
-    const [userRow] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const userRow = await this.adminDbRepository.getUserById(userId);
     if (!userRow) throw new NotFoundException('User not found');
     const oldLevelId = userRow.levelId;
-    await this.db
-      .update(users)
-      .set({ levelId, shiftsCompleted: 0 })
-      .where(eq(users.id, userId));
+    await this.adminDbRepository.updateUserLevelAndResetShifts(userId, levelId);
     await this.logAudit('user_level_change', 'user', String(userId), { levelId: oldLevelId }, { levelId });
     return { id: userId, levelId };
   }
@@ -1164,52 +771,41 @@ export class AdminService {
     title?: string,
     description?: string,
   ) {
-    const { users, transactions } = schema;
-    const [userRow] = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const userRow = await this.adminDbRepository.getUserById(userId);
     if (!userRow) throw new NotFoundException('User not found');
     if (amount <= 0) throw new Error('amount must be positive');
     const txAmount = type === 'manual_debit' ? -amount : amount;
     const newBalance = userRow.balance + txAmount;
     if (newBalance < 0) throw new Error('Insufficient balance for debit');
     const defaultTitle = type === 'manual_credit' ? 'Ручное начисление' : 'Ручное списание';
-    await this.db.update(users).set({ balance: newBalance }).where(eq(users.id, userId));
-    const [inserted] = await this.db
-      .insert(transactions)
-      .values({
-        userId,
-        amount: txAmount,
-        type,
-        title: title?.trim() || defaultTitle,
-        description: description?.trim() || null,
-        createdBy: null,
-      })
-      .returning({ id: transactions.id });
-    await this.logAudit('manual_transaction', 'transaction', String(inserted!.id), undefined, {
+    await this.adminDbRepository.updateUserBalance(userId, newBalance);
+    const transactionId = await this.adminDbRepository.insertTransaction({
+      userId,
+      amount: txAmount,
+      type,
+      title: title?.trim() || defaultTitle,
+      description: description?.trim() || null,
+      createdBy: null,
+    });
+    await this.logAudit('manual_transaction', 'transaction', String(transactionId), undefined, {
       userId,
       amount: txAmount,
       type,
       title: title?.trim() || defaultTitle,
       description: description?.trim() || undefined,
     });
-    return { transactionId: inserted!.id, newBalance };
+    return { transactionId, newBalance };
   }
 
   /** Снять штраф с причиной и пересчитать уровень (6.7) */
   async removeStrike(strikeId: number, reason: string) {
-    const { strikes } = schema;
-    const [strike] = await this.db.select().from(strikes).where(eq(strikes.id, strikeId)).limit(1);
+    const strike = await this.adminDbRepository.getStrikeById(strikeId);
     if (!strike) throw new NotFoundException('Strike not found');
     if ((strike as { removedAt?: Date | null }).removedAt) {
       throw new NotFoundException('Strike already removed');
     }
     const now = new Date();
-    await this.db
-      .update(strikes)
-      .set({
-        removedAt: now,
-        removalReason: reason?.trim() || null,
-      })
-      .where(eq(strikes.id, strikeId));
+    await this.adminDbRepository.markStrikeRemoved(strikeId, now, reason?.trim() || null);
     await this.rewards.restoreReliabilityRatingForStrikeRemoval(
       strike.userId,
       strike.type as 'no_show' | 'late_cancel',
@@ -1267,9 +863,8 @@ export class AdminService {
     newValues?: Record<string, unknown>,
     adminId?: number | null,
   ) {
-    const { auditLog } = schema;
     const resolvedAdminId = adminId ?? this.adminContext.getAdminId() ?? null;
-    await this.db.insert(auditLog).values({
+    await this.adminDbRepository.insertAuditLog({
       adminId: resolvedAdminId,
       action,
       entityType,
@@ -1281,92 +876,8 @@ export class AdminService {
 
   /** Список записей аудита с пагинацией (6.9). Возвращает adminDisplay (кто выполнил) и entityExternalId (external_id пользователя при любом отношении к пользователю: user, transaction, strike, redemption, user_group_member). */
   async listAuditLog(opts: { page?: number; pageSize?: number; action?: string; entityType?: string } = {}) {
-    const { auditLog, adminPanelUsers, users, transactions, strikes, redemptions, userGroupMembers } = schema;
-    const usersViaTx = alias(users, 'users_via_tx');
-    const usersViaStrike = alias(users, 'users_via_strike');
-    const usersViaRedemption = alias(users, 'users_via_redemption');
-    const usersViaMember = alias(users, 'users_via_member');
-
-    const page = Math.max(1, opts.page ?? 1);
-    const pageSize = Math.min(200, Math.max(1, opts.pageSize ?? 50));
-    const conditions: Parameters<typeof and>[0][] = [];
-    if (opts.action?.trim()) {
-      conditions.push(eq(auditLog.action, opts.action.trim()));
-    }
-    if (opts.entityType?.trim()) {
-      conditions.push(eq(auditLog.entityType, opts.entityType.trim()));
-    }
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-    const [countResult] = await this.db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(auditLog)
-      .where(whereClause);
-    const total = Number(countResult?.count ?? 0);
-
+    const { rows, total, page, pageSize } = await this.adminDbRepository.listAuditLog(opts);
     const superEmail = this.config.get<string>('ADMIN_SUPER_EMAIL')?.trim() ?? null;
-
-    const rows = await this.db
-      .select({
-        id: auditLog.id,
-        adminId: auditLog.adminId,
-        action: auditLog.action,
-        entityType: auditLog.entityType,
-        entityId: auditLog.entityId,
-        oldValues: auditLog.oldValues,
-        newValues: auditLog.newValues,
-        createdAt: auditLog.createdAt,
-        adminEmail: adminPanelUsers.email,
-        entityExternalIdUser: users.externalId,
-        entityExternalIdViaTx: usersViaTx.externalId,
-        entityExternalIdViaStrike: usersViaStrike.externalId,
-        entityExternalIdViaRedemption: usersViaRedemption.externalId,
-        entityExternalIdViaMember: usersViaMember.externalId,
-      })
-      .from(auditLog)
-      .leftJoin(adminPanelUsers, eq(auditLog.adminId, adminPanelUsers.id))
-      .leftJoin(
-        users,
-        and(
-          eq(auditLog.entityType, 'user'),
-          sql`${auditLog.entityId} = (${users.id})::text`,
-        ),
-      )
-      .leftJoin(
-        transactions,
-        and(
-          eq(auditLog.entityType, 'transaction'),
-          sql`${auditLog.entityId} = (${transactions.id})::text`,
-        ),
-      )
-      .leftJoin(usersViaTx, eq(transactions.userId, usersViaTx.id))
-      .leftJoin(
-        strikes,
-        and(
-          eq(auditLog.entityType, 'strike'),
-          sql`${auditLog.entityId} = (${strikes.id})::text`,
-        ),
-      )
-      .leftJoin(usersViaStrike, eq(strikes.userId, usersViaStrike.id))
-      .leftJoin(
-        redemptions,
-        and(
-          eq(auditLog.entityType, 'redemption'),
-          sql`${auditLog.entityId} = (${redemptions.id})::text`,
-        ),
-      )
-      .leftJoin(usersViaRedemption, eq(redemptions.userId, usersViaRedemption.id))
-      .leftJoin(
-        userGroupMembers,
-        and(
-          eq(auditLog.entityType, 'user_group_member'),
-          sql`${auditLog.entityId} = (${userGroupMembers.id})::text`,
-        ),
-      )
-      .leftJoin(usersViaMember, eq(userGroupMembers.userId, usersViaMember.id))
-      .where(whereClause)
-      .orderBy(sql`${auditLog.createdAt} desc`)
-      .limit(pageSize)
-      .offset((page - 1) * pageSize);
 
     const items = rows.map((r) => ({
       id: r.id,
@@ -1416,17 +927,13 @@ export class AdminService {
     }
     let workerIds = params.workerIds;
     if (params.userId != null) {
-      const [row] = await this.db
-        .select({ externalId: schema.users.externalId })
-        .from(schema.users)
-        .where(eq(schema.users.id, params.userId))
-        .limit(1);
-      if (!row?.externalId?.trim()) {
+      const externalId = await this.adminDbRepository.findUserExternalIdById(params.userId);
+      if (!externalId) {
         throw new BadRequestException(
           `User ${params.userId} has no external_id. Set external_id in admin to link to TOJ worker.`,
         );
       }
-      workerIds = [row.externalId.trim()];
+      workerIds = [externalId];
     }
     if (!workerIds?.length) {
       throw new BadRequestException('Provide userId or workerIds');
