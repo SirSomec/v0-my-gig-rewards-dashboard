@@ -155,7 +155,7 @@ export function LevelProgress({
                 className="transition-[stroke-dasharray,stroke] duration-500 ease-out"
               />
             </svg>
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="absolute inset-0 flex items-end justify-center pointer-events-none pb-1.5">
               <span
                 className="text-lg sm:text-xl font-semibold tabular-nums leading-none"
                 style={{ color: ratingStrokeColor }}
