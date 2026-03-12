@@ -1,13 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, eq, sql } from 'drizzle-orm';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import * as schema from '../../infra/db/drizzle/schemas';
-import { drizzleProvider } from '../../infra/db/drizzle/drizzle.module';
-import { Inject } from '@nestjs/common';
 import type { Envs } from '../../shared/env.validation-schema';
 import { TojClientService } from './toj-client.service';
 import { RewardsService } from '../rewards/rewards.service';
+import { TojSyncRepository } from './toj-sync.repository';
 
 const WATERMARK_KEY = 'toj_sync_last_updated_at';
 /** Время последнего запуска синхронизации (для ограничения «не чаще чем раз в N минут»). */
@@ -31,11 +27,10 @@ export interface TojSyncResult {
 @Injectable()
 export class TojSyncService {
   constructor(
-    @Inject(drizzleProvider)
-    private readonly db: PostgresJsDatabase<typeof schema>,
     private readonly config: ConfigService<Envs, true>,
     private readonly tojClient: TojClientService,
     private readonly rewards: RewardsService,
+    private readonly tojSyncRepository: TojSyncRepository,
   ) {}
 
   isSyncEnabled(): boolean {
@@ -51,60 +46,20 @@ export class TojSyncService {
   }
 
   async getWatermark(): Promise<string | null> {
-    const { systemSettings } = schema;
-    const [row] = await this.db
-      .select()
-      .from(systemSettings)
-      .where(eq(systemSettings.key, WATERMARK_KEY))
-      .limit(1);
-    if (!row?.value) return null;
-    const v = row.value;
-    if (typeof v === 'string') return v;
-    if (typeof v === 'object' && v != null && typeof (v as { value?: string }).value === 'string') {
-      return (v as { value: string }).value;
-    }
-    return null;
+    return this.tojSyncRepository.getSettingString(WATERMARK_KEY);
   }
 
   async setWatermark(iso: string): Promise<void> {
-    const { systemSettings } = schema;
-    const now = new Date();
-    await this.db
-      .insert(systemSettings)
-      .values({ key: WATERMARK_KEY, value: iso })
-      .onConflictDoUpdate({
-        target: systemSettings.key,
-        set: { value: iso, updatedAt: now },
-      });
+    await this.tojSyncRepository.setSettingString(WATERMARK_KEY, iso);
   }
 
   /** Время последнего запуска runSync (ISO). Для ограничения частоты вызовов при загрузке главной. */
   async getLastSyncRunAt(): Promise<string | null> {
-    const { systemSettings } = schema;
-    const [row] = await this.db
-      .select()
-      .from(systemSettings)
-      .where(eq(systemSettings.key, LAST_RUN_AT_KEY))
-      .limit(1);
-    if (!row?.value) return null;
-    const v = row.value;
-    if (typeof v === 'string') return v;
-    if (typeof v === 'object' && v != null && typeof (v as { value?: string }).value === 'string') {
-      return (v as { value: string }).value;
-    }
-    return null;
+    return this.tojSyncRepository.getSettingString(LAST_RUN_AT_KEY);
   }
 
   async setLastSyncRunAt(iso: string): Promise<void> {
-    const { systemSettings } = schema;
-    const now = new Date();
-    await this.db
-      .insert(systemSettings)
-      .values({ key: LAST_RUN_AT_KEY, value: iso })
-      .onConflictDoUpdate({
-        target: systemSettings.key,
-        set: { value: iso, updatedAt: now },
-      });
+    await this.tojSyncRepository.setSettingString(LAST_RUN_AT_KEY, iso);
   }
 
   /**
@@ -146,11 +101,7 @@ export class TojSyncService {
       watermark = d.toISOString();
     }
 
-    const { users, transactions } = schema;
-    const usersWithExt = await this.db
-      .select({ id: users.id, externalId: users.externalId, createdAt: users.createdAt })
-      .from(users)
-      .where(sql`${users.externalId} IS NOT NULL AND ${users.externalId} != ''`);
+    const usersWithExt = await this.tojSyncRepository.getUsersWithExternalId();
     const workerIds = usersWithExt
       .map((u) => u.externalId as string)
       .filter((id): id is string => !!id);
@@ -245,14 +196,10 @@ export class TojSyncService {
               skippedReasons.jobBeforeUser++;
               continue;
             }
-            const [existing] = await this.db
-              .select({ id: transactions.id })
-              .from(transactions)
-              .where(
-                and(eq(transactions.type, 'shift'), eq(transactions.sourceRef, String(job._id))),
-              )
-              .limit(1);
-            if (existing) {
+            const hasExistingTransaction = await this.tojSyncRepository.hasShiftTransaction(
+              String(job._id),
+            );
+            if (hasExistingTransaction) {
               skipped++;
               skippedReasons.alreadySynced++;
               continue;
