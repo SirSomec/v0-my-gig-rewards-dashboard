@@ -65,6 +65,8 @@ export function LevelProgress({
   const progress = isMaxLevel ? 100 : Math.min(100, (shiftsCompleted / targetShifts) * 100)
   const ratingPct = Math.min(100, Math.max(0, (reliabilityRating / 5) * 100))
   const ratingDisplay = Number.isFinite(reliabilityRating) ? reliabilityRating.toFixed(1) : "4.0"
+  /** Цвет шкалы по рейтингу: 0 = красный, 2.5 ≈ жёлтый, 5 = зелёный (HSL hue 0 → 120) */
+  const ratingStrokeColor = `hsl(${(ratingPct / 100) * 120}, 65%, 45%)`
 
   const hardcodedBenefits = benefits[currentLevel] || benefits["Серебряный партнёр"]
   const useApiPerks = currentLevelPerksFromApi != null && currentLevelPerksFromApi.length > 0
@@ -121,7 +123,7 @@ export function LevelProgress({
           </span>
         </div>
 
-        {/* Рейтинг надёжности: круг слева с градиентом, описание справа */}
+        {/* Рейтинг надёжности: круг слева, цвет от красного к зелёному через жёлтый; описание справа */}
         <div className="mb-3 sm:mb-4 flex items-center gap-3 sm:gap-4">
           <div className="flex-shrink-0 relative w-16 h-16 sm:w-20 sm:h-20">
             <svg
@@ -129,13 +131,6 @@ export function LevelProgress({
               className="w-full h-full -rotate-90"
               aria-hidden
             >
-              <defs>
-                <linearGradient id="ratingGradient" x1="50" y1="5" x2="50" y2="95" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stopColor="oklch(0.55 0.22 25)" />
-                  <stop offset="50%" stopColor="oklch(0.85 0.18 85)" />
-                  <stop offset="100%" stopColor="oklch(0.55 0.2 145)" />
-                </linearGradient>
-              </defs>
               {/* Фон круга (трек) */}
               <circle
                 cx="50"
@@ -146,18 +141,18 @@ export function LevelProgress({
                 strokeWidth="8"
                 className="text-secondary"
               />
-              {/* Заполнение по рейтингу с градиентом */}
+              {/* Заполнение по рейтингу; цвет зависит от значения: красный → жёлтый → зелёный */}
               <circle
                 cx="50"
                 cy="50"
                 r="42"
                 fill="none"
-                stroke="url(#ratingGradient)"
+                stroke={ratingStrokeColor}
                 strokeWidth="8"
                 strokeLinecap="round"
                 strokeDasharray={`${(ratingPct / 100) * 2 * Math.PI * 42} ${2 * Math.PI * 42}`}
                 strokeDashoffset={0}
-                className="transition-[stroke-dasharray] duration-500 ease-out"
+                className="transition-[stroke-dasharray,stroke] duration-500 ease-out"
               />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
