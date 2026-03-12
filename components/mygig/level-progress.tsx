@@ -155,16 +155,18 @@ export function LevelProgress({
                 className="transition-[stroke-dasharray,stroke] duration-500 ease-out"
               />
             </svg>
-            <div className="absolute inset-0 flex items-end justify-center pointer-events-none pb-1.5">
-              <span
-                className="text-lg sm:text-xl font-semibold tabular-nums leading-none"
-                style={{ color: ratingStrokeColor }}
-              >
-                {ratingDisplay}
-              </span>
-              <span className="text-[11px] sm:text-xs font-semibold text-foreground tabular-nums -ml-0.5 leading-none">
-                /5
-              </span>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="flex items-end">
+                <span
+                  className="text-lg sm:text-xl font-semibold tabular-nums leading-none"
+                  style={{ color: ratingStrokeColor }}
+                >
+                  {ratingDisplay}
+                </span>
+                <span className="text-[11px] sm:text-xs font-semibold text-foreground tabular-nums -ml-0.5 leading-none">
+                  /5
+                </span>
+              </div>
             </div>
           </div>
           <div className="min-w-0 flex-1">
