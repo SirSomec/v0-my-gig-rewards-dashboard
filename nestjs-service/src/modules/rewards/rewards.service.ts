@@ -1,9 +1,7 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../../infra/db/drizzle/schemas';
-import { drizzleProvider } from '../../infra/db/drizzle/drizzle.module';
 import type { Envs } from '../../shared/env.validation-schema';
 import { MeResponseDto } from './dto/me.dto';
 import { LevelResponseDto } from './dto/level.dto';
@@ -11,6 +9,7 @@ import { QuestResponseDto } from './dto/quest.dto';
 import { StoreItemResponseDto } from './dto/store.dto';
 import { StrikeResponseDto } from './dto/strike.dto';
 import { TransactionResponseDto } from './dto/transaction.dto';
+import { RewardsRepository } from './rewards.repository';
 
 /** Начало дня (00:00:00) в UTC для даты */
 function startOfDayUTC(d: Date): Date {
@@ -77,10 +76,13 @@ function getQuestTarget(config: QuestConditionConfig, conditionType: string): nu
 @Injectable()
 export class RewardsService {
   constructor(
-    @Inject(drizzleProvider)
-    private readonly db: PostgresJsDatabase<typeof schema>,
+    private readonly rewardsRepository: RewardsRepository,
     private readonly config: ConfigService<Envs, true>,
   ) {}
+
+  private get db() {
+    return this.rewardsRepository.db;
+  }
 
   /**
    * Определяет ID текущего пользователя: из JWT (req.user), затем query, затем DEV_USER_ID.

@@ -9,12 +9,10 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { and, eq } from 'drizzle-orm';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type { Envs } from '../../shared/env.validation-schema';
 import * as schema from '../../infra/db/drizzle/schemas';
-import { drizzleProvider } from '../../infra/db/drizzle/drizzle.module';
-import { Inject } from '@nestjs/common';
 import type { AdminPermissionKey } from '../../infra/db/drizzle/schemas';
+import { AdminDbRepository } from './admin-db.repository';
 
 const SALT_ROUNDS = 10;
 
@@ -38,11 +36,14 @@ export interface AdminUserInfo {
 @Injectable()
 export class AdminAuthService {
   constructor(
-    @Inject(drizzleProvider)
-    private readonly db: PostgresJsDatabase<typeof schema>,
+    private readonly adminDbRepository: AdminDbRepository,
     private readonly config: ConfigService<Envs, true>,
     private readonly jwt: JwtService,
   ) {}
+
+  private get db() {
+    return this.adminDbRepository.db;
+  }
 
   /** Проверить суперадмина из .env */
   private checkSuperAdmin(email: string, password: string): boolean {

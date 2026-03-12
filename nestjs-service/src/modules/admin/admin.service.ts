@@ -2,24 +2,25 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { ConfigService } from '@nestjs/config';
 import { and, asc, eq, gte, ilike, isNull, lte, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type { Envs } from '../../shared/env.validation-schema';
 import * as schema from '../../infra/db/drizzle/schemas';
-import { drizzleProvider } from '../../infra/db/drizzle/drizzle.module';
-import { Inject } from '@nestjs/common';
 import type { CreateQuestDto, CreateStoreItemDto, UpdateLevelDto, UpdateQuestDto, UpdateStoreItemDto } from './dto/admin.dto';
 import { RewardsService } from '../rewards/rewards.service';
 import { AdminContextService } from './admin-context.service';
+import { AdminDbRepository } from './admin-db.repository';
 
 @Injectable()
 export class AdminService {
   constructor(
-    @Inject(drizzleProvider)
-    private readonly db: PostgresJsDatabase<typeof schema>,
+    private readonly adminDbRepository: AdminDbRepository,
     private readonly rewards: RewardsService,
     private readonly config: ConfigService<Envs, true>,
     private readonly adminContext: AdminContextService,
   ) {}
+
+  private get db() {
+    return this.adminDbRepository.db;
+  }
 
   async listUsers(search?: string, page = 1, pageSize = 20) {
     const { users, levels } = schema;

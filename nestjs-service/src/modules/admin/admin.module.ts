@@ -14,6 +14,7 @@ import { EtlExplorerController } from './etl-explorer/etl-explorer.controller';
 import { EtlExplorerService } from './etl-explorer/etl-explorer.service';
 import { RewardsModule } from '../rewards/rewards.module';
 import { TojModule } from '../toj/toj.module';
+import { AdminDbRepository } from './admin-db.repository';
 
 @Module({
   imports: [
@@ -33,7 +34,7 @@ import { TojModule } from '../toj/toj.module';
     }),
   ],
   controllers: [AdminController, AdminAuthController, EtlExplorerController],
-  providers: [AdminGuard, AdminContextService, AdminContextInterceptor, AdminService, AdminAuthService, EtlExplorerService],
+  providers: [AdminGuard, AdminContextService, AdminContextInterceptor, AdminDbRepository, AdminService, AdminAuthService, EtlExplorerService],
   exports: [AdminService],
 })
 export class AdminModule {}

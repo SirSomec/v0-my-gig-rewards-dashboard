@@ -99,6 +99,14 @@
 - `TojSyncService` больше не выполняет прямые Drizzle-запросы к `system_settings`, `users`, `transactions`.
 - Запросы вынесены в методы репозитория (`getSettingString`, `setSettingString`, `getUsersWithExternalId`, `hasShiftTransaction`).
 
+Применение в модулях Rewards и Admin:
+
+- Добавлены инфраструктурные репозитории подключения к БД:
+  - `nestjs-service/src/modules/rewards/rewards.repository.ts`
+  - `nestjs-service/src/modules/admin/admin-db.repository.ts`
+- `RewardsService`, `AdminService`, `AdminAuthService` переведены на доступ к БД через репозитории (через DI), без прямой инъекции `drizzleProvider` в сервисы.
+- Это даёт единый слой доступа к БД на уровне модулей и упрощает дальнейшее вынесение SQL-методов в специализированные репозитории домена.
+
 Преимущества: единая точка изменения запросов, проще тестировать сервисы (моки репозитория), ниже связанность между бизнес-логикой и способом хранения данных.
 
 ---
