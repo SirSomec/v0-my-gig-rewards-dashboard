@@ -121,23 +121,57 @@ export function LevelProgress({
           </span>
         </div>
 
-        {/* Рейтинг надёжности 0–5 */}
-        <div className="mb-3 sm:mb-4">
-          <div className="flex justify-between text-xs text-muted-foreground mb-1">
-            <span>Рейтинг надёжности</span>
-            <span className="font-medium text-foreground">{ratingDisplay} / 5</span>
+        {/* Рейтинг надёжности: круг слева с градиентом, описание справа */}
+        <div className="mb-3 sm:mb-4 flex items-center gap-3 sm:gap-4">
+          <div className="flex-shrink-0 relative w-16 h-16 sm:w-20 sm:h-20">
+            <svg
+              viewBox="0 0 100 100"
+              className="w-full h-full -rotate-90"
+              aria-hidden
+            >
+              <defs>
+                <linearGradient id="ratingGradient" x1="50" y1="5" x2="50" y2="95" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="oklch(0.55 0.22 25)" />
+                  <stop offset="50%" stopColor="oklch(0.85 0.18 85)" />
+                  <stop offset="100%" stopColor="oklch(0.55 0.2 145)" />
+                </linearGradient>
+              </defs>
+              {/* Фон круга (трек) */}
+              <circle
+                cx="50"
+                cy="50"
+                r="42"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="8"
+                className="text-secondary"
+              />
+              {/* Заполнение по рейтингу с градиентом */}
+              <circle
+                cx="50"
+                cy="50"
+                r="42"
+                fill="none"
+                stroke="url(#ratingGradient)"
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeDasharray={`${(ratingPct / 100) * 2 * Math.PI * 42} ${2 * Math.PI * 42}`}
+                strokeDashoffset={0}
+                className="transition-[stroke-dasharray] duration-500 ease-out"
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span className="text-[11px] sm:text-xs font-semibold text-foreground tabular-nums">
+                {ratingDisplay}/5
+              </span>
+            </div>
           </div>
-          <div className="relative h-2 bg-secondary rounded-full overflow-hidden">
-            <motion.div
-              className="absolute inset-y-0 left-0 rounded-full bg-primary/80"
-              initial={{ width: 0 }}
-              animate={{ width: `${ratingPct}%` }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-            />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs sm:text-sm font-medium text-foreground">Рейтинг надёжности</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
+              Растёт за выполнение смен, снижается за прогулы и поздние отмены.
+            </p>
           </div>
-          <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">
-            Растёт за выполнение смен, снижается за прогулы и поздние отмены.
-          </p>
         </div>
 
         {/* Benefits toggle */}
