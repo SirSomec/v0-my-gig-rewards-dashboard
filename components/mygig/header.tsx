@@ -1,11 +1,11 @@
-"use client"
-
-import { motion } from "framer-motion"
-import { Bell, LogOut } from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { GigCoinIcon } from "./gig-coin-icon"
+ "use client"
+ 
+ import { motion } from "framer-motion"
+ import { LogOut } from "lucide-react"
+ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+ import { Badge } from "@/components/ui/badge"
+ import { Button } from "@/components/ui/button"
+ import { GigCoinIcon } from "./gig-coin-icon"
 
 function formatNumber(n: number): string {
   return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
@@ -68,13 +68,6 @@ export function Header({ coinBalance, userName, userLevel, avatarUrl, onLogout }
               <LogOut size={18} className="shrink-0" />
             </Button>
           )}
-          <button
-            className="relative p-1.5 sm:p-2 rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-            aria-label="Уведомления"
-          >
-            <Bell size={18} />
-            <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-primary" />
-          </button>
         </div>
       </div>
     </header>
