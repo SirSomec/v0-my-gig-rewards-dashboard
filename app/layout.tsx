@@ -49,7 +49,7 @@ export default function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning>
       <body className={`${_inter.variable} ${_geistMono.variable} font-sans antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem storageKey="mygig-theme">
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="mygig-theme">
           {children}
         </ThemeProvider>
       </body>

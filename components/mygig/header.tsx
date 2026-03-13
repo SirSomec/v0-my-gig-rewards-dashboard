@@ -1,8 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Bell, Sun, Moon, LogOut } from "lucide-react"
-import { useTheme } from "next-themes"
+import { Bell, LogOut } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -22,9 +21,6 @@ interface HeaderProps {
 }
 
 export function Header({ coinBalance, userName, userLevel, avatarUrl, onLogout }: HeaderProps) {
-  const { theme, setTheme, resolvedTheme } = useTheme()
-  const isDark = resolvedTheme === "dark"
-
   return (
     <header className="sticky top-0 z-50 bg-card border-b border-border sm:bg-card/90 sm:backdrop-blur-md">
       <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3">
@@ -72,15 +68,6 @@ export function Header({ coinBalance, userName, userLevel, avatarUrl, onLogout }
               <LogOut size={18} className="shrink-0" />
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 sm:h-9 sm:w-9 rounded-full text-muted-foreground hover:text-foreground flex-shrink-0"
-            onClick={() => setTheme(isDark ? "light" : "dark")}
-            aria-label={isDark ? "Светлая тема" : "Тёмная тема"}
-          >
-            {isDark ? <Sun size={18} /> : <Moon size={18} />}
-          </Button>
           <button
             className="relative p-1.5 sm:p-2 rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
             aria-label="Уведомления"
