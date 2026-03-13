@@ -17,6 +17,10 @@ export class TojSyncRepository {
     private readonly db: PostgresJsDatabase<typeof schema>,
   ) {}
 
+  /**
+   * Получить строковое значение настройки system_settings по ключу.
+   * Поддерживает как простые строки, так и объекты вида { value: string }; при отсутствии или неподходящем типе возвращает null.
+   */
   async getSettingString(key: string): Promise<string | null> {
     const { systemSettings } = schema;
     const [row] = await this.db
@@ -38,6 +42,10 @@ export class TojSyncRepository {
     return null;
   }
 
+  /**
+   * Сохранить строковое значение настройки system_settings по ключу.
+   * При конфликте по key обновляет существующую запись и updatedAt.
+   */
   async setSettingString(key: string, value: string): Promise<void> {
     const { systemSettings } = schema;
     const now = new Date();
@@ -50,6 +58,10 @@ export class TojSyncRepository {
       });
   }
 
+  /**
+   * Список пользователей, у которых заполнен external_id.
+   * Используется для запроса смен из TOJ только по тем работникам, которые заведены в нашей системе.
+   */
   async getUsersWithExternalId(): Promise<TojSyncUserRow[]> {
     const { users } = schema;
     const rows = await this.db
@@ -66,6 +78,9 @@ export class TojSyncRepository {
       }));
   }
 
+  /**
+   * Проверка, есть ли уже транзакция type='shift' с заданным sourceRef (идемпотентность по внешнему ID смены).
+   */
   async hasShiftTransaction(sourceRef: string): Promise<boolean> {
     const { transactions } = schema;
     const [existing] = await this.db

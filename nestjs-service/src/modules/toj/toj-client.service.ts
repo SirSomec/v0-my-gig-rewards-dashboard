@@ -38,11 +38,16 @@ export interface TojFindJobsOptions {
 export class TojClientService {
   constructor(private readonly config: ConfigService<Envs, true>) {}
 
+  /** Базовый URL TOJ из env (TOJ_BASE_URL) без хвостового слэша; null, если не задан. */
   private getBaseUrl(): string | null {
     const url = this.config.get('TOJ_BASE_URL', { infer: true });
     return url?.trim() || null;
   }
 
+  /**
+   * Учетные данные для Basic Auth в TOJ (TOJ_USER/TOJ_PASSWORD).
+   * Возвращает null, если логин не задан — в этом случае клиент считается не настроенным.
+   */
   private getAuth(): { user: string; password: string } | null {
     const user = this.config.get('TOJ_USER', { infer: true })?.trim();
     const password = this.config.get('TOJ_PASSWORD', { infer: true });
@@ -50,6 +55,7 @@ export class TojClientService {
     return { user, password: password ?? '' };
   }
 
+  /** Проверка, что TOJ-клиент полностью настроен (есть URL и логин/пароль). */
   isConfigured(): boolean {
     return !!this.getBaseUrl() && !!this.getAuth();
   }
