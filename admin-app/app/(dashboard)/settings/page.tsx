@@ -6,11 +6,14 @@ import {
   adminUpdateBonusSettings,
   adminGetReliabilityRatingSettings,
   adminUpdateReliabilityRatingSettings,
+  adminGetLoyaltyPreRegistration,
+  adminSetLoyaltyPreRegistration,
 } from "@/lib/admin-api"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
 
@@ -25,14 +28,17 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savingReliability, setSavingReliability] = useState(false)
+  const [loyaltyPreRegistrationEnabled, setLoyaltyPreRegistrationEnabled] = useState(false)
+  const [savingPreReg, setSavingPreReg] = useState(false)
   const { toast } = useToast()
 
   const load = useCallback(() => {
     setLoading(true)
-    Promise.all([adminGetBonusSettings(), adminGetReliabilityRatingSettings()])
-      .then(([bonus, reliability]) => {
+    Promise.all([adminGetBonusSettings(), adminGetReliabilityRatingSettings(), adminGetLoyaltyPreRegistration()])
+      .then(([bonus, reliability, preReg]) => {
         setShiftBonusDefaultMultiplier(String(bonus.shiftBonusDefaultMultiplier))
         setQuestMonthlyBonusCap(String(bonus.questMonthlyBonusCap))
+        setLoyaltyPreRegistrationEnabled(!!preReg.enabled)
         setReliabilityRatingIncreasePerShift(String(reliability.reliabilityRatingIncreasePerShift))
         setReliabilityRatingDecreaseNoShow(String(reliability.reliabilityRatingDecreaseNoShow))
         setReliabilityRatingDecreaseLateCancel(String(reliability.reliabilityRatingDecreaseLateCancel))
@@ -128,9 +134,48 @@ export default function AdminSettingsPage() {
       .finally(() => setSavingReliability(false))
   }
 
+  const handlePreRegToggle = (checked: boolean) => {
+    setSavingPreReg(true)
+    adminSetLoyaltyPreRegistration(checked)
+      .then((r) => {
+        setLoyaltyPreRegistrationEnabled(checked)
+        if (r.updated > 0) {
+          toast({ title: `Предварительная регистрация выключена. Заявок переведено в участники: ${r.updated}` })
+        } else {
+          toast({ title: checked ? "Предварительная регистрация включена" : "Предварительная регистрация выключена" })
+        }
+      })
+      .catch((e) => toast({ title: e instanceof Error ? e.message : "Ошибка", variant: "destructive" }))
+      .finally(() => setSavingPreReg(false))
+  }
+
   return (
     <div className="space-y-4">
       <h1 className="text-lg font-semibold">Настройки</h1>
+
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <h2 className="text-sm font-medium">Предварительная регистрация в программе лояльности</h2>
+          <p className="text-xs text-muted-foreground">
+            Если включено, при первом входе пользователь видит экран с условиями и кнопку «Зарегистрироваться». Заявка попадает в раздел «Пользователи»; пока админ не одобрит, пользователь видит заглушку. При выключении все ожидающие заявки автоматически переводятся в участники.
+          </p>
+          {loading ? (
+            <Skeleton className="h-6 w-24" />
+          ) : (
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="loyaltyPreReg"
+                checked={loyaltyPreRegistrationEnabled}
+                onCheckedChange={(c) => handlePreRegToggle(c === true)}
+                disabled={savingPreReg}
+              />
+              <Label htmlFor="loyaltyPreReg" className="cursor-pointer">
+                Включить предварительную регистрацию
+              </Label>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="p-4 space-y-4">

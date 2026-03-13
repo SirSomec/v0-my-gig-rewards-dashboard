@@ -139,6 +139,72 @@ export class AdminDbRepository {
       });
   }
 
+  /** Установить значение настройки (любой JSON-тип, например boolean для loyalty_pre_registration_enabled). */
+  async setSystemSetting(key: string, value: unknown): Promise<void> {
+    const now = new Date();
+    await this.client
+      .insert(schema.systemSettings)
+      .values({ key, value })
+      .onConflictDoUpdate({
+        target: schema.systemSettings.key,
+        set: { value, updatedAt: now },
+      });
+  }
+
+  /** Включена ли предварительная регистрация в программе лояльности. */
+  async getLoyaltyPreRegistrationEnabled(): Promise<boolean> {
+    const v = await this.getSystemSettingValue('loyalty_pre_registration_enabled');
+    if (v === true || v === 'true' || v === 1) return true;
+    if (typeof v === 'object' && v != null && (v as { value?: boolean }).value === true) return true;
+    return false;
+  }
+
+  /** Установить loyalty_requested_at для пользователя (нажал «Зарегистрироваться»). Возвращает true, если обновлено. */
+  async setUserLoyaltyRequestedAt(userId: number): Promise<boolean> {
+    const now = new Date();
+    const result = await this.client
+      .update(schema.users)
+      .set({ loyaltyRequestedAt: now })
+      .where(
+        and(
+          eq(schema.users.id, userId),
+          eq(schema.users.loyaltyStatus, 'pending'),
+          sql`${schema.users.loyaltyRequestedAt} IS NULL`,
+        ),
+      )
+      .returning({ id: schema.users.id });
+    return result.length > 0;
+  }
+
+  /** Одобрить заявку на участие: active, loyalty_approved_at, loyalty_started_at. adminId может быть null (X-Admin-Key). */
+  async approveUserLoyalty(userId: number, adminId: number | null): Promise<boolean> {
+    const now = new Date();
+    const result = await this.client
+      .update(schema.users)
+      .set({
+        loyaltyStatus: 'active',
+        loyaltyApprovedAt: now,
+        loyaltyApprovedByAdminId: adminId,
+        loyaltyStartedAt: now,
+      })
+      .where(and(eq(schema.users.id, userId), eq(schema.users.loyaltyStatus, 'pending')))
+      .returning({ id: schema.users.id });
+    return result.length > 0;
+  }
+
+  /** При выключении предрегистрации: перевести всех pending в active, loyalty_started_at = COALESCE(approved_at, created_at). */
+  async setAllPendingUsersActive(): Promise<number> {
+    const result = await this.client
+      .update(schema.users)
+      .set({
+        loyaltyStatus: 'active',
+        loyaltyStartedAt: sql`COALESCE(${schema.users.loyaltyApprovedAt}, ${schema.users.createdAt})`,
+      })
+      .where(eq(schema.users.loyaltyStatus, 'pending'))
+      .returning({ id: schema.users.id });
+    return result.length;
+  }
+
   async findUserExternalIdById(userId: number): Promise<string | null> {
     const [row] = await this.client
       .select({ externalId: schema.users.externalId })
@@ -170,6 +236,7 @@ export class AdminDbRepository {
     externalId: string;
     name: string | null;
     levelId: number;
+    loyaltyStatus?: 'active' | 'pending';
   }): Promise<number> {
     const [row] = await this.client
       .insert(schema.users)
@@ -181,6 +248,7 @@ export class AdminDbRepository {
         balance: 0,
         levelId: params.levelId,
         shiftsCompleted: 0,
+        loyaltyStatus: params.loyaltyStatus ?? 'active',
       })
       .returning({ id: schema.users.id });
     if (!row) throw new Error('Insert user failed');
@@ -277,6 +345,8 @@ export class AdminDbRepository {
       levelName: string | null;
       createdAt: Date;
       updatedAt: Date;
+      loyaltyStatus: string | null;
+      loyaltyRequestedAt: Date | null;
     }>;
     total: number;
     page: number;
@@ -319,6 +389,8 @@ export class AdminDbRepository {
         levelName: levels.name,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
+        loyaltyStatus: users.loyaltyStatus,
+        loyaltyRequestedAt: users.loyaltyRequestedAt,
       })
       .from(users)
       .leftJoin(levels, eq(users.levelId, levels.id))

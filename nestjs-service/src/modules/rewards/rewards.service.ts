@@ -141,7 +141,15 @@ export class RewardsService {
     dto.questMonthlyBonusCap = await this.getQuestMonthlyBonusCap();
     dto.questsLimitedByCap =
       dto.questMonthlyBonusCap > 0 && dto.monthlyBonusTotal >= dto.questMonthlyBonusCap;
+    dto.loyaltyStatus = (user.loyaltyStatus === 'pending' ? 'pending' : 'active') as 'active' | 'pending';
+    dto.loyaltyRequestedAt = user.loyaltyRequestedAt != null ? (user.loyaltyRequestedAt as Date).toISOString() : null;
     return dto;
+  }
+
+  /** Отправить заявку на участие (пользователь нажал «Зарегистрироваться»). Только для pending без даты. */
+  async submitLoyaltyRequest(userId: number): Promise<{ accepted: boolean }> {
+    const updated = await this.rewardsRepository.updateUserLoyaltyRequestedAt(userId);
+    return { accepted: updated };
   }
 
   async getStrikes(userId: number, limit = 50): Promise<StrikeResponseDto[]> {
@@ -424,9 +432,13 @@ export class RewardsService {
       .set({
         balance: user.user.balance + amount,
         shiftsCompleted: canCountShiftForLevel ? user.user.shiftsCompleted + 1 : user.user.shiftsCompleted,
-        reliabilityRating: newRating,
       })
       .where(eq(users.id, userId));
+    await this.rewardsRepository.updateUserReliabilityRating(userId, newRating, {
+      reason: 'shift',
+      referenceType: 'transaction',
+      referenceId: tx.id,
+    });
     await this.recalcUserLevel(userId);
     await this.recalcQuestProgressForUser(userId);
     return { transactionId: tx.id };
@@ -568,7 +580,11 @@ export class RewardsService {
         : await this.getReliabilityRatingDecreaseLateCancel();
     const currentRating = user.reliabilityRating ?? 4;
     const newRating = Math.max(0, currentRating - decrease);
-    await this.rewardsRepository.updateUserReliabilityRating(userId, newRating);
+    await this.rewardsRepository.updateUserReliabilityRating(userId, newRating, {
+      reason: type,
+      referenceType: 'strike',
+      referenceId: strikeId,
+    });
     await this.resetShiftsSeriesProgressForUser(userId);
     return { strikeId, levelDemoted: false };
   }
@@ -703,6 +719,7 @@ export class RewardsService {
   async restoreReliabilityRatingForStrikeRemoval(
     userId: number,
     strikeType: 'no_show' | 'late_cancel',
+    strikeId?: number,
   ): Promise<void> {
     const user = await this.rewardsRepository.getUserById(userId);
     if (!user) return;
@@ -712,7 +729,11 @@ export class RewardsService {
         : await this.getReliabilityRatingDecreaseLateCancel();
     const currentRating = user.reliabilityRating ?? 4;
     const newRating = Math.min(5, currentRating + decrease);
-    await this.rewardsRepository.updateUserReliabilityRating(userId, newRating);
+    await this.rewardsRepository.updateUserReliabilityRating(userId, newRating, {
+      reason: 'strike_removed',
+      referenceType: 'strike',
+      ...(strikeId != null && { referenceId: strikeId }),
+    });
   }
 
   /**
@@ -731,7 +752,7 @@ export class RewardsService {
       'Смена подтверждена (confirmed)',
       now,
     );
-    await this.restoreReliabilityRatingForStrikeRemoval(strike.userId, strike.type as 'no_show' | 'late_cancel');
+    await this.restoreReliabilityRatingForStrikeRemoval(strike.userId, strike.type as 'no_show' | 'late_cancel', strike.id);
     await this.recalcUserLevel(strike.userId);
     await this.recalcQuestProgressForUser(strike.userId);
     return { removed: true, userId: strike.userId };

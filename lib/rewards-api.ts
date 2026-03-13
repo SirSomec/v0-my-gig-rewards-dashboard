@@ -108,6 +108,10 @@ export interface MeResponse {
   questMonthlyBonusCap?: number;
   /** true, если новые квесты ограничены до конца месяца из‑за достижения порога */
   questsLimitedByCap?: boolean;
+  /** Статус участия в программе лояльности: active | pending */
+  loyaltyStatus?: 'active' | 'pending';
+  /** Когда пользователь нажал «Зарегистрироваться» (ISO); null — ещё не нажал */
+  loyaltyRequestedAt?: string | null;
 }
 
 export interface TransactionResponse {
@@ -227,6 +231,12 @@ export async function createRedemption(storeItemId: number): Promise<CreateRedem
     method: "POST",
     body: JSON.stringify({ storeItemId }),
   });
+}
+
+/** Отправить заявку на участие в программе (принять условия и нажать «Зарегистрироваться»). */
+export async function submitLoyaltyRequest(): Promise<{ accepted: boolean }> {
+  const url = buildUrl("/v1/rewards/loyalty/request");
+  return fetchApi<{ accepted: boolean }>(url, { method: "POST" });
 }
 
 /** Записать просмотр вкладки (для аналитики посещаемости в админке). Вызывать при смене вкладки. */

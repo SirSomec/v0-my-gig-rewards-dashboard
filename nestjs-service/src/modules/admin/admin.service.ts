@@ -45,7 +45,7 @@ export class AdminService {
 
   /**
    * Найти пользователя по external_id или создать нового (для первого входа через MyGig).
-   * Возвращает id пользователя в нашей БД.
+   * При включённой предварительной регистрации новый пользователь создаётся со статусом pending.
    */
   async ensureUserByExternalId(externalId: string, name: string): Promise<{ id: number }> {
     const extId = externalId?.trim();
@@ -57,10 +57,12 @@ export class AdminService {
     if (baseLevelId == null) {
       throw new BadRequestException('В системе нет ни одного уровня. Создайте уровень в админке.');
     }
+    const preRegistrationEnabled = await this.adminDbRepository.getLoyaltyPreRegistrationEnabled();
     const id = await this.adminDbRepository.insertUser({
       externalId: extId,
       name: nameVal || null,
       levelId: baseLevelId,
+      loyaltyStatus: preRegistrationEnabled ? 'pending' : 'active',
     });
     return { id };
   }
@@ -499,6 +501,39 @@ export class AdminService {
     }
   }
 
+  /** Включена ли предварительная регистрация в программе лояльности. */
+  async getLoyaltyPreRegistrationEnabled(): Promise<boolean> {
+    return this.adminDbRepository.getLoyaltyPreRegistrationEnabled();
+  }
+
+  /** Включить/выключить предварительную регистрацию. При выключении все pending переводятся в active. */
+  async setLoyaltyPreRegistrationEnabled(enabled: boolean): Promise<{ updated: number }> {
+    const previous = await this.adminDbRepository.getLoyaltyPreRegistrationEnabled();
+    await this.adminDbRepository.setSystemSetting('loyalty_pre_registration_enabled', enabled);
+    let updated = 0;
+    if (previous && !enabled) {
+      updated = await this.adminDbRepository.setAllPendingUsersActive();
+    }
+    await this.logAudit(
+      'loyalty_pre_registration_settings_update',
+      'system_settings',
+      'loyalty_pre_registration_enabled',
+      { enabled: previous },
+      { enabled, pendingUsersActivated: updated },
+    );
+    return { updated };
+  }
+
+  /** Одобрить заявку пользователя на участие в программе лояльности. */
+  async approveUserLoyalty(userId: number): Promise<{ approved: boolean }> {
+    const adminId = this.adminContext.getAdminId();
+    const approved = await this.adminDbRepository.approveUserLoyalty(userId, adminId);
+    if (approved) {
+      await this.logAudit('loyalty_approved', 'user', String(userId), undefined, { userId, adminId });
+    }
+    return { approved };
+  }
+
   async updateLevel(id: number, dto: UpdateLevelDto) {
     const { levels } = schema;
     const existing = await this.adminDbRepository.getLevelById(id);
@@ -809,6 +844,7 @@ export class AdminService {
     await this.rewards.restoreReliabilityRatingForStrikeRemoval(
       strike.userId,
       strike.type as 'no_show' | 'late_cancel',
+      strike.id,
     );
     await this.rewards.recalcUserLevelConsideringStrikes(strike.userId);
     await this.rewards.recalcQuestProgressForUser(strike.userId);

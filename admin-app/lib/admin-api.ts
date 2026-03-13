@@ -126,6 +126,8 @@ export interface AdminUser {
   levelName: string | null;
   createdAt?: string;
   updatedAt?: string;
+  loyaltyStatus?: string | null;
+  loyaltyRequestedAt?: string | null;
 }
 
 export interface AdminRedemption {
@@ -463,6 +465,21 @@ export async function adminUpdateReliabilityRatingSettings(body: {
     method: "PATCH",
     body: JSON.stringify(body),
   });
+}
+
+export async function adminGetLoyaltyPreRegistration(): Promise<{ enabled: boolean }> {
+  return fetchAdmin("/v1/admin/loyalty-pre-registration");
+}
+
+export async function adminSetLoyaltyPreRegistration(enabled: boolean): Promise<{ updated: number }> {
+  return fetchAdmin("/v1/admin/loyalty-pre-registration", {
+    method: "PATCH",
+    body: JSON.stringify({ enabled }),
+  });
+}
+
+export async function adminApproveUserLoyalty(userId: number): Promise<{ approved: boolean }> {
+  return fetchAdmin(`/v1/admin/users/${userId}/loyalty-approve`, { method: "PATCH" });
 }
 
 export async function adminListQuests(): Promise<AdminQuest[]> {

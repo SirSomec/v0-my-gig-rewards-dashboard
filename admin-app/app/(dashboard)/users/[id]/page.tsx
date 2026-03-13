@@ -8,6 +8,7 @@ import {
   adminListLevels,
   adminUpdateUserLevel,
   adminRemoveStrike,
+  adminApproveUserLoyalty,
   type AdminLevel,
 } from "@/lib/admin-api"
 import { Card, CardContent } from "@/components/ui/card"
@@ -78,6 +79,8 @@ type UserDetail = {
   }>
   createdAt?: string
   updatedAt?: string
+  loyaltyStatus?: string | null
+  loyaltyRequestedAt?: string | null
 }
 
 function isUserDetail(v: Record<string, unknown>): v is UserDetail {
@@ -103,6 +106,8 @@ export default function AdminUserDetailPage() {
   const [removeStrikeReason, setRemoveStrikeReason] = useState("")
   const [removeStrikeLoading, setRemoveStrikeLoading] = useState(false)
   const [removeStrikeError, setRemoveStrikeError] = useState<string | null>(null)
+  const [approveLoyaltyLoading, setApproveLoyaltyLoading] = useState(false)
+  const [approveLoyaltyError, setApproveLoyaltyError] = useState<string | null>(null)
 
   const loadUser = useCallback(() => {
     if (Number.isNaN(id) || id < 1) {
@@ -304,6 +309,37 @@ export default function AdminUserDetailPage() {
               <dt className="text-sm text-muted-foreground">Штрафов за 30 дней</dt>
               <dd className="font-medium">{user.strikesCount30d}</dd>
             </div>
+            {(user.loyaltyStatus === "pending" || user.loyaltyStatus === "active") && (
+              <div>
+                <dt className="text-sm text-muted-foreground">Участие в программе</dt>
+                <dd className="flex items-center gap-2 mt-1">
+                  <span className={user.loyaltyStatus === "pending" ? "font-medium text-amber-600" : ""}>
+                    {user.loyaltyStatus === "pending" ? "Заявка на рассмотрении" : "Участник"}
+                  </span>
+                  {user.loyaltyStatus === "pending" && (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setApproveLoyaltyError(null)
+                        setApproveLoyaltyLoading(true)
+                        adminApproveUserLoyalty(user.id)
+                          .then((r) => {
+                            if (r.approved) loadUser()
+                          })
+                          .catch((e) => setApproveLoyaltyError(e instanceof Error ? e.message : "Ошибка"))
+                          .finally(() => setApproveLoyaltyLoading(false))
+                      }}
+                      disabled={approveLoyaltyLoading}
+                    >
+                      {approveLoyaltyLoading ? "Сохранение…" : "Одобрить заявку"}
+                    </Button>
+                  )}
+                </dd>
+                {approveLoyaltyError && (
+                  <p className="mt-1 text-xs text-destructive">{approveLoyaltyError}</p>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

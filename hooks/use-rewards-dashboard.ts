@@ -9,6 +9,7 @@ import {
   fetchStore,
   fetchLevels,
   createRedemption as apiCreateRedemption,
+  submitLoyaltyRequest as apiSubmitLoyaltyRequest,
   devLogin,
   getDevUserId,
   isLoggedIn,
@@ -49,6 +50,10 @@ export interface DashboardUser {
   reliabilityRating: number
   /** true, если новые квесты ограничены до конца месяца (достигнут порог бонусов) */
   questsLimitedByCap?: boolean
+  /** Статус участия в программе: active | pending */
+  loyaltyStatus?: "active" | "pending"
+  /** Когда пользователь нажал «Зарегистрироваться» (ISO); null — ещё не нажал */
+  loyaltyRequestedAt?: string | null
 }
 
 function mapMe(m: MeResponse): DashboardUser {
@@ -66,6 +71,8 @@ function mapMe(m: MeResponse): DashboardUser {
     avatarUrl: m.avatarUrl ?? undefined,
     reliabilityRating: m.reliabilityRating ?? 4,
     questsLimitedByCap: m.questsLimitedByCap ?? false,
+    loyaltyStatus: m.loyaltyStatus ?? "active",
+    loyaltyRequestedAt: m.loyaltyRequestedAt ?? null,
   }
 }
 
@@ -184,6 +191,8 @@ export interface UseRewardsDashboardResult {
   error: string | null
   refetch: () => Promise<void>
   purchaseItem: (storeItemId: number) => Promise<void>
+  /** Отправить заявку на участие (принять условия). Только для pending без loyaltyRequestedAt. */
+  submitLoyaltyRequest: () => Promise<boolean>
   /** Выход: сброс токена и всех учётных данных на устройстве, сброс состояния дашборда. */
   logout: () => void
   isLoggedIn: boolean
@@ -321,6 +330,12 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
     [load]
   )
 
+  const submitLoyaltyRequest = useCallback(async (): Promise<boolean> => {
+    const res = await apiSubmitLoyaltyRequest()
+    if (res.accepted) await load()
+    return res.accepted
+  }, [load])
+
   const logout = useCallback(() => {
     clearAllAuth()
     setUser(null)
@@ -347,6 +362,7 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
     error,
     refetch: load,
     purchaseItem,
+    submitLoyaltyRequest,
     logout,
     isLoggedIn: isLoggedIn(),
   }

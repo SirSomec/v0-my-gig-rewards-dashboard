@@ -174,6 +174,7 @@ export default function AdminUsersPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>External ID</TableHead>
                   <TableHead>Уровень</TableHead>
+                  <TableHead>Участие</TableHead>
                   <TableHead className="text-right">Баланс</TableHead>
                   <TableHead className="text-right">Смены</TableHead>
                   <TableHead>Создан</TableHead>
@@ -188,6 +189,11 @@ export default function AdminUsersPage() {
                     <TableCell className="text-muted-foreground">{u.email ?? "—"}</TableCell>
                     <TableCell className="font-mono text-muted-foreground">{u.externalId ?? "—"}</TableCell>
                     <TableCell>{u.levelName ?? "—"}</TableCell>
+                    <TableCell>
+                      <span className={u.loyaltyStatus === "pending" ? "text-amber-600 font-medium" : "text-muted-foreground"}>
+                        {u.loyaltyStatus === "pending" ? "Заявка" : "Участник"}
+                      </span>
+                    </TableCell>
                     <TableCell className="text-right font-medium">{u.balance}</TableCell>
                     <TableCell className="text-right">{u.shiftsCompleted}</TableCell>
                     <TableCell className="text-muted-foreground text-xs whitespace-nowrap">

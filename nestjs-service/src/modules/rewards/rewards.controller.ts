@@ -61,6 +61,16 @@ export class RewardsController {
     return this.rewards.getMe(id);
   }
 
+  @Post('loyalty/request')
+  @ApiOperation({ summary: 'Отправить заявку на участие (принять условия и нажать «Зарегистрироваться»)' })
+  async submitLoyaltyRequest(
+    @Req() req: RequestWithUser,
+    @Query('userId') userId?: string,
+  ): Promise<{ accepted: boolean }> {
+    const id = this.getUserId(req, userId);
+    return this.rewards.submitLoyaltyRequest(id);
+  }
+
   @Get('transactions')
   @ApiOperation({ summary: 'История транзакций пользователя' })
   async getTransactions(

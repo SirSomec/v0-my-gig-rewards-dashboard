@@ -51,12 +51,35 @@ export class RewardsRepository {
     return row.id;
   }
 
-  async updateUserReliabilityRating(userId: number, reliabilityRating: number): Promise<void> {
-    const { users } = schema;
+  /**
+   * Обновить рейтинг надёжности пользователя и при необходимости записать изменение в reliability_rating_log.
+   */
+  async updateUserReliabilityRating(
+    userId: number,
+    newRating: number,
+    log?: { reason: string; referenceType?: string; referenceId?: string | number },
+  ): Promise<void> {
+    const { users, reliabilityRatingLog } = schema;
+    const [row] = await this.client
+      .select({ reliabilityRating: users.reliabilityRating })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    const previousRating = row ? Number(row.reliabilityRating ?? 4) : 4;
     await this.client
       .update(users)
-      .set({ reliabilityRating })
+      .set({ reliabilityRating: newRating })
       .where(eq(users.id, userId));
+    if (log?.reason) {
+      await this.client.insert(reliabilityRatingLog).values({
+        userId,
+        previousRating,
+        newRating,
+        reason: log.reason,
+        referenceType: log.referenceType ?? null,
+        referenceId: log.referenceId != null ? String(log.referenceId) : null,
+      });
+    }
   }
 
   async findUserIdByExternalId(externalId: string): Promise<number | null> {
@@ -67,6 +90,24 @@ export class RewardsRepository {
       .where(eq(users.externalId, externalId))
       .limit(1);
     return row?.id ?? null;
+  }
+
+  /** Установить loyalty_requested_at (пользователь нажал «Зарегистрироваться»). Только для pending без даты. */
+  async updateUserLoyaltyRequestedAt(userId: number): Promise<boolean> {
+    const { users } = schema;
+    const now = new Date();
+    const result = await this.client
+      .update(users)
+      .set({ loyaltyRequestedAt: now })
+      .where(
+        and(
+          eq(users.id, userId),
+          eq(users.loyaltyStatus, 'pending'),
+          isNull(users.loyaltyRequestedAt),
+        ),
+      )
+      .returning({ id: users.id });
+    return result.length > 0;
   }
 
   async hasActiveStrikeByShiftExternalId(shiftExternalId: string): Promise<boolean> {

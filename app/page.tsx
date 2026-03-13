@@ -27,7 +27,8 @@ const pageVariants = {
 export default function MyGigRewards() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<NavTab>("home")
-  const { user, transactions, quests, storeItems, currentLevelPerks, loading, error, refetch, purchaseItem, logout, isLoggedIn } = useRewardsDashboard()
+  const [loyaltySubmitting, setLoyaltySubmitting] = useState(false)
+  const { user, transactions, quests, storeItems, currentLevelPerks, loading, error, refetch, purchaseItem, submitLoyaltyRequest, logout, isLoggedIn } = useRewardsDashboard()
   const myGigEnabled = isMyGigAuthEnabled()
 
   useEffect(() => {
@@ -98,6 +99,57 @@ export default function MyGigRewards() {
 
   if (!user) {
     return null
+  }
+
+  // Предварительная регистрация: экран принятия условий (ещё не нажал «Зарегистрироваться»)
+  if (user.loyaltyStatus === "pending" && !user.loyaltyRequestedAt) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative">
+        <main className="flex-1 flex flex-col items-center justify-center px-6 py-8 text-center gap-6">
+          <h1 className="text-xl font-semibold">Участие в программе лояльности</h1>
+          <div className="text-sm text-muted-foreground space-y-3 text-left max-w-md">
+            <p>
+              Участвуя в программе, вы соглашаетесь с правилами начисления и списания бонусов, учётом смен и уровня лояльности. Бонусы начисляются за подтверждённые смены и выполнение квестов. За прогулы и поздние отмены смен могут применяться штрафы и ограничения.
+            </p>
+            <p>
+              Нажимая кнопку ниже, вы подтверждаете, что ознакомились с условиями и хотите подать заявку на участие. После одобрения заявки администратором вам станет доступен полный функционал дашборда.
+            </p>
+          </div>
+          <Button
+            size="lg"
+            onClick={async () => {
+              setLoyaltySubmitting(true)
+              try {
+                await submitLoyaltyRequest()
+                refetch()
+              } finally {
+                setLoyaltySubmitting(false)
+              }
+            }}
+            disabled={loyaltySubmitting}
+          >
+            {loyaltySubmitting ? "Отправка…" : "Зарегистрироваться"}
+          </Button>
+        </main>
+      </div>
+    )
+  }
+
+  // Предварительная регистрация: заявка отправлена, ожидание одобрения
+  if (user.loyaltyStatus === "pending" && user.loyaltyRequestedAt) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative">
+        <main className="flex-1 flex flex-col items-center justify-center px-6 py-8 text-center gap-4">
+          <h1 className="text-xl font-semibold">Заявка принята</h1>
+          <p className="text-sm text-muted-foreground max-w-sm">
+            Ваша заявка на участие в программе лояльности принята и находится на рассмотрении. После одобрения администратором здесь будет доступен полный дашборд: квесты, история начислений и магазин призов.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Ожидайте уведомления или обновите страницу позже.
+          </p>
+        </main>
+      </div>
+    )
   }
 
   return (

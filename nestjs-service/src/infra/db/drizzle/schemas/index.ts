@@ -4,6 +4,7 @@ export { auditLog } from './audit-log.schema';
 export { levels } from './levels.schema';
 export { questProgress } from './quest-progress.schema';
 export { quests } from './quests.schema';
+export { reliabilityRatingLog } from './reliability-rating-log.schema';
 export { redemptions } from './redemptions.schema';
 export { storeItems } from './store-items.schema';
 export { systemSettings } from './system-settings.schema';

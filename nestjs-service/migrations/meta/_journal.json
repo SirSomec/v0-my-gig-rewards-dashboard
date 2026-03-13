@@ -113,6 +113,13 @@
       "when": 1732147200000,
       "tag": "0017_reliability_rating",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1741824000000,
+      "tag": "0018_reliability_rating_log_and_loyalty",
+      "breakpoints": true
     }
   ]
 }

@@ -50,6 +50,27 @@ export class AdminController {
     return this.admin.getUserDetail(userId);
   }
 
+  @Get('loyalty-pre-registration')
+  @ApiOperation({ summary: 'Включена ли предварительная регистрация в программе лояльности' })
+  async getLoyaltyPreRegistration() {
+    return { enabled: await this.admin.getLoyaltyPreRegistrationEnabled() };
+  }
+
+  @Patch('loyalty-pre-registration')
+  @ApiOperation({ summary: 'Включить/выключить предварительную регистрацию; при выключении все pending → active' })
+  async setLoyaltyPreRegistration(@Body() body: { enabled?: boolean }) {
+    const enabled = body?.enabled === true;
+    return this.admin.setLoyaltyPreRegistrationEnabled(enabled);
+  }
+
+  @Patch('users/:id/loyalty-approve')
+  @ApiOperation({ summary: 'Одобрить заявку пользователя на участие в программе лояльности' })
+  async approveUserLoyalty(@Param('id') id: string) {
+    const userId = parseInt(id, 10);
+    if (Number.isNaN(userId)) throw new BadRequestException('Invalid user id');
+    return this.admin.approveUserLoyalty(userId);
+  }
+
   @Patch('users/:id')
   @ApiOperation({ summary: 'Ручное изменение уровня пользователя (6.5)' })
   async updateUserLevel(

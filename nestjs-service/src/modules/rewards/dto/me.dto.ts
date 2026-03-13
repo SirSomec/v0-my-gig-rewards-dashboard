@@ -19,4 +19,8 @@ export class MeResponseDto {
   questMonthlyBonusCap!: number;
   /** true, если новые квесты ограничены до конца месяца из‑за достижения порога */
   questsLimitedByCap!: boolean;
+  /** Статус участия в программе лояльности: active | pending */
+  loyaltyStatus!: 'active' | 'pending';
+  /** Когда пользователь нажал «Зарегистрироваться» (принял условия); null — ещё не нажал */
+  loyaltyRequestedAt!: string | null;
 }

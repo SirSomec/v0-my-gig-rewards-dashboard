@@ -113,7 +113,11 @@ export class TojSyncService {
         .filter((u) => u.externalId)
         .map((u) => [
           String(u.externalId).trim(),
-          { id: u.id, createdAt: u.createdAt as Date },
+          {
+            id: u.id,
+            createdAt: u.createdAt as Date,
+            loyaltyStartedAt: u.loyaltyStartedAt as Date | null,
+          },
         ]),
     );
 
@@ -194,7 +198,8 @@ export class TojSyncService {
           if (status === 'confirmed') {
             await this.rewards.removeStrikeByShiftExternalId(String(job._id));
             const jobDate = job.start || job.createdAt;
-            if (jobDate && user.createdAt && new Date(jobDate) < new Date(user.createdAt)) {
+            const userStartDate = user.loyaltyStartedAt ?? user.createdAt;
+            if (jobDate && userStartDate && new Date(jobDate) < new Date(userStartDate)) {
               skipped++;
               skippedReasons.jobBeforeUser++;
               continue;

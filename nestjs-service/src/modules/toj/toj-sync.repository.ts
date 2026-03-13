@@ -8,6 +8,8 @@ export interface TojSyncUserRow {
   id: number;
   externalId: string;
   createdAt: Date;
+  /** С какого момента учитывать смены (при предрегистрации — дата одобрения); иначе используется createdAt */
+  loyaltyStartedAt: Date | null;
 }
 
 @Injectable()
@@ -65,7 +67,12 @@ export class TojSyncRepository {
   async getUsersWithExternalId(): Promise<TojSyncUserRow[]> {
     const { users } = schema;
     const rows = await this.db
-      .select({ id: users.id, externalId: users.externalId, createdAt: users.createdAt })
+      .select({
+        id: users.id,
+        externalId: users.externalId,
+        createdAt: users.createdAt,
+        loyaltyStartedAt: users.loyaltyStartedAt,
+      })
       .from(users)
       .where(sql`${users.externalId} IS NOT NULL AND ${users.externalId} != ''`);
 
@@ -75,6 +82,7 @@ export class TojSyncRepository {
         id: row.id,
         externalId: String(row.externalId).trim(),
         createdAt: row.createdAt as Date,
+        loyaltyStartedAt: row.loyaltyStartedAt as Date | null,
       }));
   }
 
