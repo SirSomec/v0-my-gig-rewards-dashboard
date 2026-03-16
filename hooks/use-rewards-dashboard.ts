@@ -143,6 +143,8 @@ function mergeAndSortHistory(
   const merged: (EarningEntry & { _sortAt?: string; strikeType?: string })[] = [...txEntries, ...strikeEntries]
   const remainingLogs = [...ratingLogItems]
 
+  const MAX_TIME_DIFF_MS = 5 * 60 * 1000
+
   for (const entry of merged) {
     const sortAt = entry._sortAt
     if (!sortAt) continue
@@ -158,12 +160,24 @@ function mergeAndSortHistory(
 
     if (!targetReason) continue
 
-    const idx = remainingLogs.findIndex(
-      (log) => log.reason === targetReason && log.createdAt === sortAt
-    )
-    if (idx === -1) continue
+    const entryTime = new Date(sortAt).getTime()
 
-    const log = remainingLogs.splice(idx, 1)[0]
+    let bestIdx = -1
+    let bestDiff = Number.POSITIVE_INFINITY
+
+    remainingLogs.forEach((log, idx) => {
+      if (log.reason !== targetReason) return
+      const logTime = new Date(log.createdAt).getTime()
+      const diff = Math.abs(logTime - entryTime)
+      if (diff <= MAX_TIME_DIFF_MS && diff < bestDiff) {
+        bestDiff = diff
+        bestIdx = idx
+      }
+    })
+
+    if (bestIdx === -1) continue
+
+    const log = remainingLogs.splice(bestIdx, 1)[0]
     entry.reliabilityDelta = log.delta
     entry.reliabilityPrevious = log.previousRating
     entry.reliabilityNew = log.newRating
