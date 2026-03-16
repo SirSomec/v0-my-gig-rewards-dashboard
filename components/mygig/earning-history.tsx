@@ -94,7 +94,14 @@ export function EarningHistory({
     scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })
   }, [])
 
-  const listContent = (
+  const listContent = entries.length === 0 ? (
+    <div className="rounded-xl border border-dashed border-border p-4 text-center">
+      <p className="text-sm font-medium text-foreground">История пока пуста</p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Начисления и покупки появятся здесь после первой подтвержденной смены или обмена награды.
+      </p>
+    </div>
+  ) : (
     <div className="flex flex-col gap-1.5 sm:gap-2">
       {visibleEntries.map((entry, i) => (
         <motion.div
@@ -153,7 +160,7 @@ export function EarningHistory({
             <button
               type="button"
               onClick={onViewAllClick}
-              className="text-xs text-accent hover:text-accent/80 font-medium transition-colors"
+              className="text-xs text-accent hover:text-accent/80 font-medium transition-colors rounded-md px-1.5 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               Все
             </button>
@@ -180,7 +187,7 @@ export function EarningHistory({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               onClick={scrollToTop}
-              className="absolute bottom-16 right-4 sm:bottom-20 sm:right-6 z-10 p-2 sm:p-2.5 rounded-full bg-accent text-accent-foreground shadow-lg hover:bg-accent/90 transition-colors"
+              className="absolute bottom-16 right-4 sm:bottom-20 sm:right-6 z-10 p-2 sm:p-2.5 rounded-full bg-accent text-accent-foreground shadow-lg hover:bg-accent/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               aria-label="В начало списка"
             >
               <ArrowUp size={20} />

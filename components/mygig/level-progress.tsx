@@ -60,6 +60,7 @@ export function LevelProgress({
   currentLevelPerks: currentLevelPerksFromApi,
 }: LevelProgressProps) {
   const [showBenefits, setShowBenefits] = useState(false)
+  const benefitsId = "current-level-benefits"
   const isMaxLevel = nextLevel === "—"
   const targetShifts = shiftsRequired > 0 ? shiftsRequired : 1
   const progress = isMaxLevel ? 100 : Math.min(100, (shiftsCompleted / targetShifts) * 100)
@@ -93,7 +94,14 @@ export function LevelProgress({
         </div>
 
         {/* Progress bar */}
-        <div className="relative h-3.5 sm:h-4 bg-secondary rounded-full overflow-hidden mb-1.5 sm:mb-2">
+        <div
+          className="relative h-3.5 sm:h-4 bg-secondary rounded-full overflow-hidden mb-1.5 sm:mb-2"
+          role="progressbar"
+          aria-label="Прогресс до следующего уровня"
+          aria-valuemin={0}
+          aria-valuemax={isMaxLevel ? shiftsCompleted : shiftsRequired}
+          aria-valuenow={Math.min(shiftsCompleted, isMaxLevel ? shiftsCompleted : shiftsRequired)}
+        >
           <motion.div
             className="absolute inset-y-0 left-0 rounded-full"
             style={{
@@ -129,7 +137,8 @@ export function LevelProgress({
             <svg
               viewBox="0 0 100 100"
               className="w-full h-full -rotate-90"
-              aria-hidden
+              role="img"
+              aria-label={`Рейтинг надёжности ${ratingDisplay} из 5`}
             >
               {/* Фон круга (трек) */}
               <circle
@@ -174,14 +183,17 @@ export function LevelProgress({
             <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
               Растёт за выполнение смен, снижается за прогулы и поздние отмены.
             </p>
+            <p className="sr-only">Текущее значение рейтинга: {ratingDisplay} из 5.</p>
           </div>
         </div>
 
         {/* Benefits toggle */}
         <button
+          type="button"
           onClick={() => setShowBenefits(!showBenefits)}
-          className="flex items-center justify-between w-full py-1.5 px-2.5 sm:py-2 sm:px-3 bg-secondary/60 rounded-lg text-xs sm:text-sm hover:bg-secondary transition-colors"
+          className="flex items-center justify-between w-full py-1.5 px-2.5 sm:py-2 sm:px-3 bg-secondary/60 rounded-lg text-xs sm:text-sm hover:bg-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           aria-expanded={showBenefits}
+          aria-controls={benefitsId}
         >
           <span className="font-medium text-foreground">Текущие преимущества</span>
           {showBenefits ? (
@@ -194,6 +206,7 @@ export function LevelProgress({
         <AnimatePresence>
           {showBenefits && (
             <motion.div
+              id={benefitsId}
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}

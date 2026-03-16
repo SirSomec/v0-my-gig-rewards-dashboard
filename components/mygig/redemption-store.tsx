@@ -145,6 +145,15 @@ export function RedemptionStore({
                     item.stockLimit == null || (item.redeemedCount ?? 0) < item.stockLimit
                   const canAfford = userBalance >= item.cost
                   const canBuy = inStock && canAfford
+                  const itemBusy = busy === (item.numericId ?? parseInt(item.id, 10))
+                  const unavailableReason = !inStock
+                    ? "Товар закончился"
+                    : !canAfford
+                      ? `Не хватает ${formatNumber(item.cost - userBalance)} монет`
+                      : busy !== null
+                        ? "Подождите, оформляется другая покупка"
+                        : null
+                  const descriptionId = `store-item-help-${item.id}`
 
                   return (
                     <motion.div
@@ -181,9 +190,11 @@ export function RedemptionStore({
                             : "bg-secondary text-muted-foreground"
                         }`}
                         onClick={() => canBuy && (item.numericId ?? item.id) && handleBuy(item)}
+                        aria-label={`Купить ${item.name} за ${item.cost} Gig-монет`}
+                        aria-describedby={unavailableReason ? descriptionId : undefined}
                       >
-                        {busy === (item.numericId ?? parseInt(item.id, 10)) ? (
-                          <span className="animate-pulse">...</span>
+                        {itemBusy ? (
+                          <span className="animate-pulse">Оформляем...</span>
                         ) : !inStock ? (
                           "Нет в наличии"
                         ) : (
@@ -193,6 +204,14 @@ export function RedemptionStore({
                           </>
                         )}
                       </Button>
+                      {unavailableReason && (
+                        <p
+                          id={descriptionId}
+                          className="mt-1 text-[9px] sm:text-[10px] text-muted-foreground"
+                        >
+                          {unavailableReason}
+                        </p>
+                      )}
                     </motion.div>
                   )
                 })}

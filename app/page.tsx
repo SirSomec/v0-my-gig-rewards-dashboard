@@ -28,7 +28,7 @@ export default function MyGigRewards() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<NavTab>("home")
   const [loyaltySubmitting, setLoyaltySubmitting] = useState(false)
-  const { user, transactions, quests, storeItems, redemptions, currentLevelPerks, loading, error, refetch, purchaseItem, submitLoyaltyRequest, logout, isLoggedIn } = useRewardsDashboard()
+  const { user, transactions, quests, storeItems, redemptions, levels, currentLevelPerks, loading, error, refetch, purchaseItem, submitLoyaltyRequest, logout, isLoggedIn } = useRewardsDashboard()
   const myGigEnabled = isMyGigAuthEnabled()
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export default function MyGigRewards() {
 
   if (loading && !user) {
     return (
-      <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative">
+      <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative" aria-busy="true">
         <header className="sticky top-0 z-50 bg-card border-b border-border sm:bg-card/90 sm:backdrop-blur-md">
           <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3">
             <div className="flex items-center gap-2 sm:gap-3">
@@ -61,7 +61,8 @@ export default function MyGigRewards() {
             <div className="h-9 w-20 bg-secondary rounded-full animate-pulse" />
           </div>
         </header>
-        <main className="flex-1 min-h-0 overflow-y-auto px-3 py-3 pb-20 sm:px-4 sm:py-4 sm:pb-24">
+        <main className="flex-1 min-h-0 overflow-y-auto px-3 py-3 pb-20 sm:px-4 sm:py-4 sm:pb-24" role="status" aria-live="polite">
+          <span className="sr-only">Загрузка дашборда</span>
           <DashboardSkeleton />
         </main>
         <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto h-12 sm:h-14 bg-card border-t border-border" />
@@ -74,21 +75,29 @@ export default function MyGigRewards() {
     return (
       <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative">
         <main className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
-          <div className="p-4 rounded-full bg-destructive/10 text-destructive">
+          <div className="p-4 rounded-full bg-destructive/10 text-destructive" role="alert" aria-live="assertive">
             <AlertCircle size={32} />
           </div>
-          <p className="text-sm text-muted-foreground text-center">{error}</p>
-          <p className="text-xs text-muted-foreground text-center">
-            Убедитесь, что бэкенд запущен и в <code className="bg-muted px-1 rounded">.env</code> заданы{" "}
-            <code className="bg-muted px-1 rounded">NEXT_PUBLIC_REWARDS_API_URL</code> и{" "}
-            <code className="bg-muted px-1 rounded">NEXT_PUBLIC_DEV_USER_ID</code>.
-          </p>
-          <p className="text-xs text-muted-foreground text-center">
-            Сейчас: API = {apiUrl}, DEV_USER_ID = {hasDevUserId ? "задан" : "не задан"}.
-          </p>
-          <p className="text-xs text-muted-foreground text-center max-w-sm">
-            После клонирования из Git выполните <code className="bg-muted px-1 rounded">npm install</code> (создастся .env из .env.example), при необходимости отредактируйте .env и перезапустите <code className="bg-muted px-1 rounded">npm run dev</code>.
-          </p>
+          <p className="text-sm text-muted-foreground text-center" role="alert">{error}</p>
+          {myGigEnabled ? (
+            <p className="text-xs text-muted-foreground text-center max-w-sm">
+              Не удалось загрузить данные кабинета. Попробуйте обновить экран немного позже.
+            </p>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground text-center">
+                Убедитесь, что бэкенд запущен и в <code className="bg-muted px-1 rounded">.env</code> заданы{" "}
+                <code className="bg-muted px-1 rounded">NEXT_PUBLIC_REWARDS_API_URL</code> и{" "}
+                <code className="bg-muted px-1 rounded">NEXT_PUBLIC_DEV_USER_ID</code>.
+              </p>
+              <p className="text-xs text-muted-foreground text-center">
+                Сейчас: API = {apiUrl}, DEV_USER_ID = {hasDevUserId ? "задан" : "не задан"}.
+              </p>
+              <p className="text-xs text-muted-foreground text-center max-w-sm">
+                После клонирования из Git выполните <code className="bg-muted px-1 rounded">npm install</code> (создастся .env из .env.example), при необходимости отредактируйте .env и перезапустите <code className="bg-muted px-1 rounded">npm run dev</code>.
+              </p>
+            </>
+          )}
           <Button variant="outline" onClick={() => refetch()}>
             Повторить
           </Button>
@@ -121,12 +130,12 @@ export default function MyGigRewards() {
               setLoyaltySubmitting(true)
               try {
                 await submitLoyaltyRequest()
-                refetch()
               } finally {
                 setLoyaltySubmitting(false)
               }
             }}
             disabled={loyaltySubmitting}
+            aria-live="polite"
           >
             {loyaltySubmitting ? "Отправка…" : "Зарегистрироваться"}
           </Button>
@@ -139,14 +148,17 @@ export default function MyGigRewards() {
   if (user.loyaltyStatus === "pending" && user.loyaltyRequestedAt) {
     return (
       <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto relative">
-        <main className="flex-1 flex flex-col items-center justify-center px-6 py-8 text-center gap-4">
+        <main className="flex-1 flex flex-col items-center justify-center px-6 py-8 text-center gap-4" role="status" aria-live="polite">
           <h1 className="text-xl font-semibold">Заявка принята</h1>
           <p className="text-sm text-muted-foreground max-w-sm">
             Ваша заявка на участие в программе лояльности принята и находится на рассмотрении. После одобрения администратором здесь будет доступен полный дашборд: квесты, история начислений и магазин призов.
           </p>
           <p className="text-xs text-muted-foreground">
-            Ожидайте уведомления или обновите страницу позже.
+            Статус можно проверить вручную, если вы только что получили подтверждение.
           </p>
+          <Button variant="outline" onClick={() => refetch()}>
+            Проверить статус
+          </Button>
         </main>
       </div>
     )
@@ -240,7 +252,7 @@ export default function MyGigRewards() {
               transition={{ duration: 0.25 }}
               className="flex flex-col gap-3 sm:gap-4"
             >
-              <LevelsView currentLevelName={user.level} shiftsCompleted={user.shiftsCompleted} />
+              <LevelsView currentLevelName={user.level} shiftsCompleted={user.shiftsCompleted} levels={levels} />
             </motion.div>
           )}
         </AnimatePresence>

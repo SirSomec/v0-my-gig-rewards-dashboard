@@ -26,9 +26,10 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
 
           return (
             <button
+              type="button"
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className="relative flex flex-col items-center justify-center py-1.5 px-2 sm:py-2 sm:px-4 rounded-xl transition-colors min-w-0"
+              className="relative flex flex-col items-center justify-center py-1.5 px-2 sm:py-2 sm:px-4 rounded-xl transition-colors min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               aria-current={isActive ? "page" : undefined}
               aria-label={tab.label}
             >

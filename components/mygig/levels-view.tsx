@@ -1,10 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Check, Lock } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
-import { fetchLevels, type LevelResponse } from "@/lib/rewards-api"
+import type { LevelResponse } from "@/lib/rewards-api"
 
 interface Level {
   name: string
@@ -19,22 +18,11 @@ interface LevelsViewProps {
   currentLevelName?: string | null
   /** Количество завершённых смен — для определения isUnlocked */
   shiftsCompleted?: number
+  /** Список уровней уже загружен в дашборде, чтобы не делать лишний запрос */
+  levels?: LevelResponse[]
 }
 
-export function LevelsView({ currentLevelName, shiftsCompleted = 0 }: LevelsViewProps = {}) {
-  const [levelsFromApi, setLevelsFromApi] = useState<LevelResponse[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    setLoading(true)
-    setError(null)
-    fetchLevels()
-      .then(setLevelsFromApi)
-      .catch((e) => setError(e instanceof Error ? e.message : "Ошибка загрузки уровней"))
-      .finally(() => setLoading(false))
-  }, [])
-
+export function LevelsView({ currentLevelName, shiftsCompleted = 0, levels: levelsFromApi = [] }: LevelsViewProps = {}) {
   const levels: Level[] = levelsFromApi.map((l) => {
     const isUnlocked = shiftsCompleted >= l.shiftsRequired
     const isCurrent = currentLevelName != null && l.name === currentLevelName
@@ -43,11 +31,7 @@ export function LevelsView({ currentLevelName, shiftsCompleted = 0 }: LevelsView
   return (
     <div className="flex flex-col gap-2 sm:gap-3">
       <h2 className="text-xs sm:text-sm font-semibold text-foreground px-1">Уровни лояльности</h2>
-      {loading ? (
-        <p className="text-sm text-muted-foreground px-1">Загрузка…</p>
-      ) : error ? (
-        <p className="text-sm text-destructive px-1">{error}</p>
-      ) : levels.length === 0 ? (
+      {levels.length === 0 ? (
         <p className="text-sm text-muted-foreground px-1">Нет уровней</p>
       ) : (
         levels.map((level, i) => (
@@ -88,7 +72,11 @@ export function LevelsView({ currentLevelName, shiftsCompleted = 0 }: LevelsView
                   )}
                 </div>
                 <span className="text-[10px] sm:text-[11px] text-muted-foreground shrink-0">
-                  {level.shiftsRequired === 0 ? "базовый уровень" : `для перехода: ${level.shiftsRequired} смен`}
+                  {level.shiftsRequired === 0
+                    ? "базовый уровень"
+                    : level.isUnlocked
+                      ? `открыт: ${level.shiftsRequired} смен`
+                      : `ещё ${Math.max(0, level.shiftsRequired - shiftsCompleted)} смен`}
                 </span>
               </div>
                 <div className="flex flex-wrap gap-1">

@@ -218,6 +218,7 @@ export interface UseRewardsDashboardResult {
   quests: Quest[]
   storeItems: (StoreItem & { numericId: number })[]
   redemptions: RedemptionItem[]
+  levels: LevelResponse[]
   /** Перки текущего уровня пользователя (из API уровней), синхронно с админкой */
   currentLevelPerks: Array<{ title: string; description?: string; icon?: string }>
   loading: boolean
@@ -396,6 +397,7 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
     quests,
     storeItems,
     redemptions,
+    levels,
     currentLevelPerks,
     loading,
     error,

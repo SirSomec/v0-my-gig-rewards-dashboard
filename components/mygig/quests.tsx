@@ -42,6 +42,7 @@ function QuestCard({
 }) {
   const Icon = iconMap[quest.icon]
   const progressPercent = (quest.progress / quest.total) * 100
+  const progressId = `quest-progress-${quest.id}`
 
   return (
     <motion.div
@@ -80,10 +81,23 @@ function QuestCard({
             </div>
           </div>
           <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5">{quest.description}</p>
+          <p className="sr-only">
+            {quest.completed
+              ? `Статус: выполнено. Награда ${quest.reward} монет.`
+              : `Статус: в процессе. Выполнено ${quest.progress} из ${quest.total}. Награда ${quest.reward} монет.`}
+          </p>
 
           {!quest.completed && (
             <div className="mt-1.5 sm:mt-2">
-              <div className="h-1 sm:h-1.5 bg-secondary rounded-full overflow-hidden">
+              <div
+                id={progressId}
+                className="h-1 sm:h-1.5 bg-secondary rounded-full overflow-hidden"
+                role="progressbar"
+                aria-label={`Прогресс квеста ${quest.title}`}
+                aria-valuemin={0}
+                aria-valuemax={quest.total}
+                aria-valuenow={Math.min(quest.progress, quest.total)}
+              >
                 <motion.div
                   className="h-full rounded-full bg-primary"
                   initial={{ width: 0 }}
@@ -95,6 +109,12 @@ function QuestCard({
                 {quest.progress}/{quest.total}
               </span>
             </div>
+          )}
+
+          {quest.completed && (
+            <span className="mt-1.5 inline-flex text-[9px] sm:text-[10px] font-medium text-success">
+              Выполнено
+            </span>
           )}
         </div>
       </div>
@@ -178,6 +198,15 @@ export function Quests({ quests, questsLimitedByCap }: QuestsProps) {
               ))}
             </div>
           </>
+        )}
+
+        {quests.length === 0 && (
+          <div className="rounded-xl border border-dashed border-border p-4 text-center">
+            <p className="text-sm font-medium text-foreground">Сейчас нет активных целей</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Новые квесты появятся здесь, когда администратор добавит их или начнется новый период.
+            </p>
+          </div>
         )}
       </CardContent>
     </Card>

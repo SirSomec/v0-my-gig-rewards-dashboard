@@ -2,7 +2,15 @@
 
 import { motion } from "framer-motion"
 
-export function GigCoinIcon({ size = 24, className = "" }: { size?: number; className?: string }) {
+export function GigCoinIcon({
+  size = 24,
+  className = "",
+  decorative = true,
+}: {
+  size?: number
+  className?: string
+  decorative?: boolean
+}) {
   return (
     <motion.svg
       width={size}
@@ -12,6 +20,8 @@ export function GigCoinIcon({ size = 24, className = "" }: { size?: number; clas
       className={className}
       whileHover={{ rotate: 15, scale: 1.1 }}
       transition={{ type: "spring", stiffness: 300, damping: 15 }}
+      aria-hidden={decorative}
+      focusable="false"
     >
       <circle cx="16" cy="16" r="15" fill="url(#coinGradient)" stroke="oklch(0.7 0.14 75)" strokeWidth="1.5" />
       <circle cx="16" cy="16" r="11" fill="none" stroke="oklch(0.7 0.14 75)" strokeWidth="0.75" opacity="0.5" />
