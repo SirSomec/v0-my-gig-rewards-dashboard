@@ -311,8 +311,6 @@ export function LevelProgress({
               })}
             </div>
           </div>
-        </div>
-
         {/* Benefits toggle */}
         <button
           type="button"
