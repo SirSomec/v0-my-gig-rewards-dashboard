@@ -226,8 +226,8 @@ export function LevelProgress({
               </div>
             </div>
             </div>
-            <div className="min-w-0 flex-1 flex flex-col items-end gap-1">
-              <div className="flex items-center gap-2 flex-wrap justify-end">
+            <div className="min-w-0 flex-1 flex flex-col items-start gap-1">
+              <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-xs sm:text-sm font-medium text-foreground">Рейтинг надёжности</p>
                 <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] sm:text-xs font-medium ${reliabilityStatus.tone}`}>
                   <StatusIcon size={12} />
