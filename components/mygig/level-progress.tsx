@@ -1,12 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { format } from "date-fns"
-import { ru } from "date-fns/locale"
 import { motion, AnimatePresence } from "framer-motion"
-import { ChevronDown, ChevronUp, Zap, Clock, Star, TrendingUp, Gift, Target, Award, ShieldAlert, ShieldCheck, ShieldMinus } from "lucide-react"
+import { ChevronDown, ChevronUp, Zap, Clock, Star, TrendingUp, Gift, Target, Award, ShieldAlert, ShieldCheck, ShieldMinus, Info } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { GigCoinIcon } from "./gig-coin-icon"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 const PERK_ICON_MAP: Record<string, React.ReactNode> = {
   star: <Star size={16} />,
@@ -53,12 +58,6 @@ interface LevelProgressProps {
   currentLevelPerks?: Array<{ title: string; description?: string; icon?: string }>
 }
 
-function formatRatingDate(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return "Недавно"
-  return format(d, "d MMM, HH:mm", { locale: ru })
-}
-
 const benefits: Record<string, { icon: React.ReactNode; label: string; description: string }[]> = {
   "Серебряный партнёр": [
     { icon: <TrendingUp size={16} />, label: "+5% бонус", description: "За каждую завершённую смену" },
@@ -91,6 +90,7 @@ export function LevelProgress({
   currentLevelPerks: currentLevelPerksFromApi,
 }: LevelProgressProps) {
   const [showBenefits, setShowBenefits] = useState(false)
+  const [reliabilityDialogOpen, setReliabilityDialogOpen] = useState(false)
   const benefitsId = "current-level-benefits"
   const isMaxLevel = nextLevel === "—"
   const targetShifts = shiftsRequired > 0 ? shiftsRequired : 1
@@ -234,43 +234,85 @@ export function LevelProgress({
                   {reliabilityStatus.label}
                 </span>
               </div>
-              <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] sm:text-xs text-muted-foreground">
-                <span className="rounded-md bg-background/80 px-2 py-1">
-                  +{reliabilityRatingIncreasePerShift.toFixed(1)} за смену
-                </span>
-                <span className="rounded-md bg-background/80 px-2 py-1">
-                  -{reliabilityRatingDecreaseNoShow.toFixed(1)} прогул
-                </span>
-                <span className="rounded-md bg-background/80 px-2 py-1">
-                  -{reliabilityRatingDecreaseLateCancel.toFixed(1)} отмена
-                </span>
-              </div>
               <p className="sr-only">Текущее значение рейтинга: {ratingDisplay} из 5.</p>
             </div>
           </div>
 
-          <div className="mt-2 space-y-1.5">
-            {reliabilityMinRatingToCountShiftForLevel > 0 && (
-              <p className="text-[10px] sm:text-xs text-muted-foreground">
-                Порог для учёта смен в уровень: <span className="font-semibold text-foreground">{reliabilityMinRatingToCountShiftForLevel.toFixed(1)}</span>
-              </p>
-            )}
-            {!reliabilityCountsShiftsForLevel && reliabilityMinRatingToCountShiftForLevel > 0 && (
-              <p className="text-[10px] sm:text-xs text-destructive">
-                Смены не идут в уровень. Не хватает <span className="font-semibold">{levelCountDeficit.toFixed(1)}</span>.
-              </p>
-            )}
-            {!isMaxLevel && reliabilityMinRatingToUpgradeLevel > 0 && !reliabilityAllowsLevelUpgrade && (
-              <p className="text-[10px] sm:text-xs text-amber-700 dark:text-amber-400">
-                Для перехода к <span className="font-semibold">{nextLevel}</span> нужен порог <span className="font-semibold">{reliabilityMinRatingToUpgradeLevel.toFixed(1)}</span>.
-              </p>
-            )}
-            {estimatedRecoveryShifts > 0 && (
-              <p className="text-[10px] sm:text-xs text-muted-foreground">
-                До восстановления: примерно <span className="font-semibold text-foreground">{estimatedRecoveryShifts}</span> смен без нарушений.
-              </p>
-            )}
-          </div>
+          <Dialog open={reliabilityDialogOpen} onOpenChange={setReliabilityDialogOpen}>
+            <DialogTrigger asChild>
+              <button
+                type="button"
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background/60 py-2 px-3 text-xs sm:text-sm font-medium text-foreground hover:bg-secondary/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                aria-label="Подробнее: как считается рейтинг и на что он влияет"
+              >
+                <Info size={14} />
+                Как считается рейтинг и на что влияет
+              </button>
+            </DialogTrigger>
+            <DialogContent className="max-w-sm sm:max-w-md" aria-describedby="reliability-dialog-desc">
+              <DialogHeader>
+                <DialogTitle>Рейтинг надёжности</DialogTitle>
+              </DialogHeader>
+              <div id="reliability-dialog-desc" className="space-y-4 text-sm text-muted-foreground">
+                <section>
+                  <h3 className="text-xs font-semibold text-foreground mb-2">Что меняет рейтинг</h3>
+                  <ul className="space-y-1.5">
+                    <li className="flex items-center justify-between gap-2">
+                      <span>Подтверждённая смена</span>
+                      <span className="font-semibold text-success tabular-nums">+{reliabilityRatingIncreasePerShift.toFixed(1)}</span>
+                    </li>
+                    <li className="flex items-center justify-between gap-2">
+                      <span>Прогул</span>
+                      <span className="font-semibold text-destructive tabular-nums">−{reliabilityRatingDecreaseNoShow.toFixed(1)}</span>
+                    </li>
+                    <li className="flex items-center justify-between gap-2">
+                      <span>Поздняя отмена смены</span>
+                      <span className="font-semibold text-destructive tabular-nums">−{reliabilityRatingDecreaseLateCancel.toFixed(1)}</span>
+                    </li>
+                    <li className="text-[11px] pt-1">
+                      Снятие штрафа восстанавливает рейтинг на соответствующую величину.
+                    </li>
+                  </ul>
+                </section>
+                <section>
+                  <h3 className="text-xs font-semibold text-foreground mb-2">На что влияет рейтинг</h3>
+                  <ul className="space-y-2">
+                    {reliabilityMinRatingToCountShiftForLevel > 0 ? (
+                      <>
+                        <li>
+                          Смены засчитываются в прогресс уровня только при рейтинге не ниже{" "}
+                          <span className="font-semibold text-foreground">{reliabilityMinRatingToCountShiftForLevel.toFixed(1)}</span>.
+                          {!reliabilityCountsShiftsForLevel && (
+                            <span className="block mt-1 text-destructive">
+                              Сейчас не хватает <span className="font-semibold">{levelCountDeficit.toFixed(1)}</span> до порога — смены приносят монеты, но не идут в уровень.
+                            </span>
+                          )}
+                        </li>
+                        {estimatedRecoveryShifts > 0 && (
+                          <li>
+                            Ориентир восстановления: примерно{" "}
+                            <span className="font-semibold text-foreground">{estimatedRecoveryShifts}</span>{" "}
+                            {estimatedRecoveryShifts === 1 ? "смена" : estimatedRecoveryShifts < 5 ? "смены" : "смен"} без нарушений.
+                          </li>
+                        )}
+                      </>
+                    ) : (
+                      <li>Порог для учёта смен в уровень не задан — все смены идут в прогресс.</li>
+                    )}
+                    {!isMaxLevel && reliabilityMinRatingToUpgradeLevel > 0 && (
+                      <li>
+                        Для перехода на уровень <span className="font-semibold text-foreground">{nextLevel}</span> нужен рейтинг не ниже{" "}
+                        <span className="font-semibold text-foreground">{reliabilityMinRatingToUpgradeLevel.toFixed(1)}</span>.
+                        {!reliabilityAllowsLevelUpgrade && (
+                          <span className="block mt-1 text-amber-700 dark:text-amber-400">Сейчас порог не достигнут.</span>
+                        )}
+                      </li>
+                    )}
+                  </ul>
+                </section>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
         {/* Benefits toggle */}
         <button
