@@ -819,11 +819,21 @@ export async function adminMockTojCreateBookedJob(body: {
 export async function adminTojSyncStatus(): Promise<{
   configured: boolean;
   syncEnabled: boolean;
+  running?: boolean;
+  lastRunAt?: string | null;
+  lastSuccessAt?: string | null;
+  watermark?: string | null;
+  lastResult?: Record<string, unknown> | null;
 }> {
   return fetchAdmin("/v1/admin/toj-sync/status");
 }
 
 export async function adminTojSyncRun(): Promise<{
+  ran?: boolean;
+  reason?: string;
+  running?: boolean;
+  lastRunAt?: string | null;
+  lastSuccessAt?: string | null;
   processed: number;
   skipped: number;
   lateCancelApplied?: number;

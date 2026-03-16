@@ -1,14 +1,14 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { RewardsController } from './rewards.controller';
 import { RewardsService } from './rewards.service';
 import { RewardsRepository } from './rewards.repository';
-import { TojModule } from '../toj/toj.module';
+import { RecalcSchedulerService } from './recalc-scheduler.service';
 
 @Module({
-  imports: [ConfigModule, forwardRef(() => TojModule)],
+  imports: [ConfigModule],
   controllers: [RewardsController],
-  providers: [RewardsRepository, RewardsService],
+  providers: [RewardsRepository, RewardsService, RecalcSchedulerService],
   exports: [RewardsService],
 })
 export class RewardsModule {}

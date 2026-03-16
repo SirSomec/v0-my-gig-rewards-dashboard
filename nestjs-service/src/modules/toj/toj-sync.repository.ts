@@ -60,6 +60,28 @@ export class TojSyncRepository {
       });
   }
 
+  async getSettingValue<T = unknown>(key: string): Promise<T | null> {
+    const { systemSettings } = schema;
+    const [row] = await this.db
+      .select({ value: systemSettings.value })
+      .from(systemSettings)
+      .where(eq(systemSettings.key, key))
+      .limit(1);
+    return (row?.value as T | undefined) ?? null;
+  }
+
+  async setSettingValue(key: string, value: unknown): Promise<void> {
+    const { systemSettings } = schema;
+    const now = new Date();
+    await this.db
+      .insert(systemSettings)
+      .values({ key, value })
+      .onConflictDoUpdate({
+        target: systemSettings.key,
+        set: { value, updatedAt: now },
+      });
+  }
+
   /**
    * Список пользователей, у которых заполнен external_id.
    * Используется для запроса смен из TOJ только по тем работникам, которые заведены в нашей системе.

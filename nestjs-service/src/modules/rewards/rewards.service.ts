@@ -55,6 +55,10 @@ interface QuestConditionConfig {
   category?: string;
 }
 
+export interface RewardsMutationOptions {
+  postProcessMode?: 'immediate' | 'enqueue';
+}
+
 /** Целевое значение для отображения (смены или часы) */
 function getQuestTarget(config: QuestConditionConfig, conditionType: string): number {
   if (
@@ -79,6 +83,10 @@ export class RewardsService {
     private readonly rewardsRepository: RewardsRepository,
     private readonly config: ConfigService<Envs, true>,
   ) {}
+
+  async enqueuePendingRecalc(userId: number, reason: string): Promise<void> {
+    await this.rewardsRepository.enqueuePendingRecalc(userId, reason);
+  }
 
   /**
    * Определяет ID текущего пользователя: из JWT (req.user), затем query, затем DEV_USER_ID.
@@ -110,7 +118,6 @@ export class RewardsService {
   }
 
   async getMe(userId: number): Promise<MeResponseDto> {
-    await this.recalcUserLevel(userId);
     const row = await this.rewardsRepository.getUserWithLevel(userId);
     if (!row) {
       throw new NotFoundException('User not found');
@@ -388,6 +395,7 @@ export class RewardsService {
     category?: string,
     hours?: number,
     sourceRef?: string,
+    options: RewardsMutationOptions = {},
   ): Promise<{ transactionId: number }> {
     const { users, transactions, levels } = schema;
     if (sourceRef != null && sourceRef !== '') {
@@ -457,8 +465,12 @@ export class RewardsService {
       referenceType: 'transaction',
       referenceId: tx.id,
     });
-    await this.recalcUserLevel(userId);
-    await this.recalcQuestProgressForUser(userId);
+    if (options.postProcessMode === 'enqueue') {
+      await this.enqueuePendingRecalc(userId, 'shift_completed');
+    } else {
+      await this.recalcUserLevel(userId);
+      await this.recalcQuestProgressForUser(userId);
+    }
     return { transactionId: tx.id };
   }
 
@@ -474,6 +486,7 @@ export class RewardsService {
     title?: string,
     clientId?: string,
     category?: string,
+    options: RewardsMutationOptions = {},
   ): Promise<{ transactionId?: number; recorded: boolean }> {
     const { transactions, users } = schema;
     const [user] = await this.rewardsRepository.db.select().from(users).where(eq(users.id, userId)).limit(1);
@@ -508,7 +521,11 @@ export class RewardsService {
       })
       .returning({ id: transactions.id });
     if (!tx) throw new Error('Failed to create shift_booked transaction');
-    await this.recalcQuestProgressForUser(userId);
+    if (options.postProcessMode === 'enqueue') {
+      await this.enqueuePendingRecalc(userId, 'shift_booked');
+    } else {
+      await this.recalcQuestProgressForUser(userId);
+    }
     return { transactionId: tx.id, recorded: true };
   }
 
@@ -580,6 +597,7 @@ export class RewardsService {
     userId: number,
     type: 'no_show' | 'late_cancel',
     shiftExternalId?: string,
+    options: RewardsMutationOptions = {},
   ): Promise<{ strikeId: number; levelDemoted: boolean }> {
     const user = await this.rewardsRepository.getUserById(userId);
     if (!user) {
@@ -603,7 +621,11 @@ export class RewardsService {
       referenceType: 'strike',
       referenceId: strikeId,
     });
-    await this.resetShiftsSeriesProgressForUser(userId);
+    if (options.postProcessMode === 'enqueue') {
+      await this.enqueuePendingRecalc(userId, 'strike_added');
+    } else {
+      await this.resetShiftsSeriesProgressForUser(userId);
+    }
     return { strikeId, levelDemoted: false };
   }
 
@@ -673,7 +695,7 @@ export class RewardsService {
     initiatorType?: string;
     /** Идентификатор инициатора (для обратной совместимости и аудита); при "worker" тоже считается */
     initiator?: string;
-  }): Promise<{ applied: boolean; strikeId?: number; reason?: string }> {
+  }, options: RewardsMutationOptions = {}): Promise<{ applied: boolean; strikeId?: number; reason?: string }> {
     const { jobId, workerId, jobStartIso, cancelledAtIso, initiatorType, initiator } = params;
 
     const normalizedType = (initiatorType ?? '').toString().trim().toLowerCase();
@@ -705,7 +727,7 @@ export class RewardsService {
       return { applied: false, reason: 'strike_already_applied' };
     }
 
-    const { strikeId } = await this.registerStrike(userId, 'late_cancel', jobId);
+    const { strikeId } = await this.registerStrike(userId, 'late_cancel', jobId, options);
     return { applied: true, strikeId };
   }
 
@@ -714,7 +736,10 @@ export class RewardsService {
    * Идемпотентно по jobId: если штраф по этой смене уже есть — не дублируем.
    * При смене статуса смены на confirmed штраф снимается через removeStrikeByShiftExternalId.
    */
-  async processNoShowIfEligible(params: { jobId: string; workerId: string }): Promise<{ applied: boolean; strikeId?: number; reason?: string }> {
+  async processNoShowIfEligible(
+    params: { jobId: string; workerId: string },
+    options: RewardsMutationOptions = {},
+  ): Promise<{ applied: boolean; strikeId?: number; reason?: string }> {
     const { jobId, workerId } = params;
 
     const userId = await this.rewardsRepository.findUserIdByExternalId(workerId.trim());
@@ -726,7 +751,7 @@ export class RewardsService {
       return { applied: false, reason: 'strike_already_applied' };
     }
 
-    const { strikeId } = await this.registerStrike(userId, 'no_show', jobId);
+    const { strikeId } = await this.registerStrike(userId, 'no_show', jobId, options);
     return { applied: true, strikeId };
   }
 
@@ -759,7 +784,10 @@ export class RewardsService {
    * ранее мог быть начислен прогул (failed) или поздняя отмена (cancelled) — снимаем, восстанавливаем рейтинг.
    * Прирост за саму смену будет начислен при вызове recordShiftCompleted для этой смены.
    */
-  async removeStrikeByShiftExternalId(shiftExternalId: string): Promise<{ removed: boolean; userId?: number }> {
+  async removeStrikeByShiftExternalId(
+    shiftExternalId: string,
+    options: RewardsMutationOptions = {},
+  ): Promise<{ removed: boolean; userId?: number }> {
     const strike = await this.rewardsRepository.findActiveStrikeByShiftExternalId(shiftExternalId);
     if (!strike) {
       return { removed: false };
@@ -771,8 +799,12 @@ export class RewardsService {
       now,
     );
     await this.restoreReliabilityRatingForStrikeRemoval(strike.userId, strike.type as 'no_show' | 'late_cancel', strike.id);
-    await this.recalcUserLevel(strike.userId);
-    await this.recalcQuestProgressForUser(strike.userId);
+    if (options.postProcessMode === 'enqueue') {
+      await this.enqueuePendingRecalc(strike.userId, 'strike_removed');
+    } else {
+      await this.recalcUserLevel(strike.userId);
+      await this.recalcQuestProgressForUser(strike.userId);
+    }
     return { removed: true, userId: strike.userId };
   }
 
@@ -1043,6 +1075,60 @@ export class RewardsService {
         }
       }
     }
+  }
+
+  async processPendingRecalcQueue(limit = 200): Promise<{
+    claimed: number;
+    processedUsers: number;
+    failedUsers: number;
+  }> {
+    const claimed = await this.rewardsRepository.claimPendingRecalcBatch(limit);
+    if (claimed.length === 0) {
+      return { claimed: 0, processedUsers: 0, failedUsers: 0 };
+    }
+
+    const grouped = new Map<number, typeof claimed>();
+    for (const row of claimed) {
+      const current = grouped.get(row.userId) ?? [];
+      current.push(row);
+      grouped.set(row.userId, current);
+    }
+
+    let processedUsers = 0;
+    let failedUsers = 0;
+
+    for (const [userId, rows] of grouped.entries()) {
+      const ids = rows.map((row) => row.id);
+      const reasons = new Set(rows.map((row) => row.reason));
+      try {
+        if (reasons.has('strike_added')) {
+          await this.resetShiftsSeriesProgressForUser(userId);
+        }
+        if (reasons.has('shift_completed') || reasons.has('strike_removed')) {
+          await this.recalcUserLevel(userId);
+        }
+        if (
+          reasons.has('shift_completed') ||
+          reasons.has('shift_booked') ||
+          reasons.has('strike_added') ||
+          reasons.has('strike_removed')
+        ) {
+          await this.recalcQuestProgressForUser(userId);
+        }
+        await this.rewardsRepository.completePendingRecalc(ids);
+        processedUsers += 1;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        await this.rewardsRepository.failPendingRecalc(
+          ids,
+          message,
+          new Date(Date.now() + 60_000),
+        );
+        failedUsers += 1;
+      }
+    }
+
+    return { claimed: claimed.length, processedUsers, failedUsers };
   }
 
   /**

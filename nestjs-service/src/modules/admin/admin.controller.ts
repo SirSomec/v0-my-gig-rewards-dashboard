@@ -545,14 +545,14 @@ export class AdminController {
 
   @Get('toj-sync/status')
   @ApiOperation({ summary: 'Статус синхронизации смен из TOJ (настроен ли клиент, включена ли синхронизация)' })
-  getTojSyncStatus() {
+  async getTojSyncStatus() {
     return this.tojSync.getStatus();
   }
 
   @Post('toj-sync/run')
   @ApiOperation({ summary: 'Запустить синхронизацию смен из TOJ' })
   async runTojSync() {
-    return this.tojSync.runSync();
+    return this.tojSync.runScheduledSync('manual');
   }
 
   @Post('toj/process-late-cancel')

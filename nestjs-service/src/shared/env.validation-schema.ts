@@ -27,7 +27,6 @@ export interface Envs {
   TOJ_USER?: string;
   TOJ_PASSWORD?: string;
   TOJ_SYNC_ENABLED?: string;
-  TOJ_SYNC_MAX_JOBS_PER_RUN?: number;
   TOJ_SYNC_INITIAL_DAYS_AGO?: number;
   TOJ_SYNC_WORKER_BATCH_SIZE?: number;
   TOJ_SYNC_PAGE_SIZE?: number;
@@ -73,10 +72,9 @@ export const EnvValidationSchema = Joi.object<Envs, true>({
   TOJ_USER: Joi.string().optional().allow(''),
   TOJ_PASSWORD: Joi.string().optional().allow(''),
   TOJ_SYNC_ENABLED: Joi.string().optional().allow(''),
-  TOJ_SYNC_MAX_JOBS_PER_RUN: Joi.number().optional(),
   TOJ_SYNC_INITIAL_DAYS_AGO: Joi.number().optional(),
   TOJ_SYNC_WORKER_BATCH_SIZE: Joi.number().optional(),
-  TOJ_SYNC_PAGE_SIZE: Joi.number().optional(),
+  TOJ_SYNC_PAGE_SIZE: Joi.number().min(1).max(100).optional(),
   DOC_RELATIVE_PATH: Joi.string().optional(),
   LOG_PRETTY: Joi.string().optional(),
   LOG_BODY: Joi.string().optional(),

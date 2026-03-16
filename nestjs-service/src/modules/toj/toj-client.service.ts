@@ -32,6 +32,7 @@ export interface TojFindJobsFilters {
 export interface TojFindJobsOptions {
   limit: number;
   skip: number;
+  sortDirection?: 'asc' | 'desc';
 }
 
 @Injectable()
@@ -72,8 +73,9 @@ export class TojClientService {
     if (!baseUrl || !auth) {
       throw new Error('TOJ not configured (TOJ_BASE_URL, TOJ_USER, TOJ_PASSWORD)');
     }
-    const limit = Math.min(Math.max(options.limit || 100, 1), 1000);
+    const limit = Math.min(Math.max(options.limit || 100, 1), 100);
     const skip = Math.max(options.skip || 0, 0);
+    const sortDirection = options.sortDirection === 'desc' ? -1 : 1;
     const body: {
       data: {
         filters: Record<string, unknown>;
@@ -84,7 +86,7 @@ export class TojClientService {
       data: {
         filters: {},
         projection: '',
-        options: { limit, skip, sort: { updatedAt: -1 } },
+        options: { limit, skip, sort: { updatedAt: sortDirection } },
       },
     };
     if (filters.workerIds?.length) {

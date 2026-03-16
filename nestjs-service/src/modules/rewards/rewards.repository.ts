@@ -408,4 +408,77 @@ export class RewardsRepository {
       })
       .where(eq(users.id, userId));
   }
+
+  async enqueuePendingRecalc(
+    userId: number,
+    reason: string,
+    availableAt: Date = new Date(),
+  ): Promise<void> {
+    const { pendingRecalcUsers } = schema;
+    await this.client.insert(pendingRecalcUsers).values({
+      userId,
+      reason,
+      status: 'pending',
+      availableAt,
+    });
+  }
+
+  async claimPendingRecalcBatch(limit: number): Promise<(typeof schema.pendingRecalcUsers.$inferSelect)[]> {
+    const { pendingRecalcUsers } = schema;
+    const now = new Date();
+    const rows = await this.client
+      .select()
+      .from(pendingRecalcUsers)
+      .where(
+        and(
+          or(eq(pendingRecalcUsers.status, 'pending'), eq(pendingRecalcUsers.status, 'failed')),
+          lte(pendingRecalcUsers.availableAt, now),
+        ),
+      )
+      .orderBy(asc(pendingRecalcUsers.availableAt), asc(pendingRecalcUsers.id))
+      .limit(limit);
+    if (rows.length === 0) return [];
+    const ids = rows.map((row) => row.id);
+    await this.client
+      .update(pendingRecalcUsers)
+      .set({
+        status: 'processing',
+        attempts: sql`${pendingRecalcUsers.attempts} + 1`,
+        updatedAt: now,
+      })
+      .where(inArray(pendingRecalcUsers.id, ids));
+    return rows.map((row) => ({
+      ...row,
+      status: 'processing',
+      attempts: row.attempts + 1,
+      updatedAt: now,
+    }));
+  }
+
+  async completePendingRecalc(ids: number[]): Promise<void> {
+    if (ids.length === 0) return;
+    const { pendingRecalcUsers } = schema;
+    await this.client
+      .update(pendingRecalcUsers)
+      .set({
+        status: 'done',
+        lastError: null,
+        updatedAt: new Date(),
+      })
+      .where(inArray(pendingRecalcUsers.id, ids));
+  }
+
+  async failPendingRecalc(ids: number[], error: string, retryAt: Date): Promise<void> {
+    if (ids.length === 0) return;
+    const { pendingRecalcUsers } = schema;
+    await this.client
+      .update(pendingRecalcUsers)
+      .set({
+        status: 'failed',
+        lastError: error.slice(0, 1024),
+        availableAt: retryAt,
+        updatedAt: new Date(),
+      })
+      .where(inArray(pendingRecalcUsers.id, ids));
+  }
 }
