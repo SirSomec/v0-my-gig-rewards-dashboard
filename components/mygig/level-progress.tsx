@@ -109,12 +109,12 @@ export function LevelProgress({
   const ratingStrokeColor = `hsl(${(ratingPct / 100) * 120}, 65%, 45%)`
   const reliabilityStatus =
     reliabilityRating >= 4.5
-      ? { label: "Высокий рейтинг", Icon: ShieldCheck, tone: "text-success bg-success/10" }
+      ? { label: "Высокий", Icon: ShieldCheck, tone: "text-success bg-success/10" }
       : reliabilityRating >= 4
-        ? { label: "Стабильный рейтинг", Icon: ShieldCheck, tone: "text-accent bg-accent/10" }
+        ? { label: "Стабильный", Icon: ShieldCheck, tone: "text-accent bg-accent/10" }
         : reliabilityRating >= 3.5
-          ? { label: "Нужен контроль", Icon: ShieldMinus, tone: "text-amber-600 bg-amber-500/10 dark:text-amber-400" }
-          : { label: "Зона риска", Icon: ShieldAlert, tone: "text-destructive bg-destructive/10" }
+          ? { label: "Пограничный", Icon: ShieldMinus, tone: "text-amber-600 bg-amber-500/10 dark:text-amber-400" }
+          : { label: "Критический", Icon: ShieldAlert, tone: "text-destructive bg-destructive/10" }
   const StatusIcon = reliabilityStatus.Icon
 
   const hardcodedBenefits = benefits[currentLevel] || benefits["Серебряный партнёр"]
@@ -179,9 +179,9 @@ export function LevelProgress({
           </span>
         </div>
 
-        {/* Рейтинг надёжности: круг слева, цвет от красного к зелёному через жёлтый; описание справа */}
-        <div className="mb-3 sm:mb-4 flex items-center gap-3 sm:gap-4">
-          <div className="flex-shrink-0 relative w-16 h-16 sm:w-20 sm:h-20">
+        <div className="mb-3 sm:mb-4 rounded-xl border border-border bg-secondary/35 p-2.5 sm:p-3">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 relative w-14 h-14 sm:w-16 sm:h-16">
             <svg
               viewBox="0 0 100 100"
               className="w-full h-full -rotate-90"
@@ -225,90 +225,92 @@ export function LevelProgress({
                 </span>
               </div>
             </div>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-xs sm:text-sm font-medium text-foreground">Рейтинг надёжности</p>
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] sm:text-xs font-medium ${reliabilityStatus.tone}`}>
+                  <StatusIcon size={12} />
+                  {reliabilityStatus.label}
+                </span>
+              </div>
+              <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] sm:text-xs text-muted-foreground">
+                <span className="rounded-md bg-background/80 px-2 py-1">
+                  +{reliabilityRatingIncreasePerShift.toFixed(1)} за смену
+                </span>
+                <span className="rounded-md bg-background/80 px-2 py-1">
+                  -{reliabilityRatingDecreaseNoShow.toFixed(1)} прогул
+                </span>
+                <span className="rounded-md bg-background/80 px-2 py-1">
+                  -{reliabilityRatingDecreaseLateCancel.toFixed(1)} отмена
+                </span>
+              </div>
+              <p className="sr-only">Текущее значение рейтинга: {ratingDisplay} из 5.</p>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs sm:text-sm font-medium text-foreground">Рейтинг надёжности</p>
-            <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
-              Растёт за выполнение смен, снижается за прогулы и поздние отмены.
-            </p>
-            <p className="sr-only">Текущее значение рейтинга: {ratingDisplay} из 5.</p>
-          </div>
-        </div>
 
-        <div className="space-y-2 mb-3 sm:mb-4">
-          <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] sm:text-xs font-medium ${reliabilityStatus.tone}`}>
-            <StatusIcon size={14} />
-            {reliabilityStatus.label}
-          </div>
-
-          <div className="rounded-lg bg-secondary/50 p-2.5 sm:p-3 text-[11px] sm:text-xs text-muted-foreground space-y-1.5">
-            <p>
-              Подтверждённая смена обычно даёт <span className="font-semibold text-foreground">+{reliabilityRatingIncreasePerShift.toFixed(1)}</span> к рейтингу.
-            </p>
-            <p>
-              Прогул снижает рейтинг на <span className="font-semibold text-foreground">-{reliabilityRatingDecreaseNoShow.toFixed(1)}</span>, поздняя отмена на <span className="font-semibold text-foreground">-{reliabilityRatingDecreaseLateCancel.toFixed(1)}</span>.
-            </p>
+          <div className="mt-2 space-y-1.5">
             {reliabilityMinRatingToCountShiftForLevel > 0 && (
-              <p>
-                Смены идут в прогресс уровня только при рейтинге от <span className="font-semibold text-foreground">{reliabilityMinRatingToCountShiftForLevel.toFixed(1)}</span>.
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
+                Порог для учёта смен в уровень: <span className="font-semibold text-foreground">{reliabilityMinRatingToCountShiftForLevel.toFixed(1)}</span>
               </p>
             )}
             {!reliabilityCountsShiftsForLevel && reliabilityMinRatingToCountShiftForLevel > 0 && (
-              <p className="text-destructive">
-                Сейчас смены приносят монеты, но не засчитываются в уровень. До безопасного порога не хватает <span className="font-semibold">{levelCountDeficit.toFixed(1)}</span>.
+              <p className="text-[10px] sm:text-xs text-destructive">
+                Смены не идут в уровень. Не хватает <span className="font-semibold">{levelCountDeficit.toFixed(1)}</span>.
               </p>
             )}
             {!isMaxLevel && reliabilityMinRatingToUpgradeLevel > 0 && !reliabilityAllowsLevelUpgrade && (
-              <p className="text-amber-700 dark:text-amber-400">
-                Для автоматического повышения до уровня <span className="font-semibold">{nextLevel}</span> нужен рейтинг от <span className="font-semibold">{reliabilityMinRatingToUpgradeLevel.toFixed(1)}</span>.
+              <p className="text-[10px] sm:text-xs text-amber-700 dark:text-amber-400">
+                Для перехода к <span className="font-semibold">{nextLevel}</span> нужен порог <span className="font-semibold">{reliabilityMinRatingToUpgradeLevel.toFixed(1)}</span>.
               </p>
             )}
             {estimatedRecoveryShifts > 0 && (
-              <p>
-                Ориентир для восстановления: ещё примерно <span className="font-semibold text-foreground">{estimatedRecoveryShifts}</span> подтверждённ{estimatedRecoveryShifts === 1 ? "ая смена" : estimatedRecoveryShifts < 5 ? "ые смены" : "ых смен"} без нарушений.
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
+                До восстановления: примерно <span className="font-semibold text-foreground">{estimatedRecoveryShifts}</span> смен без нарушений.
               </p>
             )}
           </div>
+        </div>
 
-          {reliabilityRatingLog.length > 0 && (
-            <div className="rounded-lg border border-border p-2.5 sm:p-3">
-              <p className="text-[11px] sm:text-xs font-semibold text-foreground mb-2">
-                Последние изменения рейтинга
-              </p>
-              <div className="space-y-1.5">
-                {reliabilityRatingLog.slice(0, 3).map((item) => {
-                  const reasonLabel =
-                    item.reason === "shift"
-                      ? "Подтверждённая смена"
-                      : item.reason === "no_show"
-                        ? "Прогул"
-                        : item.reason === "late_cancel"
-                          ? "Поздняя отмена"
-                          : item.reason === "strike_removed"
-                            ? "Снятие штрафа"
-                            : "Изменение рейтинга"
-                  const isPositive = item.delta > 0
+        {reliabilityRatingLog.length > 0 && (
+          <div className="mb-3 sm:mb-4 rounded-lg border border-border p-2.5 sm:p-3">
+            <p className="text-[11px] sm:text-xs font-semibold text-foreground mb-2">
+              Последние изменения
+            </p>
+            <div className="space-y-1.5">
+              {reliabilityRatingLog.slice(0, 3).map((item) => {
+                const reasonLabel =
+                  item.reason === "shift"
+                    ? "Подтверждённая смена"
+                    : item.reason === "no_show"
+                      ? "Прогул"
+                      : item.reason === "late_cancel"
+                        ? "Поздняя отмена"
+                        : item.reason === "strike_removed"
+                          ? "Снятие штрафа"
+                          : "Изменение"
+                const isPositive = item.delta > 0
 
-                  return (
-                    <div key={item.id} className="flex items-start justify-between gap-2 text-[10px] sm:text-xs">
-                      <div className="min-w-0">
-                        <p className="text-foreground">{reasonLabel}</p>
-                        <p className="text-muted-foreground">{formatRatingDate(item.createdAt)}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className={isPositive ? "text-success font-semibold" : "text-destructive font-semibold"}>
-                          {isPositive ? "+" : ""}{item.delta.toFixed(1)}
-                        </p>
-                        <p className="text-muted-foreground">
-                          {item.previousRating.toFixed(1)} → {item.newRating.toFixed(1)}
-                        </p>
-                      </div>
+                return (
+                  <div key={item.id} className="flex items-start justify-between gap-2 text-[10px] sm:text-xs">
+                    <div className="min-w-0">
+                      <p className="text-foreground">{reasonLabel}</p>
+                      <p className="text-muted-foreground">{formatRatingDate(item.createdAt)}</p>
                     </div>
-                  )
-                })}
-              </div>
+                    <div className="text-right shrink-0">
+                      <p className={isPositive ? "text-success font-semibold" : "text-destructive font-semibold"}>
+                        {isPositive ? "+" : ""}{item.delta.toFixed(1)}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {item.previousRating.toFixed(1)} → {item.newRating.toFixed(1)}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Benefits toggle */}
