@@ -272,46 +272,6 @@ export function LevelProgress({
             )}
           </div>
         </div>
-
-        {reliabilityRatingLog.length > 0 && (
-          <div className="mb-3 sm:mb-4 rounded-lg border border-border p-2.5 sm:p-3">
-            <p className="text-[11px] sm:text-xs font-semibold text-foreground mb-2">
-              Последние изменения
-            </p>
-            <div className="space-y-1.5">
-              {reliabilityRatingLog.slice(0, 3).map((item) => {
-                const reasonLabel =
-                  item.reason === "shift"
-                    ? "Подтверждённая смена"
-                    : item.reason === "no_show"
-                      ? "Прогул"
-                      : item.reason === "late_cancel"
-                        ? "Поздняя отмена"
-                        : item.reason === "strike_removed"
-                          ? "Снятие штрафа"
-                          : "Изменение"
-                const isPositive = item.delta > 0
-
-                return (
-                  <div key={item.id} className="flex items-start justify-between gap-2 text-[10px] sm:text-xs">
-                    <div className="min-w-0">
-                      <p className="text-foreground">{reasonLabel}</p>
-                      <p className="text-muted-foreground">{formatRatingDate(item.createdAt)}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className={isPositive ? "text-success font-semibold" : "text-destructive font-semibold"}>
-                        {isPositive ? "+" : ""}{item.delta.toFixed(1)}
-                      </p>
-                      <p className="text-muted-foreground">
-                        {item.previousRating.toFixed(1)} → {item.newRating.toFixed(1)}
-                      </p>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
         {/* Benefits toggle */}
         <button
           type="button"

@@ -16,6 +16,10 @@ export interface EarningEntry {
   type: "shift" | "bonus" | "quest" | "redemption" | "strike"
   /** Для type=strike: ID смены, за которую получен штраф */
   shiftExternalId?: string | null
+  /** Изменение рейтинга надёжности, привязанное к этой активности (если есть) */
+  reliabilityDelta?: number
+  reliabilityPrevious?: number
+  reliabilityNew?: number
 }
 
 const INITIAL_PAGE_SIZE = 20
@@ -116,19 +120,40 @@ export function EarningHistory({
           }`}>
             {entry.type === "strike" ? <AlertTriangle size={18} /> : entry.type === "redemption" ? <ShoppingBag size={18} /> : <Briefcase size={18} />}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className={`text-xs sm:text-sm font-medium truncate ${entry.type === "strike" ? "text-destructive" : "text-foreground"}`}>{entry.title}</p>
-            <div className="flex items-center gap-1 mt-0.5">
-              {entry.type !== "redemption" && (
-                <>
-                  <MapPin size={10} className="text-muted-foreground flex-shrink-0" />
-                  <span className="text-[10px] sm:text-[11px] text-muted-foreground truncate">{entry.location}</span>
-                  <span className="text-[11px] text-muted-foreground/50 mx-1">{"/"}</span>
-                </>
-              )}
-              <span className="text-[10px] sm:text-[11px] text-muted-foreground">{entry.date}</span>
+            <div className="flex-1 min-w-0">
+              <p className={`text-xs sm:text-sm font-medium truncate ${entry.type === "strike" ? "text-destructive" : "text-foreground"}`}>{entry.title}</p>
+              <div className="flex flex-col gap-0.5 mt-0.5">
+                <div className="flex items-center gap-1">
+                  {entry.type !== "redemption" && (
+                    <>
+                      <MapPin size={10} className="text-muted-foreground flex-shrink-0" />
+                      <span className="text-[10px] sm:text-[11px] text-muted-foreground truncate">{entry.location}</span>
+                      <span className="text-[11px] text-muted-foreground/50 mx-1">{"/"}</span>
+                    </>
+                  )}
+                  <span className="text-[10px] sm:text-[11px] text-muted-foreground">{entry.date}</span>
+                </div>
+                {entry.reliabilityDelta != null && entry.reliabilityDelta !== 0 && (
+                  <p className="text-[10px] sm:text-[11px] text-muted-foreground">
+                    Изменение рейтинга:{" "}
+                    <span
+                      className={
+                        entry.reliabilityDelta > 0
+                          ? "text-success font-semibold"
+                          : "text-destructive font-semibold"
+                      }
+                    >
+                      {entry.reliabilityDelta > 0 ? `+${entry.reliabilityDelta.toFixed(1)}` : entry.reliabilityDelta.toFixed(1)}
+                    </span>
+                    {entry.reliabilityPrevious != null && entry.reliabilityNew != null && (
+                      <span className="ml-1">
+                        ({entry.reliabilityPrevious.toFixed(1)} → {entry.reliabilityNew.toFixed(1)})
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
           {entry.type !== "strike" && (
             <div className="flex items-center gap-1 flex-shrink-0">
               <GigCoinIcon size={14} />

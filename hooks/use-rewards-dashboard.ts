@@ -119,7 +119,7 @@ function mapTransaction(t: TransactionResponse): EarningEntry & { _sortAt?: stri
   }
 }
 
-function mapStrike(s: StrikeResponse): EarningEntry & { _sortAt?: string } {
+function mapStrike(s: StrikeResponse): EarningEntry & { _sortAt?: string; strikeType?: string } {
   const typeLabel = s.type === "no_show" ? "Прогул" : s.type === "late_cancel" ? "Поздняя отмена" : s.type
   const shiftPart = s.shiftExternalId ? ` (смена #${s.shiftExternalId})` : ""
   return {
@@ -130,21 +130,52 @@ function mapStrike(s: StrikeResponse): EarningEntry & { _sortAt?: string } {
     amount: 0,
     type: "strike",
     shiftExternalId: s.shiftExternalId,
+    strikeType: s.type,
     _sortAt: s.occurredAt,
   }
 }
 
 function mergeAndSortHistory(
   txEntries: (EarningEntry & { _sortAt?: string })[],
-  strikeEntries: (EarningEntry & { _sortAt?: string })[]
+  strikeEntries: (EarningEntry & { _sortAt?: string; strikeType?: string })[],
+  ratingLogItems: ReliabilityRatingLogItem[]
 ): EarningEntry[] {
-  const merged = [...txEntries, ...strikeEntries]
+  const merged: (EarningEntry & { _sortAt?: string; strikeType?: string })[] = [...txEntries, ...strikeEntries]
+  const remainingLogs = [...ratingLogItems]
+
+  for (const entry of merged) {
+    const sortAt = entry._sortAt
+    if (!sortAt) continue
+
+    let targetReason: string | undefined
+    if (entry.type === "shift") {
+      targetReason = "shift"
+    } else if (entry.type === "strike" && entry.strikeType) {
+      if (entry.strikeType === "no_show" || entry.strikeType === "late_cancel") {
+        targetReason = entry.strikeType
+      }
+    }
+
+    if (!targetReason) continue
+
+    const idx = remainingLogs.findIndex(
+      (log) => log.reason === targetReason && log.createdAt === sortAt
+    )
+    if (idx === -1) continue
+
+    const log = remainingLogs.splice(idx, 1)[0]
+    entry.reliabilityDelta = log.delta
+    entry.reliabilityPrevious = log.previousRating
+    entry.reliabilityNew = log.newRating
+  }
+
   merged.sort((a, b) => {
     const tA = a._sortAt ? new Date(a._sortAt).getTime() : 0
     const tB = b._sortAt ? new Date(b._sortAt).getTime() : 0
     return tB - tA
   })
-  return merged.map(({ _sortAt: _, ...e }) => e)
+
+  return merged.map(({ _sortAt: _, strikeType: _strikeType, ...e }) => e)
 }
 
 const questIconMap: Record<string, Quest["icon"]> = {
@@ -304,8 +335,9 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
       const strikeEntries = strikesRes
         .filter((s) => !s.removedAt)
         .map(mapStrike)
-      setTransactions(mergeAndSortHistory(txEntries, strikeEntries))
-      setReliabilityRatingLog(reliabilityLogRes.map(mapReliabilityRatingLog))
+      const ratingLogItems = reliabilityLogRes.map(mapReliabilityRatingLog)
+      setTransactions(mergeAndSortHistory(txEntries, strikeEntries, ratingLogItems))
+      setReliabilityRatingLog(ratingLogItems)
       setQuests(questsRes.map(mapQuest))
       setStoreItems(storeRes.map(mapStoreItem))
       setRedemptions(redemptionsRes.map(mapRedemption))
