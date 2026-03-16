@@ -226,30 +226,26 @@ export function LevelProgress({
               </div>
             </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
+            <div className="min-w-0 flex-1 flex flex-col items-end gap-1">
+              <div className="flex items-center gap-2 flex-wrap justify-end">
                 <p className="text-xs sm:text-sm font-medium text-foreground">Рейтинг надёжности</p>
                 <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] sm:text-xs font-medium ${reliabilityStatus.tone}`}>
                   <StatusIcon size={12} />
                   {reliabilityStatus.label}
                 </span>
               </div>
-              <p className="sr-only">Текущее значение рейтинга: {ratingDisplay} из 5.</p>
-            </div>
-          </div>
-
-          <Dialog open={reliabilityDialogOpen} onOpenChange={setReliabilityDialogOpen}>
-            <DialogTrigger asChild>
-              <button
-                type="button"
-                className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background/60 py-2 px-3 text-xs sm:text-sm font-medium text-foreground hover:bg-secondary/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                aria-label="Подробнее: как считается рейтинг и на что он влияет"
-              >
-                <Info size={14} />
-                Как считается рейтинг и на что влияет
-              </button>
-            </DialogTrigger>
-            <DialogContent className="max-w-sm sm:max-w-md" aria-describedby="reliability-dialog-desc">
+              <Dialog open={reliabilityDialogOpen} onOpenChange={setReliabilityDialogOpen}>
+                <DialogTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] sm:text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    aria-label="Подробнее: как считается рейтинг и на что он влияет"
+                  >
+                    <Info size={11} />
+                    Как считается и на что влияет
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="max-w-sm sm:max-w-md" aria-describedby="reliability-dialog-desc">
               <DialogHeader>
                 <DialogTitle>Рейтинг надёжности</DialogTitle>
               </DialogHeader>
@@ -312,7 +308,10 @@ export function LevelProgress({
                 </section>
               </div>
             </DialogContent>
-          </Dialog>
+              </Dialog>
+              <p className="sr-only">Текущее значение рейтинга: {ratingDisplay} из 5.</p>
+            </div>
+          </div>
         </div>
         {/* Benefits toggle */}
         <button
