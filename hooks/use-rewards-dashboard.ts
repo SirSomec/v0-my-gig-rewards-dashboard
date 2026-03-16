@@ -7,6 +7,7 @@ import {
   fetchStrikes,
   fetchQuests,
   fetchStore,
+  fetchRedemptions,
   fetchLevels,
   createRedemption as apiCreateRedemption,
   submitLoyaltyRequest as apiSubmitLoyaltyRequest,
@@ -20,6 +21,7 @@ import {
   type StrikeResponse,
   type QuestResponse,
   type StoreItemResponse,
+  type RedemptionResponse,
   type LevelResponse,
 } from "@/lib/rewards-api"
 import {
@@ -180,11 +182,42 @@ function mapStoreItem(s: StoreItemResponse): StoreItem & { numericId: number } {
   }
 }
 
+export interface RedemptionItem {
+  id: string
+  numericId: number
+  storeItemId: number
+  itemName: string
+  itemCategory: string
+  itemIcon: StoreItem["icon"]
+  status: "pending" | "fulfilled" | "cancelled"
+  coinsSpent: number
+  createdAt: string
+  processedAt: string | null
+  notes: string | null
+}
+
+function mapRedemption(r: RedemptionResponse): RedemptionItem {
+  return {
+    id: String(r.id),
+    numericId: r.id,
+    storeItemId: r.storeItemId,
+    itemName: r.itemName,
+    itemCategory: r.itemCategory,
+    itemIcon: storeIconMap[r.itemIcon] ?? "gift",
+    status: r.status,
+    coinsSpent: r.coinsSpent,
+    createdAt: r.createdAt,
+    processedAt: r.processedAt,
+    notes: r.notes,
+  }
+}
+
 export interface UseRewardsDashboardResult {
   user: DashboardUser | null
   transactions: EarningEntry[]
   quests: Quest[]
   storeItems: (StoreItem & { numericId: number })[]
+  redemptions: RedemptionItem[]
   /** Перки текущего уровня пользователя (из API уровней), синхронно с админкой */
   currentLevelPerks: Array<{ title: string; description?: string; icon?: string }>
   loading: boolean
@@ -203,6 +236,7 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
   const [transactions, setTransactions] = useState<EarningEntry[]>([])
   const [quests, setQuests] = useState<Quest[]>([])
   const [storeItems, setStoreItems] = useState<(StoreItem & { numericId: number })[]>([])
+  const [redemptions, setRedemptions] = useState<RedemptionItem[]>([])
   const [levels, setLevels] = useState<LevelResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -214,11 +248,12 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
     }
     try {
       const meRes: MeResponse = await fetchMe()
-      const [transactionsRes, strikesRes, questsRes, storeRes, levelsRes] = await Promise.all([
+      const [transactionsRes, strikesRes, questsRes, storeRes, redemptionsRes, levelsRes] = await Promise.all([
         fetchTransactions(),
         fetchStrikes(),
         fetchQuests(),
         fetchStore(),
+        fetchRedemptions(),
         fetchLevels(),
       ])
       setUser(mapMe(meRes))
@@ -230,6 +265,7 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
       setTransactions(mergeAndSortHistory(txEntries, strikeEntries))
       setQuests(questsRes.map(mapQuest))
       setStoreItems(storeRes.map(mapStoreItem))
+      setRedemptions(redemptionsRes.map(mapRedemption))
     } catch (e) {
       if (!silent) {
         setError(e instanceof Error ? e.message : "Ошибка загрузки данных")
@@ -237,6 +273,7 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
         setTransactions([])
         setQuests([])
         setStoreItems([])
+        setRedemptions([])
         setLevels([])
       }
     } finally {
@@ -342,6 +379,7 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
     setTransactions([])
     setQuests([])
     setStoreItems([])
+    setRedemptions([])
     setLevels([])
     setError(null)
     setLoading(false)
@@ -357,6 +395,7 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
     transactions,
     quests,
     storeItems,
+    redemptions,
     currentLevelPerks,
     loading,
     error,

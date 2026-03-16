@@ -19,7 +19,7 @@ import { MeResponseDto } from './dto/me.dto';
 import { TransactionResponseDto } from './dto/transaction.dto';
 import { StrikeResponseDto } from './dto/strike.dto';
 import { QuestResponseDto } from './dto/quest.dto';
-import { StoreItemResponseDto } from './dto/store.dto';
+import { StoreItemResponseDto, UserRedemptionResponseDto } from './dto/store.dto';
 import { LevelResponseDto } from './dto/level.dto';
 
 interface RequestWithUser extends Request {
@@ -107,6 +107,16 @@ export class RewardsController {
   @ApiOperation({ summary: 'Каталог товаров магазина' })
   async getStore(): Promise<StoreItemResponseDto[]> {
     return this.rewards.getStoreItems();
+  }
+
+  @Get('redemptions')
+  @ApiOperation({ summary: 'Мои покупки: список заявок на обмен со статусами' })
+  async getRedemptions(
+    @Req() req: RequestWithUser,
+    @Query('userId') userId?: string,
+  ): Promise<UserRedemptionResponseDto[]> {
+    const id = this.getUserId(req, userId);
+    return this.rewards.getUserRedemptions(id);
   }
 
   @Get('levels')

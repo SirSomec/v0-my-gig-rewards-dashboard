@@ -150,6 +150,19 @@ export interface StoreItemResponse {
   redeemedCount?: number;
 }
 
+export interface RedemptionResponse {
+  id: number;
+  storeItemId: number;
+  itemName: string;
+  itemCategory: string;
+  itemIcon: string;
+  status: "pending" | "fulfilled" | "cancelled";
+  coinsSpent: number;
+  createdAt: string;
+  processedAt: string | null;
+  notes: string | null;
+}
+
 export interface LevelResponse {
   id: number;
   name: string;
@@ -218,6 +231,11 @@ export async function fetchQuests(): Promise<QuestResponse[]> {
 export async function fetchStore(): Promise<StoreItemResponse[]> {
   const url = buildUrl("/v1/rewards/store");
   return fetchApi<StoreItemResponse[]>(url);
+}
+
+export async function fetchRedemptions(): Promise<RedemptionResponse[]> {
+  const url = buildUrl("/v1/rewards/redemptions");
+  return fetchApi<RedemptionResponse[]>(url);
 }
 
 export async function fetchLevels(): Promise<LevelResponse[]> {

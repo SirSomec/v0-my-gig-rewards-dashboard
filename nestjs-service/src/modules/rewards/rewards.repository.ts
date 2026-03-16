@@ -252,6 +252,19 @@ export class RewardsRepository {
       .orderBy(storeItems.sortOrder, storeItems.id);
   }
 
+  async listUserRedemptions(userId: number): Promise<Array<{
+    redemption: typeof schema.redemptions.$inferSelect;
+    storeItem: typeof schema.storeItems.$inferSelect;
+  }>> {
+    const { redemptions, storeItems } = schema;
+    return this.client
+      .select({ redemption: redemptions, storeItem: storeItems })
+      .from(redemptions)
+      .innerJoin(storeItems, eq(redemptions.storeItemId, storeItems.id))
+      .where(eq(redemptions.userId, userId))
+      .orderBy(desc(redemptions.createdAt), desc(redemptions.id));
+  }
+
   async countActiveRedemptionsByStoreItemId(storeItemId: number): Promise<number> {
     const { redemptions } = schema;
     const [row] = await this.client

@@ -6,7 +6,7 @@ import type { Envs } from '../../shared/env.validation-schema';
 import { MeResponseDto } from './dto/me.dto';
 import { LevelResponseDto } from './dto/level.dto';
 import { QuestResponseDto } from './dto/quest.dto';
-import { StoreItemResponseDto } from './dto/store.dto';
+import { StoreItemResponseDto, UserRedemptionResponseDto } from './dto/store.dto';
 import { StrikeResponseDto } from './dto/strike.dto';
 import { TransactionResponseDto } from './dto/transaction.dto';
 import { RewardsRepository } from './rewards.repository';
@@ -269,6 +269,24 @@ export class RewardsService {
       result.push(dto);
     }
     return result;
+  }
+
+  async getUserRedemptions(userId: number): Promise<UserRedemptionResponseDto[]> {
+    const rows = await this.rewardsRepository.listUserRedemptions(userId);
+    return rows.map(({ redemption, storeItem }) => {
+      const dto = new UserRedemptionResponseDto();
+      dto.id = redemption.id;
+      dto.storeItemId = redemption.storeItemId;
+      dto.itemName = storeItem.name;
+      dto.itemCategory = storeItem.category;
+      dto.itemIcon = storeItem.icon ?? 'gift';
+      dto.status = redemption.status as 'pending' | 'fulfilled' | 'cancelled';
+      dto.coinsSpent = redemption.coinsSpent;
+      dto.createdAt = (redemption.createdAt as Date).toISOString();
+      dto.processedAt = redemption.processedAt != null ? (redemption.processedAt as Date).toISOString() : null;
+      dto.notes = redemption.notes;
+      return dto;
+    });
   }
 
   /** Список уровней лояльности для отображения в ЛК (название, порог смен, перки). */

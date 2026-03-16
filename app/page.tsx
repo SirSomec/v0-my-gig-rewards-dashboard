@@ -28,7 +28,7 @@ export default function MyGigRewards() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<NavTab>("home")
   const [loyaltySubmitting, setLoyaltySubmitting] = useState(false)
-  const { user, transactions, quests, storeItems, currentLevelPerks, loading, error, refetch, purchaseItem, submitLoyaltyRequest, logout, isLoggedIn } = useRewardsDashboard()
+  const { user, transactions, quests, storeItems, redemptions, currentLevelPerks, loading, error, refetch, purchaseItem, submitLoyaltyRequest, logout, isLoggedIn } = useRewardsDashboard()
   const myGigEnabled = isMyGigAuthEnabled()
 
   useEffect(() => {
@@ -223,6 +223,7 @@ export default function MyGigRewards() {
             >
               <RedemptionStore
                 items={storeItems}
+                redemptions={redemptions}
                 userBalance={user.balance}
                 onPurchase={purchaseItem}
               />

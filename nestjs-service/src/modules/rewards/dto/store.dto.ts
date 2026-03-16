@@ -11,6 +11,19 @@ export class StoreItemResponseDto {
   redeemedCount?: number;
 }
 
+export class UserRedemptionResponseDto {
+  id!: number;
+  storeItemId!: number;
+  itemName!: string;
+  itemCategory!: string;
+  itemIcon!: string;
+  status!: 'pending' | 'fulfilled' | 'cancelled';
+  coinsSpent!: number;
+  createdAt!: string;
+  processedAt!: string | null;
+  notes!: string | null;
+}
+
 export class CreateRedemptionRequestDto {
   storeItemId!: number;
 }
