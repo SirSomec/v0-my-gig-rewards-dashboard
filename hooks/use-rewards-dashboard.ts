@@ -5,6 +5,7 @@ import {
   fetchMe,
   fetchTransactions,
   fetchStrikes,
+  fetchReliabilityRatingLog,
   fetchQuests,
   fetchStore,
   fetchRedemptions,
@@ -19,6 +20,7 @@ import {
   type MeResponse,
   type TransactionResponse,
   type StrikeResponse,
+  type ReliabilityRatingLogResponse,
   type QuestResponse,
   type StoreItemResponse,
   type RedemptionResponse,
@@ -50,6 +52,13 @@ export interface DashboardUser {
   avatarUrl?: string
   /** Рейтинг надёжности 0–5 (дробное). По умолчанию 4. */
   reliabilityRating: number
+  reliabilityRatingIncreasePerShift: number
+  reliabilityRatingDecreaseNoShow: number
+  reliabilityRatingDecreaseLateCancel: number
+  reliabilityMinRatingToCountShiftForLevel: number
+  reliabilityMinRatingToUpgradeLevel: number
+  reliabilityCountsShiftsForLevel: boolean
+  reliabilityAllowsLevelUpgrade: boolean
   /** true, если новые квесты ограничены до конца месяца (достигнут порог бонусов) */
   questsLimitedByCap?: boolean
   /** Статус участия в программе: active | pending */
@@ -72,6 +81,13 @@ function mapMe(m: MeResponse): DashboardUser {
     shiftsRemaining,
     avatarUrl: m.avatarUrl ?? undefined,
     reliabilityRating: m.reliabilityRating ?? 4,
+    reliabilityRatingIncreasePerShift: m.reliabilityRatingIncreasePerShift ?? 0.1,
+    reliabilityRatingDecreaseNoShow: m.reliabilityRatingDecreaseNoShow ?? 0.2,
+    reliabilityRatingDecreaseLateCancel: m.reliabilityRatingDecreaseLateCancel ?? 0.2,
+    reliabilityMinRatingToCountShiftForLevel: m.reliabilityMinRatingToCountShiftForLevel ?? 0,
+    reliabilityMinRatingToUpgradeLevel: m.reliabilityMinRatingToUpgradeLevel ?? 0,
+    reliabilityCountsShiftsForLevel: m.reliabilityCountsShiftsForLevel ?? true,
+    reliabilityAllowsLevelUpgrade: m.reliabilityAllowsLevelUpgrade ?? true,
     questsLimitedByCap: m.questsLimitedByCap ?? false,
     loyaltyStatus: m.loyaltyStatus ?? "active",
     loyaltyRequestedAt: m.loyaltyRequestedAt ?? null,
@@ -196,6 +212,28 @@ export interface RedemptionItem {
   notes: string | null
 }
 
+export interface ReliabilityRatingLogItem {
+  id: string
+  numericId: number
+  previousRating: number
+  newRating: number
+  delta: number
+  reason: string
+  createdAt: string
+}
+
+function mapReliabilityRatingLog(r: ReliabilityRatingLogResponse): ReliabilityRatingLogItem {
+  return {
+    id: String(r.id),
+    numericId: r.id,
+    previousRating: r.previousRating,
+    newRating: r.newRating,
+    delta: r.delta,
+    reason: r.reason,
+    createdAt: r.createdAt,
+  }
+}
+
 function mapRedemption(r: RedemptionResponse): RedemptionItem {
   return {
     id: String(r.id),
@@ -218,6 +256,7 @@ export interface UseRewardsDashboardResult {
   quests: Quest[]
   storeItems: (StoreItem & { numericId: number })[]
   redemptions: RedemptionItem[]
+  reliabilityRatingLog: ReliabilityRatingLogItem[]
   levels: LevelResponse[]
   /** Перки текущего уровня пользователя (из API уровней), синхронно с админкой */
   currentLevelPerks: Array<{ title: string; description?: string; icon?: string }>
@@ -238,6 +277,7 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
   const [quests, setQuests] = useState<Quest[]>([])
   const [storeItems, setStoreItems] = useState<(StoreItem & { numericId: number })[]>([])
   const [redemptions, setRedemptions] = useState<RedemptionItem[]>([])
+  const [reliabilityRatingLog, setReliabilityRatingLog] = useState<ReliabilityRatingLogItem[]>([])
   const [levels, setLevels] = useState<LevelResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -249,9 +289,10 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
     }
     try {
       const meRes: MeResponse = await fetchMe()
-      const [transactionsRes, strikesRes, questsRes, storeRes, redemptionsRes, levelsRes] = await Promise.all([
+      const [transactionsRes, strikesRes, reliabilityLogRes, questsRes, storeRes, redemptionsRes, levelsRes] = await Promise.all([
         fetchTransactions(),
         fetchStrikes(),
+        fetchReliabilityRatingLog(),
         fetchQuests(),
         fetchStore(),
         fetchRedemptions(),
@@ -264,6 +305,7 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
         .filter((s) => !s.removedAt)
         .map(mapStrike)
       setTransactions(mergeAndSortHistory(txEntries, strikeEntries))
+      setReliabilityRatingLog(reliabilityLogRes.map(mapReliabilityRatingLog))
       setQuests(questsRes.map(mapQuest))
       setStoreItems(storeRes.map(mapStoreItem))
       setRedemptions(redemptionsRes.map(mapRedemption))
@@ -272,6 +314,7 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
         setError(e instanceof Error ? e.message : "Ошибка загрузки данных")
         setUser(null)
         setTransactions([])
+        setReliabilityRatingLog([])
         setQuests([])
         setStoreItems([])
         setRedemptions([])
@@ -378,6 +421,7 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
     clearAllAuth()
     setUser(null)
     setTransactions([])
+    setReliabilityRatingLog([])
     setQuests([])
     setStoreItems([])
     setRedemptions([])
@@ -394,6 +438,7 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
   return {
     user,
     transactions,
+    reliabilityRatingLog,
     quests,
     storeItems,
     redemptions,

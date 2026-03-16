@@ -207,6 +207,19 @@ export class RewardsRepository {
       .limit(limit);
   }
 
+  async listUserReliabilityRatingLog(
+    userId: number,
+    limit: number,
+  ): Promise<(typeof schema.reliabilityRatingLog.$inferSelect)[]> {
+    const { reliabilityRatingLog } = schema;
+    return this.client
+      .select()
+      .from(reliabilityRatingLog)
+      .where(eq(reliabilityRatingLog.userId, userId))
+      .orderBy(desc(reliabilityRatingLog.createdAt))
+      .limit(limit);
+  }
+
   async listUserGroupIds(userId: number): Promise<number[]> {
     const { userGroupMembers } = schema;
     const rows = await this.client

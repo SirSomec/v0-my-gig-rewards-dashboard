@@ -1,8 +1,10 @@
 "use client"
 
 import { useState } from "react"
+import { format } from "date-fns"
+import { ru } from "date-fns/locale"
 import { motion, AnimatePresence } from "framer-motion"
-import { ChevronDown, ChevronUp, Zap, Clock, Star, TrendingUp, Gift, Target, Award } from "lucide-react"
+import { ChevronDown, ChevronUp, Zap, Clock, Star, TrendingUp, Gift, Target, Award, ShieldAlert, ShieldCheck, ShieldMinus } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { GigCoinIcon } from "./gig-coin-icon"
 
@@ -32,8 +34,29 @@ interface LevelProgressProps {
   shiftsRemaining: number
   /** Рейтинг надёжности 0–5 (дробное). По умолчанию 4. */
   reliabilityRating?: number
+  reliabilityRatingIncreasePerShift?: number
+  reliabilityRatingDecreaseNoShow?: number
+  reliabilityRatingDecreaseLateCancel?: number
+  reliabilityMinRatingToCountShiftForLevel?: number
+  reliabilityMinRatingToUpgradeLevel?: number
+  reliabilityCountsShiftsForLevel?: boolean
+  reliabilityAllowsLevelUpgrade?: boolean
+  reliabilityRatingLog?: Array<{
+    id: string
+    previousRating: number
+    newRating: number
+    delta: number
+    reason: string
+    createdAt: string
+  }>
   /** Перки текущего уровня из API (синхронно с настройками уровней в админке). Если заданы — отображаются вместо захардкоженного списка. */
   currentLevelPerks?: Array<{ title: string; description?: string; icon?: string }>
+}
+
+function formatRatingDate(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return "Недавно"
+  return format(d, "d MMM, HH:mm", { locale: ru })
 }
 
 const benefits: Record<string, { icon: React.ReactNode; label: string; description: string }[]> = {
@@ -57,6 +80,14 @@ export function LevelProgress({
   shiftsRequired,
   shiftsRemaining,
   reliabilityRating = 4,
+  reliabilityRatingIncreasePerShift = 0.1,
+  reliabilityRatingDecreaseNoShow = 0.2,
+  reliabilityRatingDecreaseLateCancel = 0.2,
+  reliabilityMinRatingToCountShiftForLevel = 0,
+  reliabilityMinRatingToUpgradeLevel = 0,
+  reliabilityCountsShiftsForLevel = true,
+  reliabilityAllowsLevelUpgrade = true,
+  reliabilityRatingLog = [],
   currentLevelPerks: currentLevelPerksFromApi,
 }: LevelProgressProps) {
   const [showBenefits, setShowBenefits] = useState(false)
@@ -66,8 +97,25 @@ export function LevelProgress({
   const progress = isMaxLevel ? 100 : Math.min(100, (shiftsCompleted / targetShifts) * 100)
   const ratingPct = Math.min(100, Math.max(0, (reliabilityRating / 5) * 100))
   const ratingDisplay = Number.isFinite(reliabilityRating) ? reliabilityRating.toFixed(1) : "4.0"
+  const levelCountDeficit =
+    reliabilityMinRatingToCountShiftForLevel > 0
+      ? Math.max(0, reliabilityMinRatingToCountShiftForLevel - reliabilityRating)
+      : 0
+  const estimatedRecoveryShifts =
+    reliabilityRatingIncreasePerShift > 0
+      ? Math.ceil(levelCountDeficit / reliabilityRatingIncreasePerShift)
+      : 0
   /** Цвет шкалы по рейтингу: 0 = красный, 2.5 ≈ жёлтый, 5 = зелёный (HSL hue 0 → 120) */
   const ratingStrokeColor = `hsl(${(ratingPct / 100) * 120}, 65%, 45%)`
+  const reliabilityStatus =
+    reliabilityRating >= 4.5
+      ? { label: "Высокий рейтинг", Icon: ShieldCheck, tone: "text-success bg-success/10" }
+      : reliabilityRating >= 4
+        ? { label: "Стабильный рейтинг", Icon: ShieldCheck, tone: "text-accent bg-accent/10" }
+        : reliabilityRating >= 3.5
+          ? { label: "Нужен контроль", Icon: ShieldMinus, tone: "text-amber-600 bg-amber-500/10 dark:text-amber-400" }
+          : { label: "Зона риска", Icon: ShieldAlert, tone: "text-destructive bg-destructive/10" }
+  const StatusIcon = reliabilityStatus.Icon
 
   const hardcodedBenefits = benefits[currentLevel] || benefits["Серебряный партнёр"]
   const useApiPerks = currentLevelPerksFromApi != null && currentLevelPerksFromApi.length > 0
@@ -185,6 +233,82 @@ export function LevelProgress({
             </p>
             <p className="sr-only">Текущее значение рейтинга: {ratingDisplay} из 5.</p>
           </div>
+        </div>
+
+        <div className="space-y-2 mb-3 sm:mb-4">
+          <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] sm:text-xs font-medium ${reliabilityStatus.tone}`}>
+            <StatusIcon size={14} />
+            {reliabilityStatus.label}
+          </div>
+
+          <div className="rounded-lg bg-secondary/50 p-2.5 sm:p-3 text-[11px] sm:text-xs text-muted-foreground space-y-1.5">
+            <p>
+              Подтверждённая смена обычно даёт <span className="font-semibold text-foreground">+{reliabilityRatingIncreasePerShift.toFixed(1)}</span> к рейтингу.
+            </p>
+            <p>
+              Прогул снижает рейтинг на <span className="font-semibold text-foreground">-{reliabilityRatingDecreaseNoShow.toFixed(1)}</span>, поздняя отмена на <span className="font-semibold text-foreground">-{reliabilityRatingDecreaseLateCancel.toFixed(1)}</span>.
+            </p>
+            {reliabilityMinRatingToCountShiftForLevel > 0 && (
+              <p>
+                Смены идут в прогресс уровня только при рейтинге от <span className="font-semibold text-foreground">{reliabilityMinRatingToCountShiftForLevel.toFixed(1)}</span>.
+              </p>
+            )}
+            {!reliabilityCountsShiftsForLevel && reliabilityMinRatingToCountShiftForLevel > 0 && (
+              <p className="text-destructive">
+                Сейчас смены приносят монеты, но не засчитываются в уровень. До безопасного порога не хватает <span className="font-semibold">{levelCountDeficit.toFixed(1)}</span>.
+              </p>
+            )}
+            {!isMaxLevel && reliabilityMinRatingToUpgradeLevel > 0 && !reliabilityAllowsLevelUpgrade && (
+              <p className="text-amber-700 dark:text-amber-400">
+                Для автоматического повышения до уровня <span className="font-semibold">{nextLevel}</span> нужен рейтинг от <span className="font-semibold">{reliabilityMinRatingToUpgradeLevel.toFixed(1)}</span>.
+              </p>
+            )}
+            {estimatedRecoveryShifts > 0 && (
+              <p>
+                Ориентир для восстановления: ещё примерно <span className="font-semibold text-foreground">{estimatedRecoveryShifts}</span> подтверждённ{estimatedRecoveryShifts === 1 ? "ая смена" : estimatedRecoveryShifts < 5 ? "ые смены" : "ых смен"} без нарушений.
+              </p>
+            )}
+          </div>
+
+          {reliabilityRatingLog.length > 0 && (
+            <div className="rounded-lg border border-border p-2.5 sm:p-3">
+              <p className="text-[11px] sm:text-xs font-semibold text-foreground mb-2">
+                Последние изменения рейтинга
+              </p>
+              <div className="space-y-1.5">
+                {reliabilityRatingLog.slice(0, 3).map((item) => {
+                  const reasonLabel =
+                    item.reason === "shift"
+                      ? "Подтверждённая смена"
+                      : item.reason === "no_show"
+                        ? "Прогул"
+                        : item.reason === "late_cancel"
+                          ? "Поздняя отмена"
+                          : item.reason === "strike_removed"
+                            ? "Снятие штрафа"
+                            : "Изменение рейтинга"
+                  const isPositive = item.delta > 0
+
+                  return (
+                    <div key={item.id} className="flex items-start justify-between gap-2 text-[10px] sm:text-xs">
+                      <div className="min-w-0">
+                        <p className="text-foreground">{reasonLabel}</p>
+                        <p className="text-muted-foreground">{formatRatingDate(item.createdAt)}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className={isPositive ? "text-success font-semibold" : "text-destructive font-semibold"}>
+                          {isPositive ? "+" : ""}{item.delta.toFixed(1)}
+                        </p>
+                        <p className="text-muted-foreground">
+                          {item.previousRating.toFixed(1)} → {item.newRating.toFixed(1)}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Benefits toggle */}

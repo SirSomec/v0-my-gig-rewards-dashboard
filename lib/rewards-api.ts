@@ -102,6 +102,13 @@ export interface MeResponse {
   shiftsRequired: number;
   /** Рейтинг надёжности 0–5 (дробное). По умолчанию 4. */
   reliabilityRating: number;
+  reliabilityRatingIncreasePerShift: number;
+  reliabilityRatingDecreaseNoShow: number;
+  reliabilityRatingDecreaseLateCancel: number;
+  reliabilityMinRatingToCountShiftForLevel: number;
+  reliabilityMinRatingToUpgradeLevel: number;
+  reliabilityCountsShiftsForLevel: boolean;
+  reliabilityAllowsLevelUpgrade: boolean;
   /** Сумма начисленных бонусов за текущий месяц (смены + квесты) */
   monthlyBonusTotal?: number;
   /** Порог бонусов за месяц (0 = без ограничения) */
@@ -218,9 +225,23 @@ export interface StrikeResponse {
   removedAt: string | null;
 }
 
+export interface ReliabilityRatingLogResponse {
+  id: number;
+  previousRating: number;
+  newRating: number;
+  delta: number;
+  reason: string;
+  createdAt: string;
+}
+
 export async function fetchStrikes(limit = 50): Promise<StrikeResponse[]> {
   const url = buildUrl("/v1/rewards/strikes", { limit: String(limit) });
   return fetchApi<StrikeResponse[]>(url);
+}
+
+export async function fetchReliabilityRatingLog(limit = 10): Promise<ReliabilityRatingLogResponse[]> {
+  const url = buildUrl("/v1/rewards/reliability-rating-log", { limit: String(limit) });
+  return fetchApi<ReliabilityRatingLogResponse[]>(url);
 }
 
 export async function fetchQuests(): Promise<QuestResponse[]> {

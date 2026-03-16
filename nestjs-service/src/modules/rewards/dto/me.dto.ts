@@ -13,6 +13,20 @@ export class MeResponseDto {
   shiftsRequired!: number;
   /** Рейтинг надёжности 0–5 (дробное). По умолчанию 4. */
   reliabilityRating!: number;
+  /** На сколько растёт рейтинг за подтверждённую смену. */
+  reliabilityRatingIncreasePerShift!: number;
+  /** На сколько падает рейтинг за прогул. */
+  reliabilityRatingDecreaseNoShow!: number;
+  /** На сколько падает рейтинг за позднюю отмену. */
+  reliabilityRatingDecreaseLateCancel!: number;
+  /** Минимальный рейтинг, чтобы смена засчитывалась в прогресс уровня. */
+  reliabilityMinRatingToCountShiftForLevel!: number;
+  /** Минимальный рейтинг для автоматического повышения уровня. */
+  reliabilityMinRatingToUpgradeLevel!: number;
+  /** Засчитываются ли сейчас смены пользователя в прогресс уровня. */
+  reliabilityCountsShiftsForLevel!: boolean;
+  /** Может ли пользователь сейчас автоматически повышать уровень при достижении порога. */
+  reliabilityAllowsLevelUpgrade!: boolean;
   /** Сумма начисленных бонусов за текущий месяц (смены + квесты) */
   monthlyBonusTotal!: number;
   /** Порог бонусов за месяц: при достижении новые квесты не выдаются (0 = без ограничения) */

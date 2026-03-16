@@ -7,6 +7,7 @@ import { MeResponseDto } from './dto/me.dto';
 import { LevelResponseDto } from './dto/level.dto';
 import { QuestResponseDto } from './dto/quest.dto';
 import { StoreItemResponseDto, UserRedemptionResponseDto } from './dto/store.dto';
+import { ReliabilityRatingLogResponseDto } from './dto/reliability-rating-log.dto';
 import { StrikeResponseDto } from './dto/strike.dto';
 import { TransactionResponseDto } from './dto/transaction.dto';
 import { RewardsRepository } from './rewards.repository';
@@ -140,6 +141,19 @@ export class RewardsService {
     dto.shiftsCompleted = user.shiftsCompleted;
     dto.shiftsRequired = level.shiftsRequired;
     dto.reliabilityRating = Number(user.reliabilityRating ?? 4);
+    dto.reliabilityRatingIncreasePerShift = await this.getReliabilityRatingIncreasePerShift();
+    dto.reliabilityRatingDecreaseNoShow = await this.getReliabilityRatingDecreaseNoShow();
+    dto.reliabilityRatingDecreaseLateCancel = await this.getReliabilityRatingDecreaseLateCancel();
+    dto.reliabilityMinRatingToCountShiftForLevel =
+      await this.getReliabilityMinRatingToCountShiftForLevel();
+    dto.reliabilityMinRatingToUpgradeLevel =
+      await this.getReliabilityMinRatingToUpgradeLevel();
+    dto.reliabilityCountsShiftsForLevel =
+      dto.reliabilityMinRatingToCountShiftForLevel <= 0 ||
+      dto.reliabilityRating >= dto.reliabilityMinRatingToCountShiftForLevel;
+    dto.reliabilityAllowsLevelUpgrade =
+      dto.reliabilityMinRatingToUpgradeLevel <= 0 ||
+      dto.reliabilityRating >= dto.reliabilityMinRatingToUpgradeLevel;
     dto.monthlyBonusTotal = await this.rewardsRepository.getUserMonthlyBonusTotal(
       userId,
       monthStart,
@@ -151,6 +165,23 @@ export class RewardsService {
     dto.loyaltyStatus = (user.loyaltyStatus === 'pending' ? 'pending' : 'active') as 'active' | 'pending';
     dto.loyaltyRequestedAt = user.loyaltyRequestedAt != null ? (user.loyaltyRequestedAt as Date).toISOString() : null;
     return dto;
+  }
+
+  async getReliabilityRatingLog(
+    userId: number,
+    limit = 10,
+  ): Promise<ReliabilityRatingLogResponseDto[]> {
+    const rows = await this.rewardsRepository.listUserReliabilityRatingLog(userId, limit);
+    return rows.map((row) => {
+      const dto = new ReliabilityRatingLogResponseDto();
+      dto.id = row.id;
+      dto.previousRating = Number(row.previousRating);
+      dto.newRating = Number(row.newRating);
+      dto.delta = Number((Number(row.newRating) - Number(row.previousRating)).toFixed(2));
+      dto.reason = row.reason;
+      dto.createdAt = (row.createdAt as Date).toISOString();
+      return dto;
+    });
   }
 
   /** Отправить заявку на участие (пользователь нажал «Зарегистрироваться»). Только для pending без даты. */

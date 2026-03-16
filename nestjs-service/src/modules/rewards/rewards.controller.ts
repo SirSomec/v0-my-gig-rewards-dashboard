@@ -17,6 +17,7 @@ import { MeResponseDto } from './dto/me.dto';
 import { TransactionResponseDto } from './dto/transaction.dto';
 import { StrikeResponseDto } from './dto/strike.dto';
 import { QuestResponseDto } from './dto/quest.dto';
+import { ReliabilityRatingLogResponseDto } from './dto/reliability-rating-log.dto';
 import { StoreItemResponseDto, UserRedemptionResponseDto } from './dto/store.dto';
 import { LevelResponseDto } from './dto/level.dto';
 
@@ -77,6 +78,17 @@ export class RewardsController {
   ): Promise<StrikeResponseDto[]> {
     const id = this.getUserId(req, userId);
     return this.rewards.getStrikes(id, limit ? parseInt(limit, 10) : 50);
+  }
+
+  @Get('reliability-rating-log')
+  @ApiOperation({ summary: 'История изменений рейтинга надёжности пользователя' })
+  async getReliabilityRatingLog(
+    @Req() req: RequestWithUser,
+    @Query('userId') userId?: string,
+    @Query('limit') limit?: string,
+  ): Promise<ReliabilityRatingLogResponseDto[]> {
+    const id = this.getUserId(req, userId);
+    return this.rewards.getReliabilityRatingLog(id, limit ? parseInt(limit, 10) : 10);
   }
 
   @Get('quests')

@@ -28,7 +28,7 @@ export default function MyGigRewards() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<NavTab>("home")
   const [loyaltySubmitting, setLoyaltySubmitting] = useState(false)
-  const { user, transactions, quests, storeItems, redemptions, levels, currentLevelPerks, loading, error, refetch, purchaseItem, submitLoyaltyRequest, logout, isLoggedIn } = useRewardsDashboard()
+  const { user, transactions, reliabilityRatingLog, quests, storeItems, redemptions, levels, currentLevelPerks, loading, error, refetch, purchaseItem, submitLoyaltyRequest, logout, isLoggedIn } = useRewardsDashboard()
   const myGigEnabled = isMyGigAuthEnabled()
 
   useEffect(() => {
@@ -193,6 +193,14 @@ export default function MyGigRewards() {
                 shiftsRequired={user.nextLevelShiftsRequired ?? user.shiftsRequired}
                 shiftsRemaining={user.shiftsRemaining}
                 reliabilityRating={user.reliabilityRating}
+                reliabilityRatingIncreasePerShift={user.reliabilityRatingIncreasePerShift}
+                reliabilityRatingDecreaseNoShow={user.reliabilityRatingDecreaseNoShow}
+                reliabilityRatingDecreaseLateCancel={user.reliabilityRatingDecreaseLateCancel}
+                reliabilityMinRatingToCountShiftForLevel={user.reliabilityMinRatingToCountShiftForLevel}
+                reliabilityMinRatingToUpgradeLevel={user.reliabilityMinRatingToUpgradeLevel}
+                reliabilityCountsShiftsForLevel={user.reliabilityCountsShiftsForLevel}
+                reliabilityAllowsLevelUpgrade={user.reliabilityAllowsLevelUpgrade}
+                reliabilityRatingLog={reliabilityRatingLog}
                 currentLevelPerks={currentLevelPerks}
               />
               <Quests quests={quests} questsLimitedByCap={user.questsLimitedByCap} />
