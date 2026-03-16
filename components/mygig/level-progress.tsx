@@ -181,7 +181,7 @@ export function LevelProgress({
 
         <div className="mb-3 sm:mb-4 rounded-xl border border-border bg-secondary/35 p-2.5 sm:p-3">
           <div className="flex items-center gap-3">
-            <div className="flex-shrink-0 relative w-14 h-14 sm:w-16 sm:h-16">
+            <div className="flex-shrink-0 relative w-16 h-16 sm:w-20 sm:h-20">
             <svg
               viewBox="0 0 100 100"
               className="w-full h-full -rotate-90"
