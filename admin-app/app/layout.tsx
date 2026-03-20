@@ -25,7 +25,7 @@ export default function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem storageKey="mygig-admin-theme">
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="mygig-admin-theme">
           {children}
           <Toaster />
         </ThemeProvider>
