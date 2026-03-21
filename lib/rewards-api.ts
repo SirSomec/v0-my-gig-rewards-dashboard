@@ -140,6 +140,8 @@ export interface QuestResponse {
   progress: number;
   total: number;
   reward: number;
+  /** Прирост рейтинга надёжности при выполнении квеста */
+  rewardReliabilityRating?: number;
   icon: string;
   completed: boolean;
 }

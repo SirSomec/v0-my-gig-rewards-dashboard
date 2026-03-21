@@ -262,6 +262,34 @@ export class AdminController {
     return this.admin.getReliabilityRatingSettings();
   }
 
+  @Get('settings/rating-recovery-quest')
+  @ApiOperation({
+    summary:
+      'Автоквест при падении рейтинга: порог и параметры создаваемого единоразового квеста (без монет, награда — рейтинг)',
+  })
+  async getRatingRecoveryQuestSettings() {
+    return this.admin.getRatingRecoveryQuestSettings();
+  }
+
+  @Patch('settings/rating-recovery-quest')
+  @ApiOperation({ summary: 'Обновить настройки автоквеста восстановления рейтинга' })
+  async updateRatingRecoveryQuestSettings(
+    @Body()
+    body: {
+      enabled?: boolean;
+      assignBelowRating?: number;
+      name?: string;
+      description?: string;
+      period?: 'daily' | 'weekly' | 'monthly';
+      conditionType?: string;
+      conditionConfig?: Record<string, unknown>;
+      rewardReliabilityRating?: number;
+      icon?: string;
+    },
+  ) {
+    return this.admin.updateRatingRecoveryQuestSettings(body);
+  }
+
   @Patch('levels/:id')
   @ApiOperation({ summary: 'Обновить уровень' })
   async updateLevel(@Param('id') id: string, @Body() body: UpdateLevelDto) {

@@ -11,6 +11,12 @@ import { ReliabilityRatingLogResponseDto } from './dto/reliability-rating-log.dt
 import { StrikeResponseDto } from './dto/strike.dto';
 import { TransactionResponseDto } from './dto/transaction.dto';
 import { RewardsRepository } from './rewards.repository';
+import {
+  parseRatingRecoveryQuestSettings,
+  RATING_RECOVERY_ALLOWED_CONDITION_TYPES,
+  RATING_RECOVERY_QUEST_SETTINGS_KEY,
+  type RatingRecoveryQuestSettings,
+} from '../../shared/rating-recovery-quest-settings';
 
 /** Начало дня (00:00:00) в UTC для даты */
 function startOfDayUTC(d: Date): Date {
@@ -243,6 +249,9 @@ export class RewardsService {
     const rows = await this.rewardsRepository.listActiveQuests();
     const result: QuestResponseDto[] = [];
     for (const q of rows) {
+      if (q.assignedUserId != null && q.assignedUserId !== userId) {
+        continue;
+      }
       if (q.targetType === 'group' && q.targetGroupId != null) {
         if (!userGroupIds.has(q.targetGroupId)) continue;
       }
@@ -280,6 +289,7 @@ export class RewardsService {
       dto.progress = displayProgress;
       dto.total = total;
       dto.reward = q.rewardCoins;
+      dto.rewardReliabilityRating = Number(q.rewardReliabilityRating ?? 0);
       dto.icon = q.icon ?? 'target';
       dto.completed = completed;
       result.push(dto);
@@ -652,6 +662,7 @@ export class RewardsService {
       referenceType: 'strike',
       referenceId: strikeId,
     });
+    await this.maybeAssignRatingRecoveryQuestAfterRatingDrop(userId, currentRating, newRating);
     if (options.postProcessMode === 'enqueue') {
       await this.enqueuePendingRecalc(userId, 'strike_added');
     } else {
@@ -844,7 +855,7 @@ export class RewardsService {
    * Условие shifts_count: число транзакций type=shift за период (день/неделя). При достижении total — начисление награды.
    */
   async recalcQuestProgressForUser(userId: number): Promise<void> {
-    const { quests, questProgress, transactions, users, userGroupMembers } = schema;
+    const { quests, questProgress, transactions, userGroupMembers } = schema;
     const now = new Date();
     const todayStart = startOfDayUTC(now);
     const tomorrowStart = new Date(todayStart);
@@ -887,6 +898,9 @@ export class RewardsService {
 
     const rows = await this.rewardsRepository.db.select().from(quests).where(eq(quests.isActive, 1));
     for (const q of rows) {
+      if (q.assignedUserId != null && q.assignedUserId !== userId) {
+        continue;
+      }
       if (q.targetType === 'group' && q.targetGroupId != null) {
         if (!userGroupIds.has(q.targetGroupId)) continue;
       }
@@ -1090,20 +1104,7 @@ export class RewardsService {
         )
         .returning({ id: questProgress.id });
       if (completedRows.length > 0) {
-        const [user] = await this.rewardsRepository.db.select().from(users).where(eq(users.id, userId)).limit(1);
-        if (user) {
-          await this.rewardsRepository.db
-            .update(users)
-            .set({ balance: user.balance + q.rewardCoins })
-            .where(eq(users.id, userId));
-          await this.rewardsRepository.db.insert(transactions).values({
-            userId,
-            amount: q.rewardCoins,
-            type: 'quest',
-            sourceRef: String(q.id),
-            title: q.name,
-          });
-        }
+        await this.grantQuestCompletionRewards(userId, q, now);
       }
     }
   }
@@ -1171,10 +1172,13 @@ export class RewardsService {
     userId: number,
     questId: number,
   ): Promise<{ completed: boolean; alreadyCompleted: boolean }> {
-    const { quests, questProgress, users, transactions } = schema;
+    const { quests, questProgress, users } = schema;
     const now = new Date();
     const [quest] = await this.rewardsRepository.db.select().from(quests).where(eq(quests.id, questId)).limit(1);
     if (!quest) {
+      throw new NotFoundException('Quest not found');
+    }
+    if (quest.assignedUserId != null && quest.assignedUserId !== userId) {
       throw new NotFoundException('Quest not found');
     }
     if (quest.conditionType !== 'manual_confirmation') {
@@ -1237,17 +1241,107 @@ export class RewardsService {
         updatedAt: now,
       });
     }
-    await this.rewardsRepository.db
-      .update(users)
-      .set({ balance: user.balance + quest.rewardCoins })
-      .where(eq(users.id, userId));
-    await this.rewardsRepository.db.insert(transactions).values({
-      userId,
-      amount: quest.rewardCoins,
-      type: 'quest',
-      sourceRef: String(quest.id),
-      title: quest.name,
-    });
+    await this.grantQuestCompletionRewards(userId, quest, now);
     return { completed: true, alreadyCompleted: false };
+  }
+
+  private async getRatingRecoveryQuestSettings(): Promise<RatingRecoveryQuestSettings> {
+    const raw = await this.rewardsRepository.getSystemSettingValue(RATING_RECOVERY_QUEST_SETTINGS_KEY);
+    return parseRatingRecoveryQuestSettings(raw);
+  }
+
+  /**
+   * После снижения рейтинга: при включённой настройке и пороге — создать персональный единоразовый квест без монет.
+   */
+  private async maybeAssignRatingRecoveryQuestAfterRatingDrop(
+    userId: number,
+    previousRating: number,
+    newRating: number,
+  ): Promise<void> {
+    const cfg = await this.getRatingRecoveryQuestSettings();
+    if (!cfg.enabled) return;
+    if (newRating >= previousRating) return;
+    if (newRating > cfg.assignBelowRating) return;
+    if (cfg.rewardReliabilityRating <= 0) return;
+    if (
+      !RATING_RECOVERY_ALLOWED_CONDITION_TYPES.includes(
+        cfg.conditionType as (typeof RATING_RECOVERY_ALLOWED_CONDITION_TYPES)[number],
+      )
+    ) {
+      return;
+    }
+    if (await this.rewardsRepository.userHasActiveAutoRatingRecoveryQuest(userId)) return;
+    await this.createRatingRecoveryQuestForUser(userId, cfg);
+  }
+
+  private async createRatingRecoveryQuestForUser(
+    userId: number,
+    cfg: RatingRecoveryQuestSettings,
+  ): Promise<void> {
+    const { quests, questProgress } = schema;
+    const now = new Date();
+    const [inserted] = await this.rewardsRepository.db
+      .insert(quests)
+      .values({
+        name: cfg.name.slice(0, 256),
+        description: cfg.description ? cfg.description.slice(0, 512) : null,
+        period: cfg.period,
+        conditionType: cfg.conditionType,
+        conditionConfig: cfg.conditionConfig ?? {},
+        rewardCoins: 0,
+        rewardReliabilityRating: cfg.rewardReliabilityRating,
+        icon: (cfg.icon || 'target').slice(0, 32),
+        isActive: 1,
+        isOneTime: 1,
+        targetType: 'all',
+        targetGroupId: null,
+        autoAssignedRatingRecovery: 1,
+        assignedUserId: userId,
+      })
+      .returning({ id: quests.id });
+    if (!inserted) return;
+    await this.rewardsRepository.db.insert(questProgress).values({
+      userId,
+      questId: inserted.id,
+      periodKey: 'once',
+      progress: 0,
+      updatedAt: now,
+    });
+  }
+
+  private async grantQuestCompletionRewards(
+    userId: number,
+    q: typeof schema.quests.$inferSelect,
+    _now: Date,
+  ): Promise<void> {
+    const { users, transactions, quests } = schema;
+    const [user] = await this.rewardsRepository.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) return;
+    if (q.rewardCoins > 0) {
+      await this.rewardsRepository.db
+        .update(users)
+        .set({ balance: user.balance + q.rewardCoins })
+        .where(eq(users.id, userId));
+      await this.rewardsRepository.db.insert(transactions).values({
+        userId,
+        amount: q.rewardCoins,
+        type: 'quest',
+        sourceRef: String(q.id),
+        title: q.name,
+      });
+    }
+    const rr = Number(q.rewardReliabilityRating ?? 0);
+    if (rr > 0) {
+      const currentRating = Number(user.reliabilityRating ?? 4);
+      const newRating = Math.min(5, currentRating + rr);
+      await this.rewardsRepository.updateUserReliabilityRating(userId, newRating, {
+        reason: 'quest_completion',
+        referenceType: 'quest',
+        referenceId: q.id,
+      });
+    }
+    if (q.autoAssignedRatingRecovery === 1) {
+      await this.rewardsRepository.db.update(quests).set({ isActive: 0 }).where(eq(quests.id, q.id));
+    }
   }
 }

@@ -620,7 +620,11 @@ export class AdminDbRepository {
   }
 
   async listQuests(): Promise<(typeof schema.quests.$inferSelect)[]> {
-    return this.client.select().from(schema.quests).orderBy(schema.quests.id);
+    return this.client
+      .select()
+      .from(schema.quests)
+      .where(eq(schema.quests.autoAssignedRatingRecovery, 0))
+      .orderBy(schema.quests.id);
   }
 
   async insertQuest(values: typeof schema.quests.$inferInsert): Promise<number> {

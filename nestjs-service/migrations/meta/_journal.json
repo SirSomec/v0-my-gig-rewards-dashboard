@@ -127,6 +127,13 @@
       "when": 1773532800000,
       "tag": "0019_pending_recalc_users",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1773619200000,
+      "tag": "0020_rating_recovery_quest",
+      "breakpoints": true
     }
   ]
 }

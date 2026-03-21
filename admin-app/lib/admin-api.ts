@@ -467,6 +467,44 @@ export async function adminUpdateReliabilityRatingSettings(body: {
   });
 }
 
+export type RatingRecoveryQuestSettings = {
+  enabled: boolean;
+  assignBelowRating: number;
+  name: string;
+  description: string;
+  period: "daily" | "weekly" | "monthly";
+  conditionType: string;
+  conditionConfig: Record<string, unknown>;
+  rewardReliabilityRating: number;
+  icon: string;
+};
+
+export const RATING_RECOVERY_CONDITION_TYPE_OPTIONS = [
+  "bookings_count",
+  "shifts_count",
+  "shifts_count_client",
+  "shifts_count_clients",
+  "shifts_count_category",
+  "hours_count",
+  "hours_count_client",
+  "hours_count_clients",
+  "shifts_series",
+  "manual_confirmation",
+] as const;
+
+export async function adminGetRatingRecoveryQuestSettings(): Promise<RatingRecoveryQuestSettings> {
+  return fetchAdmin<RatingRecoveryQuestSettings>("/v1/admin/settings/rating-recovery-quest");
+}
+
+export async function adminUpdateRatingRecoveryQuestSettings(
+  body: Partial<RatingRecoveryQuestSettings>
+): Promise<RatingRecoveryQuestSettings> {
+  return fetchAdmin<RatingRecoveryQuestSettings>("/v1/admin/settings/rating-recovery-quest", {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function adminGetLoyaltyPreRegistration(): Promise<{ enabled: boolean }> {
   return fetchAdmin("/v1/admin/loyalty-pre-registration");
 }

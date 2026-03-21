@@ -1,7 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Flame, Target, CalendarCheck, Trophy } from "lucide-react"
+import { Flame, Target, CalendarCheck, Trophy, TrendingUp } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { GigCoinIcon } from "./gig-coin-icon"
 
@@ -67,24 +67,46 @@ function QuestCard({
           <Icon size={16} className="sm:w-[18px] sm:h-[18px]" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-1">
+            <div className="flex items-center justify-between gap-1">
             <p className={`text-xs sm:text-sm font-medium leading-tight min-w-0 truncate ${
               quest.completed ? "text-success line-through" : "text-foreground"
             }`}>
               {quest.title}
             </p>
-            <div className="flex items-center gap-1 flex-shrink-0 ml-1 text-[var(--quest-bonus)]">
-              <GigCoinIcon size={14} />
-              <span className="text-[11px] sm:text-xs font-bold tabular-nums">
-                +{quest.reward}
-              </span>
+            <div className="flex flex-col items-end gap-0.5 flex-shrink-0 ml-1">
+              {quest.reward > 0 ? (
+                <div className="flex items-center gap-1 text-[var(--quest-bonus)]">
+                  <GigCoinIcon size={14} />
+                  <span className="text-[11px] sm:text-xs font-bold tabular-nums">+{quest.reward}</span>
+                </div>
+              ) : null}
+              {quest.rewardReliabilityRating != null && quest.rewardReliabilityRating > 0 ? (
+                <div className="flex items-center gap-1 text-primary">
+                  <TrendingUp size={14} className="shrink-0" aria-hidden />
+                  <span className="text-[11px] sm:text-xs font-bold tabular-nums">
+                    +{quest.rewardReliabilityRating} к рейтингу
+                  </span>
+                </div>
+              ) : null}
+              {quest.reward <= 0 &&
+              (quest.rewardReliabilityRating == null || quest.rewardReliabilityRating <= 0) ? (
+                <span className="text-[10px] sm:text-[11px] text-muted-foreground tabular-nums">—</span>
+              ) : null}
             </div>
           </div>
           <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5">{quest.description}</p>
           <p className="sr-only">
-            {quest.completed
-              ? `Статус: выполнено. Награда ${quest.reward} монет.`
-              : `Статус: в процессе. Выполнено ${quest.progress} из ${quest.total}. Награда ${quest.reward} монет.`}
+            {(() => {
+              const parts: string[] = []
+              if (quest.reward > 0) parts.push(`${quest.reward} монет`)
+              if (quest.rewardReliabilityRating != null && quest.rewardReliabilityRating > 0) {
+                parts.push(`рейтинг +${quest.rewardReliabilityRating}`)
+              }
+              const rewardText = parts.length > 0 ? parts.join(", ") : "нет"
+              return quest.completed
+                ? `Статус: выполнено. Награда: ${rewardText}.`
+                : `Статус: в процессе. Выполнено ${quest.progress} из ${quest.total}. Награда: ${rewardText}.`
+            })()}
           </p>
 
           {!quest.completed && (

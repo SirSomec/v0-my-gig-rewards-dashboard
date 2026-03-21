@@ -236,6 +236,26 @@ export class RewardsRepository {
       .where(eq(schema.quests.isActive, 1));
   }
 
+  /** Активный (не завершённый) автоквест восстановления рейтинга у пользователя. */
+  async userHasActiveAutoRatingRecoveryQuest(userId: number): Promise<boolean> {
+    const { quests, questProgress } = schema;
+    const rows = await this.client
+      .select({ id: questProgress.id })
+      .from(questProgress)
+      .innerJoin(quests, eq(questProgress.questId, quests.id))
+      .where(
+        and(
+          eq(questProgress.userId, userId),
+          isNull(questProgress.completedAt),
+          eq(quests.autoAssignedRatingRecovery, 1),
+          eq(quests.isActive, 1),
+          eq(quests.assignedUserId, userId),
+        ),
+      )
+      .limit(1);
+    return rows.length > 0;
+  }
+
   async getQuestProgress(
     userId: number,
     questId: number,

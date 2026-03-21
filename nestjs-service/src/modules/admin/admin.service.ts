@@ -6,6 +6,12 @@ import type { CreateQuestDto, CreateStoreItemDto, UpdateLevelDto, UpdateQuestDto
 import { RewardsService } from '../rewards/rewards.service';
 import { AdminContextService } from './admin-context.service';
 import { AdminDbRepository } from './admin-db.repository';
+import {
+  parseRatingRecoveryQuestSettings,
+  RATING_RECOVERY_ALLOWED_CONDITION_TYPES,
+  RATING_RECOVERY_QUEST_SETTINGS_KEY,
+  type RatingRecoveryQuestSettings,
+} from '../../shared/rating-recovery-quest-settings';
 
 @Injectable()
 export class AdminService {
@@ -501,6 +507,69 @@ export class AdminService {
     }
   }
 
+  /** Шаблон автоквеста при падении рейтинга (параметры создаваемого квеста). */
+  async getRatingRecoveryQuestSettings(): Promise<RatingRecoveryQuestSettings> {
+    const raw = await this.adminDbRepository.getSystemSettingValue(RATING_RECOVERY_QUEST_SETTINGS_KEY);
+    return parseRatingRecoveryQuestSettings(raw);
+  }
+
+  async updateRatingRecoveryQuestSettings(
+    dto: Partial<RatingRecoveryQuestSettings>,
+  ): Promise<RatingRecoveryQuestSettings> {
+    const current = await this.getRatingRecoveryQuestSettings();
+    const merged: RatingRecoveryQuestSettings = {
+      ...current,
+      ...Object.fromEntries(
+        Object.entries(dto).filter(([, v]) => v !== undefined),
+      ) as Partial<RatingRecoveryQuestSettings>,
+    };
+    if (dto.assignBelowRating !== undefined) {
+      const v = Number(dto.assignBelowRating);
+      if (Number.isNaN(v) || v < 0 || v > 5) {
+        throw new BadRequestException('assignBelowRating must be between 0 and 5');
+      }
+      merged.assignBelowRating = v;
+    }
+    if (dto.rewardReliabilityRating !== undefined) {
+      const v = Number(dto.rewardReliabilityRating);
+      if (Number.isNaN(v) || v < 0 || v > 5) {
+        throw new BadRequestException('rewardReliabilityRating must be between 0 and 5');
+      }
+      merged.rewardReliabilityRating = v;
+    }
+    if (dto.conditionType !== undefined) {
+      const t = dto.conditionType.trim();
+      if (!RATING_RECOVERY_ALLOWED_CONDITION_TYPES.includes(t as (typeof RATING_RECOVERY_ALLOWED_CONDITION_TYPES)[number])) {
+        throw new BadRequestException(`conditionType must be one of: ${RATING_RECOVERY_ALLOWED_CONDITION_TYPES.join(', ')}`);
+      }
+      merged.conditionType = t;
+    }
+    if (dto.period !== undefined) {
+      if (dto.period !== 'daily' && dto.period !== 'weekly' && dto.period !== 'monthly') {
+        throw new BadRequestException('period must be daily, weekly or monthly');
+      }
+      merged.period = dto.period;
+    }
+    if (dto.conditionConfig !== undefined) {
+      if (dto.conditionConfig == null || typeof dto.conditionConfig !== 'object' || Array.isArray(dto.conditionConfig)) {
+        throw new BadRequestException('conditionConfig must be a JSON object');
+      }
+      merged.conditionConfig = dto.conditionConfig;
+    }
+    if (!merged.name.trim()) {
+      throw new BadRequestException('name must be a non-empty string');
+    }
+    await this.adminDbRepository.setSystemSetting(RATING_RECOVERY_QUEST_SETTINGS_KEY, merged);
+    await this.logAudit(
+      'rating_recovery_quest_settings_update',
+      'system_settings',
+      RATING_RECOVERY_QUEST_SETTINGS_KEY,
+      current,
+      merged,
+    );
+    return merged;
+  }
+
   /** Включена ли предварительная регистрация в программе лояльности. */
   async getLoyaltyPreRegistrationEnabled(): Promise<boolean> {
     return this.adminDbRepository.getLoyaltyPreRegistrationEnabled();
@@ -626,6 +695,11 @@ export class AdminService {
   async updateQuest(id: number, dto: UpdateQuestDto) {
     const existing = await this.adminDbRepository.getQuestById(id);
     if (!existing) throw new NotFoundException('Quest not found');
+    if (existing.autoAssignedRatingRecovery === 1) {
+      throw new BadRequestException(
+        'Квесты, автоматически созданные при падении рейтинга, нельзя редактировать в списке квестов.',
+      );
+    }
     const { quests } = schema;
     const updates: Partial<typeof quests.$inferInsert> = {};
     if (dto.name !== undefined) updates.name = dto.name;

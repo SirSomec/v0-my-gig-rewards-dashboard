@@ -1,5 +1,6 @@
-import { integer, jsonb, pgTable, timestamp, varchar } from 'drizzle-orm/pg-core';
+import { integer, jsonb, pgTable, real, timestamp, varchar } from 'drizzle-orm/pg-core';
 import { timestamps } from './base.schema';
+import { users } from './users.schema';
 
 export const quests = pgTable('quests', {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -9,6 +10,8 @@ export const quests = pgTable('quests', {
   conditionType: varchar('condition_type', { length: 64 }).notNull(),
   conditionConfig: jsonb('condition_config').$type<Record<string, unknown>>().default({}),
   rewardCoins: integer('reward_coins').notNull(),
+  /** Прирост рейтинга надёжности при выполнении (0 = без прироста) */
+  rewardReliabilityRating: real('reward_reliability_rating').notNull().default(0),
   icon: varchar('icon', { length: 32 }).default('target'),
   isActive: integer('is_active').notNull().default(1),
   /** Единоразовый: пользователь может выполнить квест только один раз (независимо от периода) */
@@ -19,5 +22,9 @@ export const quests = pgTable('quests', {
   activeUntil: timestamp('active_until', { withTimezone: true }),
   targetType: varchar('target_type', { length: 16 }).default('all'), // all | group
   targetGroupId: integer('target_group_id'),
+  /** 1 = создан системой при падении рейтинга */
+  autoAssignedRatingRecovery: integer('auto_assigned_rating_recovery').notNull().default(0),
+  /** Персональный квест: виден только этому пользователю */
+  assignedUserId: integer('assigned_user_id').references(() => users.id, { onDelete: 'cascade' }),
   ...timestamps,
 });

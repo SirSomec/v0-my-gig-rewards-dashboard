@@ -215,6 +215,10 @@ function mapQuest(q: QuestResponse): Quest {
     progress: q.progress,
     total: q.total,
     reward: q.reward,
+    rewardReliabilityRating:
+      q.rewardReliabilityRating != null && q.rewardReliabilityRating > 0
+        ? q.rewardReliabilityRating
+        : undefined,
     icon: questIconMap[q.icon] ?? "target",
     completed: q.completed,
     period,

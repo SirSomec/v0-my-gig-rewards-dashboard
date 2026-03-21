@@ -8,6 +8,8 @@ export class QuestResponseDto {
   progress!: number;
   total!: number;
   reward!: number;
+  /** Прирост рейтинга надёжности при выполнении (0 = не отображать как награду рейтингом) */
+  rewardReliabilityRating!: number;
   icon!: string;
   completed!: boolean;
 }

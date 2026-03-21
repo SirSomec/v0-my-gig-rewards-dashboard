@@ -8,6 +8,9 @@ import {
   adminUpdateReliabilityRatingSettings,
   adminGetLoyaltyPreRegistration,
   adminSetLoyaltyPreRegistration,
+  adminGetRatingRecoveryQuestSettings,
+  adminUpdateRatingRecoveryQuestSettings,
+  RATING_RECOVERY_CONDITION_TYPE_OPTIONS,
 } from "@/lib/admin-api"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -15,7 +18,34 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
+
+const RR_PERIOD_LABELS: Record<string, string> = {
+  daily: "За день (окно как у ежедневных квестов)",
+  weekly: "За неделю",
+  monthly: "За месяц",
+}
+
+const RR_CONDITION_LABELS: Record<string, string> = {
+  bookings_count: "Забронированные смены",
+  shifts_count: "Количество выполненных смен",
+  shifts_count_client: "Смены у одного клиента",
+  shifts_count_clients: "Смены у нескольких клиентов",
+  shifts_count_category: "Смены в категории",
+  hours_count: "Часы",
+  hours_count_client: "Часы у клиента",
+  hours_count_clients: "Часы у нескольких клиентов",
+  shifts_series: "Серия смен без прогулов",
+  manual_confirmation: "Ручное подтверждение админом",
+}
 
 export default function AdminSettingsPage() {
   const [shiftBonusDefaultMultiplier, setShiftBonusDefaultMultiplier] = useState<string>("")
@@ -30,12 +60,27 @@ export default function AdminSettingsPage() {
   const [savingReliability, setSavingReliability] = useState(false)
   const [loyaltyPreRegistrationEnabled, setLoyaltyPreRegistrationEnabled] = useState(false)
   const [savingPreReg, setSavingPreReg] = useState(false)
+  const [rrEnabled, setRrEnabled] = useState(false)
+  const [rrAssignBelow, setRrAssignBelow] = useState("3")
+  const [rrName, setRrName] = useState("")
+  const [rrDescription, setRrDescription] = useState("")
+  const [rrPeriod, setRrPeriod] = useState<"daily" | "weekly" | "monthly">("monthly")
+  const [rrConditionType, setRrConditionType] = useState("shifts_count")
+  const [rrConditionConfigJson, setRrConditionConfigJson] = useState("{}")
+  const [rrRewardRating, setRrRewardRating] = useState("0.3")
+  const [rrIcon, setRrIcon] = useState("target")
+  const [savingRr, setSavingRr] = useState(false)
   const { toast } = useToast()
 
   const load = useCallback(() => {
     setLoading(true)
-    Promise.all([adminGetBonusSettings(), adminGetReliabilityRatingSettings(), adminGetLoyaltyPreRegistration()])
-      .then(([bonus, reliability, preReg]) => {
+    Promise.all([
+      adminGetBonusSettings(),
+      adminGetReliabilityRatingSettings(),
+      adminGetLoyaltyPreRegistration(),
+      adminGetRatingRecoveryQuestSettings(),
+    ])
+      .then(([bonus, reliability, preReg, rr]) => {
         setShiftBonusDefaultMultiplier(String(bonus.shiftBonusDefaultMultiplier))
         setQuestMonthlyBonusCap(String(bonus.questMonthlyBonusCap))
         setLoyaltyPreRegistrationEnabled(!!preReg.enabled)
@@ -48,6 +93,15 @@ export default function AdminSettingsPage() {
         setReliabilityMinRatingToUpgradeLevel(
           String(reliability.reliabilityMinRatingToUpgradeLevel ?? 0)
         )
+        setRrEnabled(!!rr.enabled)
+        setRrAssignBelow(String(rr.assignBelowRating))
+        setRrName(rr.name)
+        setRrDescription(rr.description)
+        setRrPeriod(rr.period)
+        setRrConditionType(rr.conditionType)
+        setRrConditionConfigJson(JSON.stringify(rr.conditionConfig ?? {}, null, 2))
+        setRrRewardRating(String(rr.rewardReliabilityRating))
+        setRrIcon(rr.icon || "target")
       })
       .catch(() => toast({ title: "Ошибка загрузки настроек", variant: "destructive" }))
       .finally(() => setLoading(false))
@@ -132,6 +186,60 @@ export default function AdminSettingsPage() {
       })
       .catch((e) => toast({ title: e instanceof Error ? e.message : "Ошибка", variant: "destructive" }))
       .finally(() => setSavingReliability(false))
+  }
+
+  const handleSaveRatingRecoveryQuest = () => {
+    const assignBelow = Number(rrAssignBelow)
+    const rewardR = Number(rrRewardRating)
+    if (Number.isNaN(assignBelow) || assignBelow < 0 || assignBelow > 5) {
+      toast({ title: "Порог рейтинга должен быть от 0 до 5", variant: "destructive" })
+      return
+    }
+    if (Number.isNaN(rewardR) || rewardR < 0 || rewardR > 5) {
+      toast({ title: "Прирост рейтинга за квест должен быть от 0 до 5", variant: "destructive" })
+      return
+    }
+    if (!rrName.trim()) {
+      toast({ title: "Укажите название квеста", variant: "destructive" })
+      return
+    }
+    let conditionConfig: Record<string, unknown>
+    try {
+      const parsed: unknown = JSON.parse(rrConditionConfigJson || "{}")
+      if (parsed == null || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("not_object")
+      }
+      conditionConfig = parsed as Record<string, unknown>
+    } catch {
+      toast({ title: "condition_config: невалидный JSON-объект", variant: "destructive" })
+      return
+    }
+    setSavingRr(true)
+    adminUpdateRatingRecoveryQuestSettings({
+      enabled: rrEnabled,
+      assignBelowRating: assignBelow,
+      name: rrName.trim(),
+      description: rrDescription,
+      period: rrPeriod,
+      conditionType: rrConditionType,
+      conditionConfig,
+      rewardReliabilityRating: rewardR,
+      icon: rrIcon,
+    })
+      .then((saved) => {
+        setRrEnabled(!!saved.enabled)
+        setRrAssignBelow(String(saved.assignBelowRating))
+        setRrName(saved.name)
+        setRrDescription(saved.description)
+        setRrPeriod(saved.period)
+        setRrConditionType(saved.conditionType)
+        setRrConditionConfigJson(JSON.stringify(saved.conditionConfig ?? {}, null, 2))
+        setRrRewardRating(String(saved.rewardReliabilityRating))
+        setRrIcon(saved.icon || "target")
+        toast({ title: "Настройки автоквеста сохранены" })
+      })
+      .catch((e) => toast({ title: e instanceof Error ? e.message : "Ошибка", variant: "destructive" }))
+      .finally(() => setSavingRr(false))
   }
 
   const handlePreRegToggle = (checked: boolean) => {
@@ -316,6 +424,142 @@ export default function AdminSettingsPage() {
               </div>
               <Button onClick={handleSaveReliability} disabled={savingReliability}>
                 {savingReliability ? "Сохранение…" : "Сохранить настройки рейтинга"}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <h2 className="text-sm font-medium">Автоквест при падении рейтинга</h2>
+          <p className="text-xs text-muted-foreground">
+            Если включено, при снижении рейтинга надёжности (например, из‑за прогула или поздней отмены) до выбранного
+            порога или ниже пользователю создаётся персональный единоразовый квест в разделе «Единоразовые цели». Монеты за
+            него не начисляются; при выполнении начисляется только прирост рейтинга (до 5). Параметры ниже задают каждый
+            такой создаваемый квест. Повторное назначение возможно после выполнения предыдущего квеста и очередного снижения
+            рейтинга при тех же условиях.
+          </p>
+          {loading ? (
+            <Skeleton className="h-40 w-full max-w-lg" />
+          ) : (
+            <div className="grid gap-4 max-w-lg">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="rrEnabled"
+                  checked={rrEnabled}
+                  onCheckedChange={(c) => setRrEnabled(c === true)}
+                  disabled={savingRr}
+                />
+                <Label htmlFor="rrEnabled" className="cursor-pointer">
+                  Включить автоназначение
+                </Label>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="rrAssignBelow">Назначать квест, если рейтинг стал ≤ (0–5)</Label>
+                <Input
+                  id="rrAssignBelow"
+                  type="number"
+                  min={0}
+                  max={5}
+                  step={0.1}
+                  value={rrAssignBelow}
+                  onChange={(e) => setRrAssignBelow(e.target.value)}
+                  className="w-32"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="rrName">Название квеста</Label>
+                <Input id="rrName" value={rrName} onChange={(e) => setRrName(e.target.value)} maxLength={256} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="rrDescription">Описание</Label>
+                <Textarea
+                  id="rrDescription"
+                  value={rrDescription}
+                  onChange={(e) => setRrDescription(e.target.value)}
+                  rows={3}
+                  maxLength={512}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Период подсчёта прогресса</Label>
+                <Select
+                  value={rrPeriod}
+                  onValueChange={(v) => setRrPeriod(v as "daily" | "weekly" | "monthly")}
+                  disabled={savingRr}
+                >
+                  <SelectTrigger className="w-full max-w-md">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(["daily", "weekly", "monthly"] as const).map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {RR_PERIOD_LABELS[p]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Тип условия</Label>
+                <Select value={rrConditionType} onValueChange={setRrConditionType} disabled={savingRr}>
+                  <SelectTrigger className="w-full max-w-md">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RATING_RECOVERY_CONDITION_TYPE_OPTIONS.map((v) => (
+                      <SelectItem key={v} value={v}>
+                        {RR_CONDITION_LABELS[v] ?? v}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="rrConditionConfigJson">condition_config (JSON)</Label>
+                <Textarea
+                  id="rrConditionConfigJson"
+                  value={rrConditionConfigJson}
+                  onChange={(e) => setRrConditionConfigJson(e.target.value)}
+                  rows={5}
+                  className="font-mono text-xs"
+                  spellCheck={false}
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Например: <code className="bg-muted px-1 rounded">{"{ \"total\": 3 }"}</code> для смен,{" "}
+                  <code className="bg-muted px-1 rounded">{"{ \"totalHours\": 10 }"}</code> для часов.
+                </p>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="rrRewardRating">Прирост рейтинга за выполнение (без монет)</Label>
+                <Input
+                  id="rrRewardRating"
+                  type="number"
+                  min={0}
+                  max={5}
+                  step={0.1}
+                  value={rrRewardRating}
+                  onChange={(e) => setRrRewardRating(e.target.value)}
+                  className="w-32"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Иконка</Label>
+                <Select value={rrIcon} onValueChange={setRrIcon} disabled={savingRr}>
+                  <SelectTrigger className="w-full max-w-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="target">Цель (target)</SelectItem>
+                    <SelectItem value="streak">Серия (streak)</SelectItem>
+                    <SelectItem value="calendar">Календарь (calendar)</SelectItem>
+                    <SelectItem value="trophy">Трофей (trophy)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={handleSaveRatingRecoveryQuest} disabled={savingRr}>
+                {savingRr ? "Сохранение…" : "Сохранить автоквест"}
               </Button>
             </div>
           )}
