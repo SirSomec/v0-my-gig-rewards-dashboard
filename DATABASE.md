@@ -210,6 +210,7 @@ erDiagram
 | `condition_type`  | varchar(64) | Тип условия (логика проверки на бэкенде) |
 | `condition_config`| jsonb   | Конфиг условия (параметры под тип) |
 | `reward_coins`    | int     | Награда в монетах за выполнение |
+| `reward_reliability_rating` | real | Прирост рейтинга надёжности при выполнении (0 = без прироста); миграция `0020_rating_recovery_quest` |
 | `icon`            | varchar(32) | Иконка (по умолчанию `target`) |
 | `is_active`       | int     | Активен ли квест (1 = да) |
 | `is_one_time`     | int     | Единоразовый: выполнить можно только один раз (0/1) |
@@ -217,6 +218,8 @@ erDiagram
 | `active_until`    | timestamp | После этой даты не показывать |
 | `target_type`     | varchar(16) | Кому доступен: `all` \| `group` |
 | `target_group_id` | int     | ID группы, если `target_type = group` |
+| `auto_assigned_rating_recovery` | int | 1 = квест создан автоматически при падении рейтинга (миграция `0020`) |
+| `assigned_user_id` | int FK → `users.id` | Персональный квест: только для этого пользователя; `ON DELETE CASCADE` |
 | `created_at`, `updated_at`, `deleted_at` | timestamp | Общие метки времени |
 
 **Связи:** один ко многим с `quest_progress` по `quest_id`.
@@ -360,7 +363,7 @@ erDiagram
 | `value`       | jsonb   | Значение (число, строка, объект) |
 | `created_at`, `updated_at`, `deleted_at` | timestamp | Общие метки времени |
 
-**Назначение:** ключ `shift_bonus_default_multiplier` — множитель по умолчанию (монет за 1 час смены). Ключи **рейтинга надёжности**: `reliability_rating_increase_per_shift` (прирост за смену), `reliability_rating_decrease_no_show` (снижение за прогул), `reliability_rating_decrease_late_cancel` (снижение за позднюю отмену). Итоговый бонус за смену = ceil(часы) × множитель по умолчанию × множитель уровня лояльности (`levels.bonus_multiplier`).
+**Назначение:** ключ `shift_bonus_default_multiplier` — множитель по умолчанию (монет за 1 час смены). Ключи **рейтинга надёжности**: `reliability_rating_increase_per_shift` (прирост за смену), `reliability_rating_decrease_no_show` (снижение за прогул), `reliability_rating_decrease_late_cancel` (снижение за позднюю отмену), `reliability_min_rating_to_count_shift_for_level`, `reliability_min_rating_to_upgrade_level`. Ключ **`rating_recovery_quest_settings`** — JSON-объект шаблона автоквеста при падении рейтинга: `enabled`, `assignBelowRating`, `name`, `description`, `period`, `conditionType`, `conditionConfig`, `rewardReliabilityRating`, `icon` (см. миграцию `0020_rating_recovery_quest`). Итоговый бонус за смену = ceil(часы) × множитель по умолчанию × множитель уровня лояльности (`levels.bonus_multiplier`).
 
 ---
 
@@ -384,7 +387,7 @@ erDiagram
 ## Назначение данных по доменам
 
 - **Пользователи и уровни:** `users` + `levels` — профиль, баланс, уровень, смены; уровень задаёт требования и лимиты штрафов.
-- **Квесты:** `quests` — шаблоны заданий; `quest_progress` — прогресс по квестам в периоде; награды квестов попадают в `transactions` с `type = quest`.
+- **Квесты:** `quests` — шаблоны заданий (в т.ч. персональные автоквесты с `assigned_user_id`); `quest_progress` — прогресс по квестам в периоде; награды в монетах — `transactions` с `type = quest`; награда рейтингом — обновление `users.reliability_rating` и лог без обязательной транзакции квеста при нулевых монетах.
 - **Монеты:** `transactions` — полная история движений монет; `users.balance` — текущий баланс (денормализация для быстрого доступа).
 - **Магазин:** `store_items` — каталог; `redemptions` — заявки на обмен; списание при выкупе — транзакция `type = redemption`.
 - **Дисциплина:** `strikes` — штрафы (история и привязка к смене); при регистрации штрафа снижается `users.reliability_rating`; при снятии штрафа рейтинг восстанавливается. Настройки рейтинга в `system_settings`.

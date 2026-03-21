@@ -232,12 +232,17 @@
 | `condition_type` | Тип условия: `shifts_count`, `bookings_count`, `shifts_count_client`, `shifts_count_clients`, `shifts_count_category`, `hours_count`, `hours_count_client`, `hours_count_clients`, **`shifts_series`** (серия смен без прогулов/поздних отмен), **`manual_confirmation`** (ручное подтверждение админом). |
 | `condition_config` | JSON параметров: `total` (число смен), `totalHours` (часы), `clientId`, `clientIds[]`, `category` — в зависимости от типа. |
 | `reward_coins` | Награда в монетах. |
+| `reward_reliability_rating` | Прирост рейтинга надёжности при выполнении (0 = только монеты или без прироста). |
 | `icon` | streak, target, calendar, trophy. |
 | `is_active` | Вкл/выкл. |
 | `is_one_time` | Единоразовый квест (пользователь выполняет один раз). |
 | `active_from`, `active_until` | Окно активности (опционально); после `active_until` квест не показывается (автоотключение по периоду). |
 | `target_type` | `all` \| `group` — для всех или для групп. |
 | `target_group_id` | FK на группу (если target_type = group); NULL для глобальных. |
+| `auto_assigned_rating_recovery` | 1 — квест создан системой при падении рейтинга; после выполнения обычно снимается с показа (`is_active = 0`). |
+| `assigned_user_id` | Если задан — квест виден и пересчитывается только для этого пользователя (персональное назначение). |
+
+Шаблон параметров **автоквеста при падении рейтинга** (порог, текст, тип условия, `condition_config`, прирост рейтинга) хранится в `system_settings` под ключом `rating_recovery_quest_settings`; при штрафе бэкенд может вставить новую строку в `quests` по этому шаблону.
 
 Группы пользователей (для квестов и видимости товаров) можно хранить в отдельной таблице с правилами (уровень, регион, партнёр, тег) или связью user_id ↔ group_id.
 
@@ -253,7 +258,7 @@
 | `completed_at` | NULL или время выполнения (тогда начисление уже выдано). |
 | `created_at`, `updated_at` | Служебные поля. |
 
-Уникальность: один `(user_id, quest_id, period_key)`. Начисление монет за квест создаём один раз при `completed_at` и пишем транзакцию.
+Уникальность: один `(user_id, quest_id, period_key)`. Награда за квест выдаётся один раз при переходе в выполненное состояние: при необходимости начисляются монеты и транзакция `quest`, при `reward_reliability_rating > 0` — обновление `users.reliability_rating` и запись в лог рейтинга.
 
 ### 2.9 Админка и аудит
 
