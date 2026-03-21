@@ -26,6 +26,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  QuestConditionConfigFields,
+  buildQuestConditionConfig,
+  conditionConfigFormFromServer,
+  type QuestConditionConfigForm,
+} from "@/components/quest-condition-config-fields"
 import { useToast } from "@/hooks/use-toast"
 
 const RR_PERIOD_LABELS: Record<string, string> = {
@@ -66,7 +72,9 @@ export default function AdminSettingsPage() {
   const [rrDescription, setRrDescription] = useState("")
   const [rrPeriod, setRrPeriod] = useState<"daily" | "weekly" | "monthly">("monthly")
   const [rrConditionType, setRrConditionType] = useState("shifts_count")
-  const [rrConditionConfigJson, setRrConditionConfigJson] = useState("{}")
+  const [rrConditionConfig, setRrConditionConfig] = useState<QuestConditionConfigForm>(() =>
+    conditionConfigFormFromServer({ total: 3 }),
+  )
   const [rrRewardRating, setRrRewardRating] = useState("0.3")
   const [rrIcon, setRrIcon] = useState("target")
   const [savingRr, setSavingRr] = useState(false)
@@ -99,7 +107,7 @@ export default function AdminSettingsPage() {
         setRrDescription(rr.description)
         setRrPeriod(rr.period)
         setRrConditionType(rr.conditionType)
-        setRrConditionConfigJson(JSON.stringify(rr.conditionConfig ?? {}, null, 2))
+        setRrConditionConfig(conditionConfigFormFromServer(rr.conditionConfig ?? undefined))
         setRrRewardRating(String(rr.rewardReliabilityRating))
         setRrIcon(rr.icon || "target")
       })
@@ -203,17 +211,12 @@ export default function AdminSettingsPage() {
       toast({ title: "Укажите название квеста", variant: "destructive" })
       return
     }
-    let conditionConfig: Record<string, unknown>
-    try {
-      const parsed: unknown = JSON.parse(rrConditionConfigJson || "{}")
-      if (parsed == null || typeof parsed !== "object" || Array.isArray(parsed)) {
-        throw new Error("not_object")
-      }
-      conditionConfig = parsed as Record<string, unknown>
-    } catch {
-      toast({ title: "condition_config: невалидный JSON-объект", variant: "destructive" })
+    const built = buildQuestConditionConfig(rrConditionType, rrConditionConfig)
+    if (!built.ok) {
+      toast({ title: built.message, variant: "destructive" })
       return
     }
+    const conditionConfig = built.config
     setSavingRr(true)
     adminUpdateRatingRecoveryQuestSettings({
       enabled: rrEnabled,
@@ -233,7 +236,7 @@ export default function AdminSettingsPage() {
         setRrDescription(saved.description)
         setRrPeriod(saved.period)
         setRrConditionType(saved.conditionType)
-        setRrConditionConfigJson(JSON.stringify(saved.conditionConfig ?? {}, null, 2))
+        setRrConditionConfig(conditionConfigFormFromServer(saved.conditionConfig ?? undefined))
         setRrRewardRating(String(saved.rewardReliabilityRating))
         setRrIcon(saved.icon || "target")
         toast({ title: "Настройки автоквеста сохранены" })
@@ -516,21 +519,13 @@ export default function AdminSettingsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="rrConditionConfigJson">condition_config (JSON)</Label>
-                <Textarea
-                  id="rrConditionConfigJson"
-                  value={rrConditionConfigJson}
-                  onChange={(e) => setRrConditionConfigJson(e.target.value)}
-                  rows={5}
-                  className="font-mono text-xs"
-                  spellCheck={false}
-                />
-                <p className="text-[10px] text-muted-foreground">
-                  Например: <code className="bg-muted px-1 rounded">{"{ \"total\": 3 }"}</code> для смен,{" "}
-                  <code className="bg-muted px-1 rounded">{"{ \"totalHours\": 10 }"}</code> для часов.
-                </p>
-              </div>
+              <QuestConditionConfigFields
+                conditionType={rrConditionType}
+                value={rrConditionConfig}
+                onChange={setRrConditionConfig}
+                disabled={savingRr}
+                idPrefix="rr-cond"
+              />
               <div className="grid gap-2">
                 <Label htmlFor="rrRewardRating">Прирост рейтинга за выполнение (без монет)</Label>
                 <Input
