@@ -615,9 +615,21 @@ export class AdminService {
         );
       }
     }
+    if (
+      dto.monthlyShiftsRequiredToKeep !== undefined &&
+      dto.monthlyShiftsRequiredToKeep !== null &&
+      dto.monthlyShiftsRequiredToKeep < 0
+    ) {
+      throw new BadRequestException(
+        'Порог смен в месяц для удержания уровня должен быть неотрицательным числом или null.',
+      );
+    }
     const updates: Partial<typeof levels.$inferInsert> = {};
     if (dto.name !== undefined) updates.name = dto.name;
     if (dto.shiftsRequired !== undefined) updates.shiftsRequired = dto.shiftsRequired;
+    if (dto.monthlyShiftsRequiredToKeep !== undefined) {
+      updates.monthlyShiftsRequiredToKeep = dto.monthlyShiftsRequiredToKeep;
+    }
     if (dto.strikeLimitPerWeek !== undefined) updates.strikeLimitPerWeek = dto.strikeLimitPerWeek;
     if (dto.strikeLimitPerMonth !== undefined) updates.strikeLimitPerMonth = dto.strikeLimitPerMonth;
     if (dto.perks !== undefined) updates.perks = dto.perks;
@@ -628,6 +640,7 @@ export class AdminService {
     const oldSnapshot = {
       name: existing.name,
       shiftsRequired: existing.shiftsRequired,
+      monthlyShiftsRequiredToKeep: existing.monthlyShiftsRequiredToKeep,
       strikeLimitPerWeek: existing.strikeLimitPerWeek,
       strikeLimitPerMonth: existing.strikeLimitPerMonth,
       sortOrder: existing.sortOrder,

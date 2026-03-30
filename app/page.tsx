@@ -192,6 +192,7 @@ export default function MyGigRewards() {
                 shiftsCompleted={user.shiftsCompleted}
                 shiftsRequired={user.nextLevelShiftsRequired ?? user.shiftsRequired}
                 shiftsRemaining={user.shiftsRemaining}
+                currentLevelMonthlyShiftsRequiredToKeep={user.currentLevelMonthlyShiftsRequiredToKeep}
                 reliabilityRating={user.reliabilityRating}
                 reliabilityRatingIncreasePerShift={user.reliabilityRatingIncreasePerShift}
                 reliabilityRatingDecreaseNoShow={user.reliabilityRatingDecreaseNoShow}

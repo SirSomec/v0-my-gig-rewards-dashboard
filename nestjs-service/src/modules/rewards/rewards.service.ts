@@ -42,6 +42,11 @@ function startOfNextMonthUTC(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
 }
 
+/** Первый день предыдущего месяца (00:00 UTC) */
+function startOfPreviousMonthUTC(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1));
+}
+
 /** Квест активен в момент now с учётом activeFrom/activeUntil */
 function isQuestInActiveWindow(
   activeFrom: Date | null,
@@ -86,6 +91,9 @@ function getQuestTarget(config: QuestConditionConfig, conditionType: string): nu
 
 @Injectable()
 export class RewardsService {
+  private static readonly MONTHLY_RETENTION_LAST_PROCESSED_KEY =
+    'monthly_level_retention_last_processed_month';
+
   constructor(
     private readonly rewardsRepository: RewardsRepository,
     private readonly config: ConfigService<Envs, true>,
@@ -146,6 +154,7 @@ export class RewardsService {
     dto.nextLevelShiftsRequired = nextLevel?.shiftsRequired ?? null;
     dto.shiftsCompleted = user.shiftsCompleted;
     dto.shiftsRequired = level.shiftsRequired;
+    dto.currentLevelMonthlyShiftsRequiredToKeep = level.monthlyShiftsRequiredToKeep ?? null;
     dto.reliabilityRating = Number(user.reliabilityRating ?? 4);
     dto.reliabilityRatingIncreasePerShift = await this.getReliabilityRatingIncreasePerShift();
     dto.reliabilityRatingDecreaseNoShow = await this.getReliabilityRatingDecreaseNoShow();
@@ -345,6 +354,7 @@ export class RewardsService {
       dto.id = r.id;
       dto.name = r.name;
       dto.shiftsRequired = r.shiftsRequired;
+      dto.monthlyShiftsRequiredToKeep = r.monthlyShiftsRequiredToKeep ?? null;
       dto.perks = Array.isArray(r.perks) ? r.perks : [];
       dto.sortOrder = r.sortOrder;
       return dto;
@@ -419,6 +429,64 @@ export class RewardsService {
    */
   async recalcUserLevelConsideringStrikes(userId: number): Promise<void> {
     await this.recalcUserLevel(userId);
+  }
+
+  /**
+   * Ежемесячная проверка удержания уровня:
+   * если пользователь не набрал порог смен текущего уровня за месяц,
+   * понижаем до уровня, соответствующего фактическому числу смен за этот месяц.
+   */
+  async recalcUserLevelByMonthlyRetention(userId: number, referenceMonthStart: Date): Promise<void> {
+    const row = await this.rewardsRepository.getUserWithCurrentLevel(userId);
+    if (!row) return;
+    const { currentLevel } = row;
+    const keepThreshold = currentLevel.monthlyShiftsRequiredToKeep;
+    if (keepThreshold == null || keepThreshold <= 0) return;
+
+    const monthStart = startOfMonthUTC(referenceMonthStart);
+    const nextMonthStart = startOfNextMonthUTC(monthStart);
+    const monthlyShiftCount = await this.rewardsRepository.countUserShiftTransactionsInRange(
+      userId,
+      monthStart,
+      nextMonthStart,
+    );
+    if (monthlyShiftCount >= keepThreshold) return;
+
+    let targetLevel = await this.rewardsRepository.findLevelByShiftsRequired(monthlyShiftCount);
+    if (!targetLevel) {
+      targetLevel = await this.rewardsRepository.getBaseLevel();
+    }
+    if (!targetLevel) return;
+    if (targetLevel.sortOrder >= currentLevel.sortOrder) return;
+
+    await this.rewardsRepository.updateUserLevelAndShifts(userId, targetLevel.id, 0);
+  }
+
+  /**
+   * Запускать периодически: при наступлении нового месяца (UTC) однократно
+   * применяет проверку удержания уровней за предыдущий месяц.
+   */
+  async processMonthlyRetentionIfNeeded(now: Date = new Date()): Promise<{ processed: boolean; usersChecked: number }> {
+    const currentMonthKey = startOfMonthUTC(now).toISOString().slice(0, 7);
+    const raw = await this.rewardsRepository.getSystemSettingValue(
+      RewardsService.MONTHLY_RETENTION_LAST_PROCESSED_KEY,
+    );
+    const lastProcessedMonth = typeof raw === 'string' ? raw : null;
+    if (lastProcessedMonth === currentMonthKey) {
+      return { processed: false, usersChecked: 0 };
+    }
+
+    const previousMonthStart = startOfPreviousMonthUTC(now);
+    const users = await this.rewardsRepository.listUsersWithCurrentLevel();
+    for (const row of users) {
+      await this.recalcUserLevelByMonthlyRetention(row.user.id, previousMonthStart);
+    }
+    await this.rewardsRepository.upsertSystemSettingValue(
+      RewardsService.MONTHLY_RETENTION_LAST_PROCESSED_KEY,
+      currentMonthKey,
+      new Date(),
+    );
+    return { processed: true, usersChecked: users.length };
   }
 
   /**

@@ -14,6 +14,7 @@ export class RecalcSchedulerService {
     if (this.running) return;
     this.running = true;
     try {
+      await this.rewards.processMonthlyRetentionIfNeeded();
       const result = await this.rewards.processPendingRecalcQueue();
       if (result.failedUsers > 0) {
         this.logger.warn(

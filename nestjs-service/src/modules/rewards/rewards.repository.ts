@@ -25,6 +25,17 @@ export class RewardsRepository {
     return row?.value ?? null;
   }
 
+  async upsertSystemSettingValue(key: string, value: unknown, updatedAt: Date): Promise<void> {
+    const { systemSettings } = schema;
+    await this.client
+      .insert(systemSettings)
+      .values({ key, value })
+      .onConflictDoUpdate({
+        target: systemSettings.key,
+        set: { value, updatedAt },
+      });
+  }
+
   async getUserById(id: number): Promise<typeof schema.users.$inferSelect | null> {
     const { users } = schema;
     const [row] = await this.client.select().from(users).where(eq(users.id, id)).limit(1);
@@ -185,6 +196,26 @@ export class RewardsRepository {
         ),
       );
     return Number(row?.sum ?? 0);
+  }
+
+  async countUserShiftTransactionsInRange(
+    userId: number,
+    periodStart: Date,
+    periodEnd: Date,
+  ): Promise<number> {
+    const { transactions } = schema;
+    const [row] = await this.client
+      .select({ count: sql<number>`count(*)::int` })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          eq(transactions.type, 'shift'),
+          gte(transactions.createdAt, periodStart),
+          lt(transactions.createdAt, periodEnd),
+        ),
+      );
+    return Number(row?.count ?? 0);
   }
 
   async listUserStrikes(userId: number, limit: number): Promise<(typeof schema.strikes.$inferSelect)[]> {
@@ -408,6 +439,17 @@ export class RewardsRepository {
       .where(eq(users.id, userId))
       .limit(1);
     return row ?? null;
+  }
+
+  async listUsersWithCurrentLevel(): Promise<Array<{
+    user: typeof schema.users.$inferSelect;
+    currentLevel: typeof schema.levels.$inferSelect;
+  }>> {
+    const { users, levels } = schema;
+    return this.client
+      .select({ user: users, currentLevel: levels })
+      .from(users)
+      .innerJoin(levels, eq(users.levelId, levels.id));
   }
 
   async findLevelByShiftsRequired(shiftsCompleted: number): Promise<(typeof schema.levels.$inferSelect) | null> {

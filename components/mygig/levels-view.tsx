@@ -8,6 +8,7 @@ import type { LevelResponse } from "@/lib/rewards-api"
 interface Level {
   name: string
   shiftsRequired: number
+  monthlyShiftsRequiredToKeep: number | null
   perks: Array<{ title: string; description?: string }>
   isCurrent: boolean
   isUnlocked: boolean
@@ -79,6 +80,11 @@ export function LevelsView({ currentLevelName, shiftsCompleted = 0, levels: leve
                       : `ещё ${Math.max(0, level.shiftsRequired - shiftsCompleted)} смен`}
                 </span>
               </div>
+              <p className="mb-2 text-[10px] sm:text-[11px] text-muted-foreground">
+                {level.monthlyShiftsRequiredToKeep != null && level.monthlyShiftsRequiredToKeep > 0
+                  ? `Удержание: минимум ${level.monthlyShiftsRequiredToKeep} смен/мес (UTC)`
+                  : "Удержание: без месячного порога"}
+              </p>
                 <div className="flex flex-wrap gap-1">
                   {level.perks.map((perk, j) => (
                     <span

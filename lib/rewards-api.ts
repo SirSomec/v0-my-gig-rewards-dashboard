@@ -100,6 +100,8 @@ export interface MeResponse {
   nextLevelShiftsRequired: number | null;
   shiftsCompleted: number;
   shiftsRequired: number;
+  /** Минимум смен за календарный месяц (UTC) для сохранения текущего уровня; null = без требования */
+  currentLevelMonthlyShiftsRequiredToKeep: number | null;
   /** Рейтинг надёжности 0–5 (дробное). По умолчанию 4. */
   reliabilityRating: number;
   reliabilityRatingIncreasePerShift: number;
@@ -176,6 +178,7 @@ export interface LevelResponse {
   id: number;
   name: string;
   shiftsRequired: number;
+  monthlyShiftsRequiredToKeep: number | null;
   perks: Array<{ title: string; description?: string; icon?: string }>;
   sortOrder: number;
 }

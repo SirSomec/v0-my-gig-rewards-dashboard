@@ -37,6 +37,8 @@ interface LevelProgressProps {
   shiftsRequired: number
   /** Сколько ещё смен до перехода на следующий уровень */
   shiftsRemaining: number
+  /** Минимум смен за календарный месяц (UTC) для сохранения текущего уровня; null = без требования */
+  currentLevelMonthlyShiftsRequiredToKeep?: number | null
   /** Рейтинг надёжности 0–5 (дробное). По умолчанию 4. */
   reliabilityRating?: number
   reliabilityRatingIncreasePerShift?: number
@@ -78,6 +80,7 @@ export function LevelProgress({
   shiftsCompleted,
   shiftsRequired,
   shiftsRemaining,
+  currentLevelMonthlyShiftsRequiredToKeep = null,
   reliabilityRating = 4,
   reliabilityRatingIncreasePerShift = 0.1,
   reliabilityRatingDecreaseNoShow = 0.2,
@@ -178,6 +181,11 @@ export function LevelProgress({
             {isMaxLevel ? "Максимальный уровень" : `Ещё ${shiftsRemaining} до ${nextLevel}`}
           </span>
         </div>
+        <p className="mb-2 text-[11px] sm:text-xs text-muted-foreground">
+          {currentLevelMonthlyShiftsRequiredToKeep != null && currentLevelMonthlyShiftsRequiredToKeep > 0
+            ? `Для удержания уровня нужно минимум ${currentLevelMonthlyShiftsRequiredToKeep} смен/месяц (UTC).`
+            : "Для текущего уровня удержание по месячному порогу не требуется."}
+        </p>
 
         <div className="mb-3 sm:mb-4 rounded-xl border border-border bg-secondary/35 p-2.5 sm:p-3">
           <div className="flex items-center gap-3">

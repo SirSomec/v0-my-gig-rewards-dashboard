@@ -57,6 +57,7 @@ export default function AdminLevelsPage() {
   const [form, setForm] = useState({
     name: "",
     shiftsRequired: 0,
+    monthlyShiftsRequiredToKeep: "" as number | "",
     strikeLimitPerWeek: "" as number | "",
     strikeLimitPerMonth: "" as number | "",
     sortOrder: 0,
@@ -83,6 +84,7 @@ export default function AdminLevelsPage() {
     setForm({
       name: level.name,
       shiftsRequired: level.shiftsRequired,
+      monthlyShiftsRequiredToKeep: level.monthlyShiftsRequiredToKeep ?? "",
       strikeLimitPerWeek: level.strikeLimitPerWeek ?? "",
       strikeLimitPerMonth: level.strikeLimitPerMonth ?? "",
       sortOrder: level.sortOrder,
@@ -103,6 +105,10 @@ export default function AdminLevelsPage() {
       setError("Порог смен не может быть отрицательным")
       return
     }
+    if (form.monthlyShiftsRequiredToKeep !== "" && Number(form.monthlyShiftsRequiredToKeep) < 0) {
+      setError("Порог смен в месяц для удержания не может быть отрицательным")
+      return
+    }
     const isFirstLevel = levels.length > 0 && editingLevel.sortOrder === Math.min(...levels.map((l) => l.sortOrder))
     if (isFirstLevel && form.shiftsRequired !== 0) {
       setError("У базового (первого) уровня порог смен должен быть 0 — он выдаётся изначально без условий.")
@@ -112,6 +118,10 @@ export default function AdminLevelsPage() {
     const body: UpdateLevelBody = {
       name: form.name.trim(),
       shiftsRequired: Number(form.shiftsRequired) ?? 0,
+      monthlyShiftsRequiredToKeep:
+        form.monthlyShiftsRequiredToKeep === ""
+          ? null
+          : Number(form.monthlyShiftsRequiredToKeep),
       sortOrder: Number(form.sortOrder) ?? 0,
       bonusMultiplier: Number(form.bonusMultiplier) || 1,
       perks,
@@ -145,7 +155,10 @@ export default function AdminLevelsPage() {
                 <div className="min-w-0">
                   <p className="font-medium">{l.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    Смен до уровня: {l.shiftsRequired} · Множитель бонусов: {l.bonusMultiplier ?? 1} · #{l.sortOrder}
+                    Смен до уровня: {l.shiftsRequired} ·
+                    {" "}Удержание/мес: {l.monthlyShiftsRequiredToKeep ?? "—"} ·
+                    {" "}Множитель бонусов: {l.bonusMultiplier ?? 1} ·
+                    {" "}#{l.sortOrder}
                   </p>
                   {l.perks?.length ? (
                     <p className="text-xs text-muted-foreground mt-1">
@@ -216,6 +229,26 @@ export default function AdminLevelsPage() {
                   }))
                 }
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="monthlyShiftsRequiredToKeep">Смен в месяц для удержания</Label>
+              <Input
+                id="monthlyShiftsRequiredToKeep"
+                type="number"
+                min={0}
+                value={form.monthlyShiftsRequiredToKeep}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    monthlyShiftsRequiredToKeep:
+                      e.target.value === "" ? "" : Number(e.target.value) || 0,
+                  }))
+                }
+                placeholder="Пусто = без требования"
+              />
+              <p className="text-xs text-muted-foreground">
+                Минимум смен за календарный месяц (UTC) для сохранения уровня. Пустое значение — удержание не требуется.
+              </p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="bonusMultiplier">Множитель бонусов за смену</Label>

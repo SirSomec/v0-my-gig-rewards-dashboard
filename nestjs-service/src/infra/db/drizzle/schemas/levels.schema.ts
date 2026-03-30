@@ -5,6 +5,8 @@ export const levels = pgTable('levels', {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   name: varchar('name', { length: 128 }).notNull(),
   shiftsRequired: integer('shifts_required').notNull(),
+  /** Мин. количество смен за календарный месяц (UTC) для удержания уровня; null = без требования */
+  monthlyShiftsRequiredToKeep: integer('monthly_shifts_required_to_keep'),
   strikeThreshold: integer('strike_threshold'), // устаревшее: порог за 30 дней (оставлено для совместимости)
   /** Макс. штрафов за текущую неделю; при превышении — понижение на 1 уровень (null = не понижаем) */
   strikeLimitPerWeek: integer('strike_limit_per_week'),

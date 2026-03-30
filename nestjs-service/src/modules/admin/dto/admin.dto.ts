@@ -32,6 +32,8 @@ export class UpdateStoreItemDto {
 export class UpdateLevelDto {
   name?: string;
   shiftsRequired?: number;
+  /** Минимум смен за календарный месяц (UTC) для сохранения уровня; null = не требовать удержание */
+  monthlyShiftsRequiredToKeep?: number | null;
   /** Лимит штрафов за неделю (при превышении — понижение уровня); null = не учитывать */
   strikeLimitPerWeek?: number | null;
   /** Лимит штрафов за месяц (при превышении — понижение уровня); null = не учитывать */

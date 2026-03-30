@@ -134,6 +134,13 @@
       "when": 1773619200000,
       "tag": "0020_rating_recovery_quest",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1773705600000,
+      "tag": "0021_levels_monthly_retention_threshold",
+      "breakpoints": true
     }
   ]
 }
