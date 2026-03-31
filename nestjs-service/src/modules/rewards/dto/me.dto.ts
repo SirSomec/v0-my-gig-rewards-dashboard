@@ -13,6 +13,8 @@ export class MeResponseDto {
   shiftsRequired!: number;
   /** Минимум смен за календарный месяц (UTC) для сохранения текущего уровня; null = удержание не требуется */
   currentLevelMonthlyShiftsRequiredToKeep!: number | null;
+  /** Сколько смен выполнено в текущем календарном месяце (UTC). */
+  monthlyShiftsCompletedCurrentMonth!: number;
   /** Рейтинг надёжности 0–5 (дробное). По умолчанию 4. */
   reliabilityRating!: number;
   /** На сколько растёт рейтинг за подтверждённую смену. */

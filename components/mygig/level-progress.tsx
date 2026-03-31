@@ -39,6 +39,8 @@ interface LevelProgressProps {
   shiftsRemaining: number
   /** Минимум смен за календарный месяц (UTC) для сохранения текущего уровня; null = без требования */
   currentLevelMonthlyShiftsRequiredToKeep?: number | null
+  /** Сколько смен выполнено в текущем календарном месяце (UTC). */
+  monthlyShiftsCompletedCurrentMonth?: number
   /** Рейтинг надёжности 0–5 (дробное). По умолчанию 4. */
   reliabilityRating?: number
   reliabilityRatingIncreasePerShift?: number
@@ -81,6 +83,7 @@ export function LevelProgress({
   shiftsRequired,
   shiftsRemaining,
   currentLevelMonthlyShiftsRequiredToKeep = null,
+  monthlyShiftsCompletedCurrentMonth = 0,
   reliabilityRating = 4,
   reliabilityRatingIncreasePerShift = 0.1,
   reliabilityRatingDecreaseNoShow = 0.2,
@@ -119,6 +122,22 @@ export function LevelProgress({
           ? { label: "Пограничный", Icon: ShieldMinus, tone: "text-amber-600 bg-amber-500/10 dark:text-amber-400" }
           : { label: "Критический", Icon: ShieldAlert, tone: "text-destructive bg-destructive/10" }
   const StatusIcon = reliabilityStatus.Icon
+  const remainingToKeep = Math.max(
+    0,
+    (currentLevelMonthlyShiftsRequiredToKeep ?? 0) - monthlyShiftsCompletedCurrentMonth,
+  )
+  const now = new Date()
+  const lastDayOfCurrentMonth = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0),
+  )
+  const lastDayLabel = new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+  }).format(lastDayOfCurrentMonth)
+  const nextMonthLabel = new Intl.DateTimeFormat("ru-RU", {
+    month: "long",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)))
 
   const hardcodedBenefits = benefits[currentLevel] || benefits["Серебряный партнёр"]
   const useApiPerks = currentLevelPerksFromApi != null && currentLevelPerksFromApi.length > 0
@@ -183,7 +202,7 @@ export function LevelProgress({
         </div>
         <p className="mb-2 text-[11px] sm:text-xs text-muted-foreground">
           {currentLevelMonthlyShiftsRequiredToKeep != null && currentLevelMonthlyShiftsRequiredToKeep > 0
-            ? `Для удержания уровня нужно минимум ${currentLevelMonthlyShiftsRequiredToKeep} смен/месяц (UTC).`
+            ? `Выполни еще ${remainingToKeep} смен до ${lastDayLabel} для сохранения уровня на ${nextMonthLabel}.`
             : "Для текущего уровня удержание по месячному порогу не требуется."}
         </p>
 

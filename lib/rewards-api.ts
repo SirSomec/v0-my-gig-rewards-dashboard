@@ -102,6 +102,8 @@ export interface MeResponse {
   shiftsRequired: number;
   /** Минимум смен за календарный месяц (UTC) для сохранения текущего уровня; null = без требования */
   currentLevelMonthlyShiftsRequiredToKeep: number | null;
+  /** Сколько смен выполнено в текущем календарном месяце (UTC). */
+  monthlyShiftsCompletedCurrentMonth: number;
   /** Рейтинг надёжности 0–5 (дробное). По умолчанию 4. */
   reliabilityRating: number;
   reliabilityRatingIncreasePerShift: number;

@@ -155,6 +155,12 @@ export class RewardsService {
     dto.shiftsCompleted = user.shiftsCompleted;
     dto.shiftsRequired = level.shiftsRequired;
     dto.currentLevelMonthlyShiftsRequiredToKeep = level.monthlyShiftsRequiredToKeep ?? null;
+    dto.monthlyShiftsCompletedCurrentMonth =
+      await this.rewardsRepository.countUserShiftTransactionsInRange(
+        userId,
+        monthStart,
+        nextMonthStart,
+      );
     dto.reliabilityRating = Number(user.reliabilityRating ?? 4);
     dto.reliabilityRatingIncreasePerShift = await this.getReliabilityRatingIncreasePerShift();
     dto.reliabilityRatingDecreaseNoShow = await this.getReliabilityRatingDecreaseNoShow();

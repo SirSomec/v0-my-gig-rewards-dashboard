@@ -47,6 +47,8 @@ export interface DashboardUser {
   nextLevelShiftsRequired: number | null
   /** Минимум смен за календарный месяц (UTC) для сохранения текущего уровня; null = без требования */
   currentLevelMonthlyShiftsRequiredToKeep: number | null
+  /** Сколько смен выполнено в текущем календарном месяце (UTC). */
+  monthlyShiftsCompletedCurrentMonth: number
   /** Сколько ещё смен до перехода на следующий уровень */
   shiftsRemaining: number
   avatarUrl?: string
@@ -79,6 +81,7 @@ function mapMe(m: MeResponse): DashboardUser {
     shiftsRequired: m.shiftsRequired,
     nextLevelShiftsRequired: nextTarget,
     currentLevelMonthlyShiftsRequiredToKeep: m.currentLevelMonthlyShiftsRequiredToKeep ?? null,
+    monthlyShiftsCompletedCurrentMonth: m.monthlyShiftsCompletedCurrentMonth ?? 0,
     shiftsRemaining,
     avatarUrl: m.avatarUrl ?? undefined,
     reliabilityRating: m.reliabilityRating ?? 4,
