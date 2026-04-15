@@ -113,7 +113,7 @@ function QuestCard({
             <div className="mt-1.5 sm:mt-2">
               <div
                 id={progressId}
-                className="h-1 sm:h-1.5 bg-secondary rounded-full overflow-hidden"
+                className="h-1 sm:h-1.5 rounded-full overflow-hidden bg-muted/85 dark:bg-white/12 border border-border/60 dark:border-white/15"
                 role="progressbar"
                 aria-label={`Прогресс квеста ${quest.title}`}
                 aria-valuemin={0}
