@@ -4,6 +4,7 @@ import { AppModule } from './app.module';
 import { ShutdownSignal, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { json, urlencoded } from 'body-parser';
 import { runMigrations } from './infra/db/drizzle/run-migrations';
 
 async function bootstrap() {
@@ -13,7 +14,14 @@ async function bootstrap() {
     await runMigrations(databaseUrl, migrationsFolder);
   }
 
-  const app = await NestFactory.create(AppModule);
+  const jsonBodyLimit =
+    process.env['HTTP_JSON_BODY_LIMIT'] ??
+    process.env['JSON_BODY_LIMIT'] ??
+    '15mb';
+
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  app.use(json({ limit: jsonBodyLimit }));
+  app.use(urlencoded({ limit: jsonBodyLimit, extended: true }));
 
   app.enableCors({ origin: true }); // разрешаем запросы с любого origin (фронт на другом порту/домене)
 
