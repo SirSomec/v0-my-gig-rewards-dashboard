@@ -94,6 +94,8 @@ services:
       # Монтируем .env в контейнер — NestJS читает его при старте (ConfigModule envFilePath).
       # На хосте выполните: chmod 644 .env — иначе apiuser в контейнере не прочитает файл и контейнер будет перезапускаться.
       - ./.env:/app/.env:ro
+      # Картинки призов розыгрышей (POST /v1/admin/uploads/raffle-prize-image)
+      - raffle_prize_uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -131,3 +133,4 @@ services:
 
 volumes:
   pgdata:
+  raffle_prize_uploads:

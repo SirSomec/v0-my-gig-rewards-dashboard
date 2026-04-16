@@ -15,14 +15,16 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ path?: string[] }> }
 ) {
-  return proxy(request, context, await request.text())
+  const body = await request.arrayBuffer()
+  return proxy(request, context, body.byteLength === 0 ? undefined : body)
 }
 
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ path?: string[] }> }
 ) {
-  return proxy(request, context, await request.text())
+  const body = await request.arrayBuffer()
+  return proxy(request, context, body.byteLength === 0 ? undefined : body)
 }
 
 export async function DELETE(
@@ -35,7 +37,7 @@ export async function DELETE(
 async function proxy(
   request: NextRequest,
   context: { params: Promise<{ path?: string[] }> },
-  body: string | undefined
+  body: ArrayBuffer | undefined
 ) {
   const { path: pathSegments } = await context.params
   const path = Array.isArray(pathSegments) ? pathSegments.join("/") : ""
@@ -47,8 +49,12 @@ async function proxy(
   const apiUrl = getApiUrl().replace(/\/$/, "")
   const url = new URL(request.url)
   const target = `${apiUrl}/${path}${url.search}`
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+  const headers: Record<string, string> = {}
+  const incomingCt = request.headers.get("content-type")
+  if (incomingCt) {
+    headers["Content-Type"] = incomingCt
+  } else if (body != null && body.byteLength > 0) {
+    headers["Content-Type"] = "application/json"
   }
   if (token) headers["Authorization"] = `Bearer ${token}`
   const adminKey = process.env.NEXT_PUBLIC_ADMIN_SECRET

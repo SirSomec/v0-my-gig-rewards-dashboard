@@ -12,6 +12,15 @@ const getBaseUrl = (): string =>
     ? (process.env.NEXT_PUBLIC_REWARDS_API_URL ?? "http://localhost:3001")
     : process.env.NEXT_PUBLIC_REWARDS_API_URL ?? "http://localhost:3001";
 
+/** URL картинки приза: относительные пути API (`/v1/uploads/...`) дополняются базой Rewards API. */
+export function resolveRewardsMediaUrl(url: string | null | undefined): string {
+  if (url == null || url === "") return ""
+  if (url.startsWith("data:") || /^https?:\/\//i.test(url)) return url
+  const base = getBaseUrl().replace(/\/$/, "")
+  const path = url.startsWith("/") ? url : `/${url}`
+  return `${base}${path}`
+}
+
 const getDevUserIdEnv = (): string | null =>
   process.env.NEXT_PUBLIC_DEV_USER_ID ?? null;
 

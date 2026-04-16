@@ -15,6 +15,7 @@ import { EtlExplorerService } from './etl-explorer/etl-explorer.service';
 import { RewardsModule } from '../rewards/rewards.module';
 import { TojModule } from '../toj/toj.module';
 import { AdminDbRepository } from './admin-db.repository';
+import { RafflePrizeUploadService } from './raffle-prize-upload.service';
 
 @Module({
   imports: [
@@ -34,7 +35,16 @@ import { AdminDbRepository } from './admin-db.repository';
     }),
   ],
   controllers: [AdminController, AdminAuthController, EtlExplorerController],
-  providers: [AdminGuard, AdminContextService, AdminContextInterceptor, AdminDbRepository, AdminService, AdminAuthService, EtlExplorerService],
+  providers: [
+    AdminGuard,
+    AdminContextService,
+    AdminContextInterceptor,
+    AdminDbRepository,
+    AdminService,
+    AdminAuthService,
+    EtlExplorerService,
+    RafflePrizeUploadService,
+  ],
   exports: [AdminService],
 })
 export class AdminModule {}

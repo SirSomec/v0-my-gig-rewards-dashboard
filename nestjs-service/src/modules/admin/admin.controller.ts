@@ -8,13 +8,18 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import type { MemoryUploadedFile } from './raffle-prize-upload.service';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AdminGuard } from './admin.guard';
 import { AdminContextInterceptor } from './admin-context.interceptor';
 import { AdminService } from './admin.service';
+import { RafflePrizeUploadService } from './raffle-prize-upload.service';
 import {
   CreateQuestDto,
   CreateRaffleDto,
@@ -36,6 +41,7 @@ export class AdminController {
     private readonly admin: AdminService,
     private readonly rewards: RewardsService,
     private readonly tojSync: TojSyncService,
+    private readonly rafflePrizeUpload: RafflePrizeUploadService,
   ) {}
 
   @Get('users')
@@ -184,6 +190,20 @@ export class AdminController {
   @ApiOperation({ summary: 'Список товаров магазина' })
   async listStoreItems() {
     return this.admin.listStoreItems();
+  }
+
+  @Post('uploads/raffle-prize-image')
+  @ApiOperation({
+    summary: 'Загрузить изображение приза (сохраняется на сервере); в ответе url для поля imageUrl',
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 2 * 1024 * 1024 },
+    }),
+  )
+  async uploadRafflePrizeImage(@UploadedFile() file: MemoryUploadedFile) {
+    return this.rafflePrizeUpload.saveUploadedFile(file);
   }
 
   @Get('raffles')

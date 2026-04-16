@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { GigCoinIcon } from "./gig-coin-icon"
 import type { DashboardMyRaffleEntry, DashboardRaffle } from "@/hooks/use-rewards-dashboard"
+import { resolveRewardsMediaUrl } from "@/lib/rewards-api"
 
 function formatDateTime(iso: string): string {
   const date = new Date(iso)
@@ -107,7 +108,7 @@ export function RafflesView({ raffles, myRaffles, userBalance, onPurchase }: Raf
                             <div className="flex items-center gap-3 min-w-0">
                               {prize.imageUrl ? (
                                 <img
-                                  src={prize.imageUrl}
+                                  src={resolveRewardsMediaUrl(prize.imageUrl)}
                                   alt={prize.title}
                                   className="h-12 w-12 rounded-md object-cover border border-border shrink-0"
                                 />

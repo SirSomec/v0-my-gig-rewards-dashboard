@@ -498,6 +498,27 @@ export async function adminDrawRaffle(id: number): Promise<{
   });
 }
 
+/** Multipart: файл сохраняется на API, в БД сохраняйте поле `url` из ответа как `imageUrl`. */
+export async function adminUploadRafflePrizeImage(file: File): Promise<{ url: string }> {
+  const fd = new FormData()
+  fd.append("file", file)
+  const key = getAdminKey()
+  const extra: Record<string, string> = {}
+  if (key) extra["X-Admin-Key"] = key
+  const url = `${getBaseUrl().replace(/\/$/, "")}/v1/admin/uploads/raffle-prize-image`
+  const res = await fetch(url, {
+    method: "POST",
+    body: fd,
+    credentials: "include",
+    headers: extra,
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Admin API ${res.status}: ${text || res.statusText}`)
+  }
+  return res.json() as Promise<{ url: string }>
+}
+
 export async function adminCreateStoreItem(
   body: CreateStoreItemBody
 ): Promise<{ id: number }> {

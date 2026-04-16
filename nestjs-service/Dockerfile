@@ -36,6 +36,8 @@ RUN apk add --no-cache wget \
   && cat /app/certs/RootCA.pem /app/certs/IntermediateCA.pem > /app/certs/YandexCloudCA.pem \
   && chown -R apiuser:nodejs /app/certs
 
+RUN mkdir -p /app/uploads/raffle-prizes && chown -R apiuser:nodejs /app/uploads
+
 USER apiuser
 
 EXPOSE 3001

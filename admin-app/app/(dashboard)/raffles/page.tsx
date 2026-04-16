@@ -6,8 +6,10 @@ import {
   adminCreateRaffle,
   adminDeleteRaffle,
   adminDrawRaffle,
+  adminGetRaffle,
   adminListRaffles,
   adminUpdateRaffle,
+  adminUploadRafflePrizeImage,
   type AdminRaffle,
   type CreateRaffleBody,
 } from "@/lib/admin-api"
@@ -22,32 +24,59 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 type RaffleForm = CreateRaffleBody & { status?: AdminRaffle["status"] }
 
-const MAX_PRIZE_IMAGE_SIZE_BYTES = 1_500_000
+const MAX_PRIZE_IMAGE_SIZE_BYTES = 2 * 1024 * 1024
 
-async function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === "string") resolve(reader.result)
-      else reject(new Error("Не удалось прочитать файл"))
-    }
-    reader.onerror = () => reject(new Error("Не удалось прочитать файл"))
-    reader.readAsDataURL(file)
-  })
+function resolveAdminMediaUrl(url: string): string {
+  if (!url) return ""
+  if (url.startsWith("data:") || url.startsWith("http://") || url.startsWith("https://")) return url
+  const base = (process.env.NEXT_PUBLIC_REWARDS_API_URL ?? "http://localhost:3001").replace(/\/$/, "")
+  return `${base}${url.startsWith("/") ? url : `/${url}`}`
 }
 
-const emptyForm: RaffleForm = {
-  title: "",
-  description: "",
-  status: "active",
-  ticketPrice: 10,
-  maxTicketsPerUser: 1,
-  winnersCount: 1,
-  coverImageUrl: "",
-  isVisible: 1,
-  startsAt: "",
-  endsAt: "",
-  prizes: [{ title: "", description: "", imageUrl: "", quantity: 1, sortOrder: 0 }],
+function dateToDatetimeLocalValue(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  const h = String(d.getHours()).padStart(2, "0")
+  const min = String(d.getMinutes()).padStart(2, "0")
+  return `${y}-${m}-${day}T${h}:${min}`
+}
+
+function isoToDatetimeLocalValue(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ""
+  return dateToDatetimeLocalValue(d)
+}
+
+function datetimeLocalToIso(local: string): string {
+  const d = new Date(local)
+  if (Number.isNaN(d.getTime())) {
+    throw new Error("Укажите корректные дату и время начала и окончания розыгрыша")
+  }
+  return d.toISOString()
+}
+
+function defaultRaffleSchedule(): { startsAt: string; endsAt: string } {
+  const start = new Date()
+  start.setMinutes(0, 0, 0)
+  const end = new Date(start)
+  end.setDate(end.getDate() + 7)
+  return { startsAt: dateToDatetimeLocalValue(start), endsAt: dateToDatetimeLocalValue(end) }
+}
+
+function createEmptyForm(): RaffleForm {
+  return {
+    title: "",
+    description: "",
+    status: "active",
+    ticketPrice: 10,
+    maxTicketsPerUser: 1,
+    winnersCount: 1,
+    coverImageUrl: "",
+    isVisible: 1,
+    ...defaultRaffleSchedule(),
+    prizes: [{ title: "", description: "", imageUrl: "", quantity: 1, sortOrder: 0 }],
+  }
 }
 
 export default function AdminRafflesPage() {
@@ -56,7 +85,7 @@ export default function AdminRafflesPage() {
   const [error, setError] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<AdminRaffle | null>(null)
-  const [form, setForm] = useState<RaffleForm>(emptyForm)
+  const [form, setForm] = useState<RaffleForm>(createEmptyForm)
   const [saving, setSaving] = useState(false)
 
   const syncWinnersCount = (prizes: RaffleForm["prizes"]) =>
@@ -77,45 +106,86 @@ export default function AdminRafflesPage() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm(emptyForm)
+    setForm(createEmptyForm())
     setDialogOpen(true)
   }
 
-  const openEdit = (item: AdminRaffle) => {
+  const openEdit = async (item: AdminRaffle) => {
     setEditing(item)
-    setForm((prev) => ({
-      ...prev,
-      title: item.title,
-      description: "",
-      ticketPrice: item.ticketPrice,
-      maxTicketsPerUser: null,
-      winnersCount: item.winnersCount,
-      coverImageUrl: "",
-      isVisible: item.isVisible ? 1 : 0,
-      startsAt: item.startsAt.slice(0, 16),
-      endsAt: item.endsAt.slice(0, 16),
-      status: item.status,
-      prizes: [],
-    }))
     setDialogOpen(true)
+    setError(null)
+    try {
+      const detail = await adminGetRaffle(item.id)
+      setForm({
+        title: detail.title,
+        description: detail.description ?? "",
+        status: detail.status,
+        ticketPrice: detail.ticketPrice,
+        maxTicketsPerUser: detail.maxTicketsPerUser,
+        winnersCount: detail.winnersCount,
+        coverImageUrl: detail.coverImageUrl ?? "",
+        isVisible: detail.isVisible ? 1 : 0,
+        startsAt: isoToDatetimeLocalValue(detail.startsAt),
+        endsAt: isoToDatetimeLocalValue(detail.endsAt),
+        prizes:
+          detail.prizes.length > 0
+            ? detail.prizes.map((p, i) => ({
+                id: p.id,
+                title: p.title,
+                description: p.description ?? "",
+                imageUrl: p.imageUrl ?? "",
+                quantity: p.quantity,
+                sortOrder: p.sortOrder ?? i,
+              }))
+            : [{ title: "", description: "", imageUrl: "", quantity: 1, sortOrder: 0 }],
+      })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось загрузить детали розыгрыша")
+      setForm({
+        ...createEmptyForm(),
+        title: item.title,
+        ticketPrice: item.ticketPrice,
+        winnersCount: item.winnersCount,
+        isVisible: item.isVisible ? 1 : 0,
+        startsAt: isoToDatetimeLocalValue(item.startsAt),
+        endsAt: isoToDatetimeLocalValue(item.endsAt),
+        status: item.status,
+        prizes: [{ title: "", description: "", imageUrl: "", quantity: 1, sortOrder: 0 }],
+      })
+    }
   }
 
   const submit = async () => {
     setSaving(true)
     setError(null)
     try {
+      let startsAtIso: string | undefined
+      let endsAtIso: string | undefined
       if (editing) {
+        if (form.startsAt?.trim()) startsAtIso = datetimeLocalToIso(form.startsAt)
+        if (form.endsAt?.trim()) endsAtIso = datetimeLocalToIso(form.endsAt)
+      } else {
+        if (!form.startsAt?.trim() || !form.endsAt?.trim()) {
+          setError("Укажите дату и время начала и окончания розыгрыша")
+          return
+        }
+        startsAtIso = datetimeLocalToIso(form.startsAt)
+        endsAtIso = datetimeLocalToIso(form.endsAt)
+      }
+
+      if (editing) {
+        const { startsAt: _startsLocal, endsAt: _endsLocal, ...rest } = form
         await adminUpdateRaffle(editing.id, {
-          ...form,
+          ...rest,
           prizes: form.prizes.length > 0 ? form.prizes : undefined,
-          startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : undefined,
-          endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : undefined,
+          ...(startsAtIso !== undefined ? { startsAt: startsAtIso } : {}),
+          ...(endsAtIso !== undefined ? { endsAt: endsAtIso } : {}),
         })
       } else {
         await adminCreateRaffle({
           ...form,
-          startsAt: new Date(form.startsAt).toISOString(),
-          endsAt: new Date(form.endsAt).toISOString(),
+          startsAt: startsAtIso!,
+          endsAt: endsAtIso!,
         })
       }
       setDialogOpen(false)
@@ -134,15 +204,15 @@ export default function AdminRafflesPage() {
       return
     }
     if (file.size > MAX_PRIZE_IMAGE_SIZE_BYTES) {
-      setError("Изображение слишком большое. Используйте файл до 1.5 МБ")
+      setError("Изображение слишком большое. Используйте файл до 2 МБ")
       return
     }
     try {
-      const imageUrl = await readFileAsDataUrl(file)
+      const { url } = await adminUploadRafflePrizeImage(file)
       setForm((f) => ({
         ...f,
         prizes: f.prizes.map((prize, prizeIndex) =>
-          prizeIndex === index ? { ...prize, imageUrl } : prize
+          prizeIndex === index ? { ...prize, imageUrl: url } : prize
         ),
       }))
     } catch (e) {
@@ -181,7 +251,7 @@ export default function AdminRafflesPage() {
                   <Button size="sm" variant="outline" asChild>
                     <Link href={`/raffles/${item.id}`}>Открыть</Link>
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => openEdit(item)}>Изменить</Button>
+                  <Button size="sm" variant="outline" onClick={() => void openEdit(item)}>Изменить</Button>
                   <Button
                     size="sm"
                     variant="outline"
@@ -297,7 +367,7 @@ export default function AdminRafflesPage() {
                     {prize.imageUrl ? (
                       <div className="flex items-center gap-3">
                         <img
-                          src={prize.imageUrl}
+                          src={resolveAdminMediaUrl(prize.imageUrl)}
                           alt={prize.title || `Приз ${index + 1}`}
                           className="h-16 w-16 rounded-md border border-border object-cover"
                         />
@@ -316,7 +386,7 @@ export default function AdminRafflesPage() {
                       </div>
                     ) : (
                       <p className="text-xs text-muted-foreground">
-                        Поддерживаются изображения до 1.5 МБ.
+                        JPEG, PNG, GIF, WebP до 2 МБ — файл сохраняется на сервере.
                       </p>
                     )}
                   </div>
@@ -351,7 +421,7 @@ export default function AdminRafflesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Отмена</Button>
-            <Button onClick={submit} disabled={saving}>{saving ? "Сохранение..." : "Сохранить"}</Button>
+            <Button onClick={() => void submit()} disabled={saving}>{saving ? "Сохранение..." : "Сохранить"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

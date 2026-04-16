@@ -1,11 +1,14 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { ShutdownSignal, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { json, urlencoded } from 'body-parser';
+import { mkdirSync } from 'fs';
 import { runMigrations } from './infra/db/drizzle/run-migrations';
+import { getRafflePrizeUploadDir } from './shared/raffle-upload-path';
 
 async function bootstrap() {
   const databaseUrl = process.env['DATABASE_URL'] ?? process.env['PG_CONNECTION'];
@@ -19,9 +22,13 @@ async function bootstrap() {
     process.env['JSON_BODY_LIMIT'] ??
     '15mb';
 
-  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
   app.use(json({ limit: jsonBodyLimit }));
   app.use(urlencoded({ limit: jsonBodyLimit, extended: true }));
+
+  const rafflePrizeDir = getRafflePrizeUploadDir();
+  mkdirSync(rafflePrizeDir, { recursive: true });
+  app.useStaticAssets(rafflePrizeDir, { prefix: '/v1/uploads/raffle-prizes' });
 
   app.enableCors({ origin: true }); // разрешаем запросы с любого origin (фронт на другом порту/домене)
 
