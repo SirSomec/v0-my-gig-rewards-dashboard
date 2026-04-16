@@ -1744,10 +1744,10 @@ export class RewardsService {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (message === 'USER_NOT_FOUND') throw new NotFoundException('User not found');
-      if (message === 'RAFFLE_NOT_ACTIVE') throw new NotFoundException('Raffle not found or inactive');
-      if (message === 'RAFFLE_NOT_IN_WINDOW') throw new BadRequestException('Raffle is not available now');
-      if (message === 'RAFFLE_TICKET_LIMIT') throw new BadRequestException('Ticket limit exceeded');
-      if (message === 'INSUFFICIENT_BALANCE') throw new BadRequestException('Insufficient balance');
+      if (message === 'RAFFLE_NOT_ACTIVE') throw new NotFoundException('Розыгрыш не найден или недоступен');
+      if (message === 'RAFFLE_NOT_IN_WINDOW') throw new BadRequestException('Покупка билетов сейчас недоступна');
+      if (message === 'RAFFLE_TICKET_LIMIT') throw new BadRequestException('Достигнут лимит билетов на пользователя');
+      if (message === 'INSUFFICIENT_BALANCE') throw new BadRequestException('Недостаточно монет для покупки билета');
       throw error;
     }
   }

@@ -34,6 +34,7 @@ interface RafflesViewProps {
 
 export function RafflesView({ raffles, myRaffles, userBalance, onPurchase }: RafflesViewProps) {
   const [loadingId, setLoadingId] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const activeRaffles = useMemo(
     () => raffles.filter((raffle) => raffle.status === "active" || raffle.status === "drawing"),
@@ -69,10 +70,15 @@ export function RafflesView({ raffles, myRaffles, userBalance, onPurchase }: Raf
               </div>
             ) : (
               activeRaffles.map((raffle) => {
+                const now = Date.now()
+                const startsAtMs = new Date(raffle.startsAt).getTime()
+                const endsAtMs = new Date(raffle.endsAt).getTime()
+                const notStarted = Number.isFinite(startsAtMs) && now < startsAtMs
+                const alreadyEnded = Number.isFinite(endsAtMs) && now > endsAtMs
                 const canAfford = userBalance >= raffle.ticketPrice
                 const limitReached =
                   raffle.maxTicketsPerUser != null && raffle.myTicketsCount >= raffle.maxTicketsPerUser
-                const canBuy = raffle.status === "active" && canAfford && !limitReached
+                const canBuy = raffle.status === "active" && !notStarted && !alreadyEnded && canAfford && !limitReached
 
                 return (
                   <div key={raffle.id} className="rounded-xl border border-border bg-muted p-3 space-y-3">
@@ -109,9 +115,12 @@ export function RafflesView({ raffles, myRaffles, userBalance, onPurchase }: Raf
                       className="w-full"
                       disabled={!canBuy || loadingId !== null}
                       onClick={async () => {
+                        setError(null)
                         setLoadingId(raffle.id)
                         try {
                           await onPurchase(raffle.id, 1)
+                        } catch (e) {
+                          setError(e instanceof Error ? e.message : "Не удалось купить билет")
                         } finally {
                           setLoadingId(null)
                         }
@@ -127,12 +136,25 @@ export function RafflesView({ raffles, myRaffles, userBalance, onPurchase }: Raf
                     {!canAfford && (
                       <p className="text-[11px] text-muted-foreground">Недостаточно монет для покупки билета.</p>
                     )}
+                    {notStarted && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Розыгрыш еще не начался. Старт: {formatDateTime(raffle.startsAt)}.
+                      </p>
+                    )}
+                    {alreadyEnded && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Время покупки билетов уже закончилось.
+                      </p>
+                    )}
                     {limitReached && (
                       <p className="text-[11px] text-muted-foreground">Вы достигли лимита билетов на этот розыгрыш.</p>
                     )}
                   </div>
                 )
               })
+            )}
+            {error && (
+              <p className="text-sm text-destructive">{error}</p>
             )}
           </TabsContent>
 
