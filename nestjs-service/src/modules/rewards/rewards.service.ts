@@ -1704,8 +1704,7 @@ export class RewardsService {
         const [maxTicketRow] = await tx
           .select({ maxTicket: sql<number>`coalesce(max(${raffleTickets.ticketNumber}), 0)` })
           .from(raffleTickets)
-          .where(eq(raffleTickets.raffleId, raffleId))
-          .for('update');
+          .where(eq(raffleTickets.raffleId, raffleId));
         const startNumber = Number(maxTicketRow?.maxTicket ?? 0);
 
         const insertedTickets = await tx
