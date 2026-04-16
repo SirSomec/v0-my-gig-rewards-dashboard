@@ -1854,13 +1854,16 @@ export class RewardsService {
     if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt <= startsAt) {
       throw new BadRequestException('Invalid raffle dates');
     }
+    const status: RaffleStatus =
+      dto.status ??
+      ((dto.isVisible ?? 1) === 1 ? 'active' : 'draft');
     const { raffles, rafflePrizes } = schema;
     const [raffle] = await this.rewardsRepository.db
       .insert(raffles)
       .values({
         title: dto.title.trim(),
         description: dto.description?.trim() || null,
-        status: 'draft',
+        status,
         ticketPrice: dto.ticketPrice,
         maxTicketsPerUser: dto.maxTicketsPerUser ?? null,
         winnersCount: dto.winnersCount,

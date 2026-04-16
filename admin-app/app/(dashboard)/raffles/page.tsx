@@ -25,6 +25,7 @@ type RaffleForm = CreateRaffleBody & { status?: AdminRaffle["status"] }
 const emptyForm: RaffleForm = {
   title: "",
   description: "",
+  status: "active",
   ticketPrice: 10,
   maxTicketsPerUser: 1,
   winnersCount: 1,
@@ -263,19 +264,17 @@ export default function AdminRafflesPage() {
               <Checkbox checked={!!form.isVisible} onCheckedChange={(checked) => setForm((f) => ({ ...f, isVisible: checked ? 1 : 0 }))} />
               <Label className="font-normal">Показывать пользователям</Label>
             </div>
-            {editing && (
-              <div className="grid gap-2">
-                <Label>Статус</Label>
-                <Select value={form.status ?? editing.status} onValueChange={(value) => setForm((f) => ({ ...f, status: value as AdminRaffle["status"] }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {["draft", "active", "cancelled"].map((status) => (
-                      <SelectItem key={status} value={status}>{status}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            <div className="grid gap-2">
+              <Label>Статус</Label>
+              <Select value={form.status ?? (editing?.status ?? "active")} onValueChange={(value) => setForm((f) => ({ ...f, status: value as AdminRaffle["status"] }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["draft", "active", "cancelled"].map((status) => (
+                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Отмена</Button>

@@ -91,6 +91,7 @@ export class AdminRafflePrizeInputDto {
 export class CreateRaffleDto {
   title!: string;
   description?: string | null;
+  status?: 'draft' | 'active' | 'drawing' | 'completed' | 'completed_without_entries' | 'cancelled';
   ticketPrice!: number;
   maxTicketsPerUser?: number | null;
   winnersCount!: number;

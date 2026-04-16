@@ -229,6 +229,7 @@ export interface AdminRaffleDetail extends AdminRaffle {
 export type CreateRaffleBody = {
   title: string;
   description?: string | null;
+  status?: AdminRaffle["status"];
   ticketPrice: number;
   maxTicketsPerUser?: number | null;
   winnersCount: number;
