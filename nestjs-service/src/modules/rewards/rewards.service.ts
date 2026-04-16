@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, desc, eq, gt, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, lte, sql } from 'drizzle-orm';
 import * as schema from '../../infra/db/drizzle/schemas';
 import type { Envs } from '../../shared/env.validation-schema';
 import { MeResponseDto } from './dto/me.dto';
@@ -11,6 +11,19 @@ import { ReliabilityRatingLogResponseDto } from './dto/reliability-rating-log.dt
 import { StrikeResponseDto } from './dto/strike.dto';
 import { TransactionResponseDto } from './dto/transaction.dto';
 import { RewardsRepository } from './rewards.repository';
+import {
+  AdminCreateRaffleDto,
+  AdminRaffleDetailResponseDto,
+  AdminRaffleListItemResponseDto,
+  AdminRaffleParticipantResponseDto,
+  AdminUpdateRaffleDto,
+  MyRaffleEntryResponseDto,
+  PurchaseRaffleTicketsResponseDto,
+  RaffleDetailResponseDto,
+  RaffleListItemResponseDto,
+  RafflePrizeResponseDto,
+  RaffleWinnerResponseDto,
+} from './dto/raffle.dto';
 import {
   parseRatingRecoveryQuestSettings,
   RATING_RECOVERY_ALLOWED_CONDITION_TYPES,
@@ -65,6 +78,32 @@ interface QuestConditionConfig {
   clientId?: string;
   clientIds?: string[];
   category?: string;
+}
+
+type RaffleStatus =
+  | 'draft'
+  | 'active'
+  | 'drawing'
+  | 'completed'
+  | 'completed_without_entries'
+  | 'cancelled';
+
+interface RaffleAggregateRow {
+  raffle: typeof schema.raffles.$inferSelect;
+  prizes: (typeof schema.rafflePrizes.$inferSelect)[];
+  winners: Array<{
+    winner: typeof schema.raffleWinners.$inferSelect;
+    prize: typeof schema.rafflePrizes.$inferSelect;
+    ticket: typeof schema.raffleTickets.$inferSelect;
+    user: typeof schema.users.$inferSelect;
+  }>;
+  totalTickets: number;
+  participantCount: number;
+  myTicketsCount: number;
+}
+
+function toIso(value: Date | null | undefined): string | null {
+  return value ? value.toISOString() : null;
 }
 
 export interface RewardsMutationOptions {
@@ -1417,5 +1456,602 @@ export class RewardsService {
     if (q.autoAssignedRatingRecovery === 1) {
       await this.rewardsRepository.db.update(quests).set({ isActive: 0 }).where(eq(quests.id, q.id));
     }
+  }
+
+  private mapRafflePrize(prize: typeof schema.rafflePrizes.$inferSelect): RafflePrizeResponseDto {
+    const dto = new RafflePrizeResponseDto();
+    dto.id = prize.id;
+    dto.title = prize.title;
+    dto.description = prize.description;
+    dto.imageUrl = prize.imageUrl;
+    dto.quantity = prize.quantity;
+    dto.sortOrder = prize.sortOrder;
+    return dto;
+  }
+
+  private mapRaffleWinner(row: {
+    winner: typeof schema.raffleWinners.$inferSelect;
+    prize: typeof schema.rafflePrizes.$inferSelect;
+    ticket: typeof schema.raffleTickets.$inferSelect;
+    user: typeof schema.users.$inferSelect;
+  }): RaffleWinnerResponseDto {
+    const dto = new RaffleWinnerResponseDto();
+    dto.id = row.winner.id;
+    dto.prizeId = row.prize.id;
+    dto.prizeTitle = row.prize.title;
+    dto.userId = row.user.id;
+    dto.userName = row.user.name;
+    dto.ticketId = row.ticket.id;
+    dto.ticketNumber = row.ticket.ticketNumber;
+    dto.selectedAt = (row.winner.selectedAt as Date).toISOString();
+    return dto;
+  }
+
+  private async listRaffleAggregates(userId?: number): Promise<RaffleAggregateRow[]> {
+    const { raffles, rafflePrizes, raffleWinners, raffleTickets, users } = schema;
+    const raffleRows = await this.rewardsRepository.db
+      .select()
+      .from(raffles)
+      .where(isNull(raffles.deletedAt))
+      .orderBy(desc(raffles.startsAt), desc(raffles.id));
+    if (raffleRows.length === 0) return [];
+
+    const raffleIds = raffleRows.map((row) => row.id);
+    const prizes = await this.rewardsRepository.db
+      .select()
+      .from(rafflePrizes)
+      .where(and(inArray(rafflePrizes.raffleId, raffleIds), isNull(rafflePrizes.deletedAt)))
+      .orderBy(rafflePrizes.sortOrder, rafflePrizes.id);
+    const winners = await this.rewardsRepository.db
+      .select({ winner: raffleWinners, prize: rafflePrizes, ticket: raffleTickets, user: users })
+      .from(raffleWinners)
+      .innerJoin(rafflePrizes, eq(raffleWinners.prizeId, rafflePrizes.id))
+      .innerJoin(raffleTickets, eq(raffleWinners.ticketId, raffleTickets.id))
+      .innerJoin(users, eq(raffleWinners.userId, users.id))
+      .where(inArray(raffleWinners.raffleId, raffleIds))
+      .orderBy(rafflePrizes.sortOrder, rafflePrizes.id, raffleWinners.id);
+    const totalTicketsRows = await this.rewardsRepository.db
+      .select({
+        raffleId: raffleTickets.raffleId,
+        total: sql<number>`count(*)::int`,
+      })
+      .from(raffleTickets)
+      .where(inArray(raffleTickets.raffleId, raffleIds))
+      .groupBy(raffleTickets.raffleId);
+    const participantCountRows = await this.rewardsRepository.db
+      .select({
+        raffleId: raffleTickets.raffleId,
+        total: sql<number>`count(distinct ${raffleTickets.userId})::int`,
+      })
+      .from(raffleTickets)
+      .where(inArray(raffleTickets.raffleId, raffleIds))
+      .groupBy(raffleTickets.raffleId);
+    const myTicketsRows =
+      userId != null
+        ? await this.rewardsRepository.db
+            .select({
+              raffleId: raffleTickets.raffleId,
+              total: sql<number>`count(*)::int`,
+            })
+            .from(raffleTickets)
+            .where(and(inArray(raffleTickets.raffleId, raffleIds), eq(raffleTickets.userId, userId)))
+            .groupBy(raffleTickets.raffleId)
+        : [];
+
+    const prizesByRaffle = new Map<number, (typeof schema.rafflePrizes.$inferSelect)[]>();
+    for (const prize of prizes) {
+      const current = prizesByRaffle.get(prize.raffleId) ?? [];
+      current.push(prize);
+      prizesByRaffle.set(prize.raffleId, current);
+    }
+    const winnersByRaffle = new Map<number, RaffleAggregateRow['winners']>();
+    for (const winner of winners) {
+      const current = winnersByRaffle.get(winner.winner.raffleId) ?? [];
+      current.push(winner);
+      winnersByRaffle.set(winner.winner.raffleId, current);
+    }
+    const totalsByRaffle = new Map(totalTicketsRows.map((row) => [row.raffleId, Number(row.total)]));
+    const participantsByRaffle = new Map(
+      participantCountRows.map((row) => [row.raffleId, Number(row.total)]),
+    );
+    const myTotalsByRaffle = new Map(myTicketsRows.map((row) => [row.raffleId, Number(row.total)]));
+
+    return raffleRows.map((raffle) => ({
+      raffle,
+      prizes: prizesByRaffle.get(raffle.id) ?? [],
+      winners: winnersByRaffle.get(raffle.id) ?? [],
+      totalTickets: totalsByRaffle.get(raffle.id) ?? 0,
+      participantCount: participantsByRaffle.get(raffle.id) ?? 0,
+      myTicketsCount: myTotalsByRaffle.get(raffle.id) ?? 0,
+    }));
+  }
+
+  private mapRaffleAggregate(row: RaffleAggregateRow): RaffleListItemResponseDto {
+    const dto = new RaffleListItemResponseDto();
+    dto.id = row.raffle.id;
+    dto.title = row.raffle.title;
+    dto.description = row.raffle.description;
+    dto.status = row.raffle.status as RaffleStatus;
+    dto.ticketPrice = row.raffle.ticketPrice;
+    dto.maxTicketsPerUser = row.raffle.maxTicketsPerUser ?? null;
+    dto.winnersCount = row.raffle.winnersCount;
+    dto.coverImageUrl = row.raffle.coverImageUrl;
+    dto.isVisible = row.raffle.isVisible === 1;
+    dto.startsAt = (row.raffle.startsAt as Date).toISOString();
+    dto.endsAt = (row.raffle.endsAt as Date).toISOString();
+    dto.completedAt = toIso(row.raffle.completedAt as Date | null);
+    dto.totalTickets = row.totalTickets;
+    dto.myTicketsCount = row.myTicketsCount;
+    dto.prizes = row.prizes.map((prize) => this.mapRafflePrize(prize));
+    dto.winners = row.winners.map((winner) => this.mapRaffleWinner(winner));
+    return dto;
+  }
+
+  async getRaffles(userId: number): Promise<RaffleListItemResponseDto[]> {
+    const rows = await this.listRaffleAggregates(userId);
+    return rows
+      .filter((row) => row.raffle.isVisible === 1 && row.raffle.status !== 'draft' && row.raffle.status !== 'cancelled')
+      .map((row) => this.mapRaffleAggregate(row));
+  }
+
+  async getRaffleById(userId: number, raffleId: number): Promise<RaffleDetailResponseDto> {
+    const row = (await this.listRaffleAggregates(userId)).find((item) => item.raffle.id === raffleId);
+    if (!row || row.raffle.deletedAt || row.raffle.isVisible !== 1) {
+      throw new NotFoundException('Raffle not found');
+    }
+    const dto = new RaffleDetailResponseDto();
+    Object.assign(dto, this.mapRaffleAggregate(row));
+    return dto;
+  }
+
+  async getMyRaffleEntries(userId: number): Promise<MyRaffleEntryResponseDto[]> {
+    const { raffleTickets, raffles } = schema;
+    const ticketRows = await this.rewardsRepository.db
+      .select({
+        raffleId: raffleTickets.raffleId,
+        raffleTitle: raffles.title,
+        raffleStatus: raffles.status,
+        ticketPrice: raffles.ticketPrice,
+        startsAt: raffles.startsAt,
+        endsAt: raffles.endsAt,
+        completedAt: raffles.completedAt,
+        ticketNumber: raffleTickets.ticketNumber,
+      })
+      .from(raffleTickets)
+      .innerJoin(raffles, eq(raffleTickets.raffleId, raffles.id))
+      .where(eq(raffleTickets.userId, userId))
+      .orderBy(desc(raffles.startsAt), desc(raffleTickets.ticketNumber));
+    if (ticketRows.length === 0) return [];
+
+    const aggregates = await this.listRaffleAggregates(userId);
+    const byRaffle = new Map<number, typeof ticketRows>();
+    for (const row of ticketRows) {
+      const current = byRaffle.get(row.raffleId) ?? [];
+      current.push(row);
+      byRaffle.set(row.raffleId, current);
+    }
+
+    return Array.from(byRaffle.entries()).map(([raffleId, rows]) => {
+      const aggregate = aggregates.find((item) => item.raffle.id === raffleId);
+      const dto = new MyRaffleEntryResponseDto();
+      dto.raffleId = raffleId;
+      dto.raffleTitle = rows[0]!.raffleTitle;
+      dto.status = rows[0]!.raffleStatus as RaffleStatus;
+      dto.ticketPrice = rows[0]!.ticketPrice;
+      dto.startsAt = (rows[0]!.startsAt as Date).toISOString();
+      dto.endsAt = (rows[0]!.endsAt as Date).toISOString();
+      dto.completedAt = toIso(rows[0]!.completedAt as Date | null);
+      dto.ticketsCount = rows.length;
+      dto.ticketNumbers = rows.map((row) => row.ticketNumber).sort((a, b) => a - b);
+      dto.prizes = aggregate?.prizes.map((prize) => this.mapRafflePrize(prize)) ?? [];
+      dto.winners = aggregate?.winners.map((winner) => this.mapRaffleWinner(winner)) ?? [];
+      dto.isWinner = dto.winners.some((winner) => winner.userId === userId);
+      return dto;
+    });
+  }
+
+  async purchaseRaffleTickets(
+    userId: number,
+    raffleId: number,
+    quantity: number,
+  ): Promise<PurchaseRaffleTicketsResponseDto> {
+    const { users, raffles, raffleTickets, transactions } = schema;
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
+      throw new BadRequestException('quantity must be between 1 and 100');
+    }
+
+    try {
+      return await this.rewardsRepository.db.transaction(async (tx) => {
+        const [user] = await tx
+          .select({ id: users.id, balance: users.balance })
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1)
+          .for('update');
+        if (!user) {
+          throw new Error('USER_NOT_FOUND');
+        }
+
+        const [raffle] = await tx
+          .select()
+          .from(raffles)
+          .where(and(eq(raffles.id, raffleId), isNull(raffles.deletedAt)))
+          .limit(1)
+          .for('update');
+        if (!raffle || raffle.isVisible !== 1 || raffle.status !== 'active') {
+          throw new Error('RAFFLE_NOT_ACTIVE');
+        }
+
+        const now = new Date();
+        if (now < (raffle.startsAt as Date) || now > (raffle.endsAt as Date)) {
+          throw new Error('RAFFLE_NOT_IN_WINDOW');
+        }
+
+        const [countRow] = await tx
+          .select({ count: sql<number>`count(*)::int` })
+          .from(raffleTickets)
+          .where(and(eq(raffleTickets.raffleId, raffleId), eq(raffleTickets.userId, userId)));
+        const currentTickets = Number(countRow?.count ?? 0);
+        if (raffle.maxTicketsPerUser != null && currentTickets + quantity > raffle.maxTicketsPerUser) {
+          throw new Error('RAFFLE_TICKET_LIMIT');
+        }
+
+        const totalCost = raffle.ticketPrice * quantity;
+        if (user.balance < totalCost) {
+          throw new Error('INSUFFICIENT_BALANCE');
+        }
+
+        const [maxTicketRow] = await tx
+          .select({ maxTicket: sql<number>`coalesce(max(${raffleTickets.ticketNumber}), 0)` })
+          .from(raffleTickets)
+          .where(eq(raffleTickets.raffleId, raffleId))
+          .for('update');
+        const startNumber = Number(maxTicketRow?.maxTicket ?? 0);
+
+        const insertedTickets = await tx
+          .insert(raffleTickets)
+          .values(
+            Array.from({ length: quantity }, (_, index) => ({
+              raffleId,
+              userId,
+              ticketNumber: startNumber + index + 1,
+              sourceRef: `${raffleId}:${userId}:${now.getTime()}:${index + 1}`,
+            })),
+          )
+          .returning({ id: raffleTickets.id, ticketNumber: raffleTickets.ticketNumber });
+
+        await tx
+          .update(users)
+          .set({ balance: user.balance - totalCost })
+          .where(eq(users.id, userId));
+
+        await tx.insert(transactions).values({
+          userId,
+          amount: -totalCost,
+          type: 'raffle_ticket',
+          sourceRef: `${raffleId}:${insertedTickets[0]?.id ?? 'batch'}`,
+          title: `Билеты в розыгрыш: ${raffle.title}`,
+          description: `Куплено билетов: ${quantity}`,
+        });
+
+        const result = new PurchaseRaffleTicketsResponseDto();
+        result.raffleId = raffleId;
+        result.ticketsPurchased = insertedTickets.length;
+        result.ticketIds = insertedTickets.map((ticket) => ticket.id);
+        result.ticketNumbers = insertedTickets.map((ticket) => ticket.ticketNumber);
+        return result;
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message === 'USER_NOT_FOUND') throw new NotFoundException('User not found');
+      if (message === 'RAFFLE_NOT_ACTIVE') throw new NotFoundException('Raffle not found or inactive');
+      if (message === 'RAFFLE_NOT_IN_WINDOW') throw new BadRequestException('Raffle is not available now');
+      if (message === 'RAFFLE_TICKET_LIMIT') throw new BadRequestException('Ticket limit exceeded');
+      if (message === 'INSUFFICIENT_BALANCE') throw new BadRequestException('Insufficient balance');
+      throw error;
+    }
+  }
+
+  async listAdminRaffles(): Promise<AdminRaffleListItemResponseDto[]> {
+    const rows = await this.listRaffleAggregates();
+    return rows.map((row) => {
+      const dto = new AdminRaffleListItemResponseDto();
+      dto.id = row.raffle.id;
+      dto.title = row.raffle.title;
+      dto.status = row.raffle.status as RaffleStatus;
+      dto.ticketPrice = row.raffle.ticketPrice;
+      dto.totalTickets = row.totalTickets;
+      dto.uniqueParticipants = row.participantCount;
+      dto.winnersCount = row.raffle.winnersCount;
+      dto.startsAt = (row.raffle.startsAt as Date).toISOString();
+      dto.endsAt = (row.raffle.endsAt as Date).toISOString();
+      dto.completedAt = toIso(row.raffle.completedAt as Date | null);
+      dto.isVisible = row.raffle.isVisible === 1;
+      return dto;
+    });
+  }
+
+  async getAdminRaffleDetail(raffleId: number): Promise<AdminRaffleDetailResponseDto> {
+    const row = (await this.listRaffleAggregates()).find((item) => item.raffle.id === raffleId);
+    if (!row || row.raffle.deletedAt) {
+      throw new NotFoundException('Raffle not found');
+    }
+    const participantRows = await this.rewardsRepository.db
+      .select({
+        userId: schema.raffleTickets.userId,
+        userName: schema.users.name,
+        ticketsCount: sql<number>`count(*)::int`,
+        ticketNumbers: sql<number[]>`array_agg(${schema.raffleTickets.ticketNumber} order by ${schema.raffleTickets.ticketNumber})`,
+      })
+      .from(schema.raffleTickets)
+      .innerJoin(schema.users, eq(schema.raffleTickets.userId, schema.users.id))
+      .where(eq(schema.raffleTickets.raffleId, raffleId))
+      .groupBy(schema.raffleTickets.userId, schema.users.name)
+      .orderBy(desc(sql`count(*)`), schema.users.name);
+
+    const dto = new AdminRaffleDetailResponseDto();
+    dto.id = row.raffle.id;
+    dto.title = row.raffle.title;
+    dto.description = row.raffle.description;
+    dto.status = row.raffle.status as RaffleStatus;
+    dto.ticketPrice = row.raffle.ticketPrice;
+    dto.totalTickets = row.totalTickets;
+    dto.uniqueParticipants = participantRows.length;
+    dto.winnersCount = row.raffle.winnersCount;
+    dto.startsAt = (row.raffle.startsAt as Date).toISOString();
+    dto.endsAt = (row.raffle.endsAt as Date).toISOString();
+    dto.completedAt = toIso(row.raffle.completedAt as Date | null);
+    dto.isVisible = row.raffle.isVisible === 1;
+    dto.maxTicketsPerUser = row.raffle.maxTicketsPerUser ?? null;
+    dto.coverImageUrl = row.raffle.coverImageUrl;
+    dto.prizes = row.prizes.map((prize) => this.mapRafflePrize(prize));
+    dto.winners = row.winners.map((winner) => this.mapRaffleWinner(winner));
+    dto.participants = participantRows.map((participant) => {
+      const p = new AdminRaffleParticipantResponseDto();
+      p.userId = participant.userId;
+      p.userName = participant.userName;
+      p.ticketsCount = Number(participant.ticketsCount);
+      p.ticketNumbers = participant.ticketNumbers ?? [];
+      return p;
+    });
+    return dto;
+  }
+
+  private validateAdminRaffleInput(dto: AdminCreateRaffleDto | AdminUpdateRaffleDto): void {
+    if ('title' in dto && dto.title !== undefined && !dto.title.trim()) {
+      throw new BadRequestException('title is required');
+    }
+    if ('ticketPrice' in dto && dto.ticketPrice !== undefined && dto.ticketPrice < 1) {
+      throw new BadRequestException('ticketPrice must be >= 1');
+    }
+    if ('winnersCount' in dto && dto.winnersCount !== undefined && dto.winnersCount < 1) {
+      throw new BadRequestException('winnersCount must be >= 1');
+    }
+    if ('maxTicketsPerUser' in dto && dto.maxTicketsPerUser !== undefined && dto.maxTicketsPerUser !== null && dto.maxTicketsPerUser < 1) {
+      throw new BadRequestException('maxTicketsPerUser must be >= 1');
+    }
+    if ('prizes' in dto && dto.prizes !== undefined) {
+      if (!Array.isArray(dto.prizes) || dto.prizes.length === 0) {
+        throw new BadRequestException('At least one prize is required');
+      }
+      const totalPrizeQuantity = dto.prizes.reduce((sum, prize) => sum + (prize.quantity ?? 0), 0);
+      if ('winnersCount' in dto && dto.winnersCount !== undefined && totalPrizeQuantity !== dto.winnersCount) {
+        throw new BadRequestException('winnersCount must match total prize quantity');
+      }
+      for (const prize of dto.prizes) {
+        if (!prize.title?.trim()) throw new BadRequestException('Prize title is required');
+        if (!Number.isInteger(prize.quantity) || prize.quantity < 1) {
+          throw new BadRequestException('Prize quantity must be >= 1');
+        }
+      }
+    }
+  }
+
+  async createAdminRaffle(dto: AdminCreateRaffleDto, adminId?: number | null): Promise<{ id: number }> {
+    this.validateAdminRaffleInput(dto);
+    const startsAt = new Date(dto.startsAt);
+    const endsAt = new Date(dto.endsAt);
+    if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt <= startsAt) {
+      throw new BadRequestException('Invalid raffle dates');
+    }
+    const { raffles, rafflePrizes } = schema;
+    const [raffle] = await this.rewardsRepository.db
+      .insert(raffles)
+      .values({
+        title: dto.title.trim(),
+        description: dto.description?.trim() || null,
+        status: 'draft',
+        ticketPrice: dto.ticketPrice,
+        maxTicketsPerUser: dto.maxTicketsPerUser ?? null,
+        winnersCount: dto.winnersCount,
+        coverImageUrl: dto.coverImageUrl?.trim() || null,
+        isVisible: dto.isVisible ?? 1,
+        startsAt,
+        endsAt,
+        createdBy: adminId ?? null,
+      })
+      .returning({ id: raffles.id });
+    if (!raffle) throw new Error('Failed to create raffle');
+
+    await this.rewardsRepository.db.insert(rafflePrizes).values(
+      dto.prizes.map((prize, index) => ({
+        raffleId: raffle.id,
+        title: prize.title.trim(),
+        description: prize.description?.trim() || null,
+        imageUrl: prize.imageUrl?.trim() || null,
+        quantity: prize.quantity,
+        sortOrder: prize.sortOrder ?? index,
+      })),
+    );
+    return { id: raffle.id };
+  }
+
+  async updateAdminRaffle(raffleId: number, dto: AdminUpdateRaffleDto): Promise<{ id: number }> {
+    this.validateAdminRaffleInput(dto);
+    const existing = await this.getAdminRaffleDetail(raffleId);
+    if ((existing.status === 'completed' || existing.status === 'completed_without_entries') && dto.status && dto.status !== existing.status) {
+      throw new BadRequestException('Completed raffle cannot be reopened');
+    }
+    const updates: Partial<typeof schema.raffles.$inferInsert> = {};
+    if (dto.title !== undefined) updates.title = dto.title.trim();
+    if (dto.description !== undefined) updates.description = dto.description?.trim() || null;
+    if (dto.status !== undefined) updates.status = dto.status;
+    if (dto.ticketPrice !== undefined) updates.ticketPrice = dto.ticketPrice;
+    if (dto.maxTicketsPerUser !== undefined) updates.maxTicketsPerUser = dto.maxTicketsPerUser;
+    if (dto.winnersCount !== undefined) updates.winnersCount = dto.winnersCount;
+    if (dto.coverImageUrl !== undefined) updates.coverImageUrl = dto.coverImageUrl?.trim() || null;
+    if (dto.isVisible !== undefined) updates.isVisible = dto.isVisible;
+    if (dto.startsAt !== undefined) updates.startsAt = new Date(dto.startsAt);
+    if (dto.endsAt !== undefined) updates.endsAt = new Date(dto.endsAt);
+    if (
+      updates.startsAt &&
+      Number.isNaN((updates.startsAt as Date).getTime())
+    ) {
+      throw new BadRequestException('Invalid startsAt');
+    }
+    if (
+      updates.endsAt &&
+      Number.isNaN((updates.endsAt as Date).getTime())
+    ) {
+      throw new BadRequestException('Invalid endsAt');
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await this.rewardsRepository.db
+        .update(schema.raffles)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(schema.raffles.id, raffleId));
+    }
+    if (dto.prizes !== undefined) {
+      await this.rewardsRepository.db.delete(schema.rafflePrizes).where(eq(schema.rafflePrizes.raffleId, raffleId));
+      await this.rewardsRepository.db.insert(schema.rafflePrizes).values(
+        dto.prizes.map((prize, index) => ({
+          raffleId,
+          title: prize.title.trim(),
+          description: prize.description?.trim() || null,
+          imageUrl: prize.imageUrl?.trim() || null,
+          quantity: prize.quantity,
+          sortOrder: prize.sortOrder ?? index,
+        })),
+      );
+    }
+    return { id: raffleId };
+  }
+
+  async deleteAdminRaffle(raffleId: number): Promise<{ id: number }> {
+    await this.getAdminRaffleDetail(raffleId);
+    await this.rewardsRepository.db
+      .update(schema.raffles)
+      .set({ deletedAt: new Date(), updatedAt: new Date(), isVisible: 0 })
+      .where(eq(schema.raffles.id, raffleId));
+    return { id: raffleId };
+  }
+
+  async finalizeRaffleDraw(raffleId: number): Promise<{ raffleId: number; status: RaffleStatus; winnersCreated: number }> {
+    const { raffles, rafflePrizes, raffleTickets, raffleWinners } = schema;
+    return this.rewardsRepository.db.transaction(async (tx) => {
+      const [raffle] = await tx
+        .select()
+        .from(raffles)
+        .where(and(eq(raffles.id, raffleId), isNull(raffles.deletedAt)))
+        .limit(1)
+        .for('update');
+      if (!raffle) {
+        throw new NotFoundException('Raffle not found');
+      }
+
+      const now = new Date();
+      if ((raffle.endsAt as Date) > now) {
+        throw new BadRequestException('Raffle has not ended yet');
+      }
+      if (raffle.status === 'completed' || raffle.status === 'completed_without_entries' || raffle.status === 'cancelled') {
+        return { raffleId, status: raffle.status as RaffleStatus, winnersCreated: 0 };
+      }
+
+      const existingWinners = await tx
+        .select({ id: raffleWinners.id })
+        .from(raffleWinners)
+        .where(eq(raffleWinners.raffleId, raffleId))
+        .limit(1);
+      if (existingWinners.length > 0) {
+        await tx
+          .update(raffles)
+          .set({ status: 'completed', completedAt: now, updatedAt: now })
+          .where(eq(raffles.id, raffleId));
+        return { raffleId, status: 'completed', winnersCreated: 0 };
+      }
+
+      await tx
+        .update(raffles)
+        .set({ status: 'drawing', updatedAt: now })
+        .where(eq(raffles.id, raffleId));
+
+      const prizes = await tx
+        .select()
+        .from(rafflePrizes)
+        .where(and(eq(rafflePrizes.raffleId, raffleId), isNull(rafflePrizes.deletedAt)))
+        .orderBy(rafflePrizes.sortOrder, rafflePrizes.id);
+      if (prizes.length === 0) {
+        throw new BadRequestException('Raffle must have at least one prize');
+      }
+
+      const tickets = await tx
+        .select({ id: raffleTickets.id, userId: raffleTickets.userId, ticketNumber: raffleTickets.ticketNumber })
+        .from(raffleTickets)
+        .where(eq(raffleTickets.raffleId, raffleId))
+        .orderBy(sql`random()`);
+      if (tickets.length === 0) {
+        await tx
+          .update(raffles)
+          .set({ status: 'completed_without_entries', completedAt: now, updatedAt: now })
+          .where(eq(raffles.id, raffleId));
+        return { raffleId, status: 'completed_without_entries', winnersCreated: 0 };
+      }
+
+      const prizeSlots = prizes.flatMap((prize) =>
+        Array.from({ length: prize.quantity }, () => ({ prizeId: prize.id })),
+      );
+      const selectedTickets = tickets.slice(0, Math.min(prizeSlots.length, tickets.length));
+      const winnersToInsert = selectedTickets.map((ticket, index) => ({
+        raffleId,
+        prizeId: prizeSlots[index]!.prizeId,
+        userId: ticket.userId,
+        ticketId: ticket.id,
+        selectedAt: now,
+      }));
+      if (winnersToInsert.length > 0) {
+        await tx.insert(raffleWinners).values(winnersToInsert);
+      }
+
+      await tx
+        .update(raffles)
+        .set({ status: 'completed', completedAt: now, updatedAt: now })
+        .where(eq(raffles.id, raffleId));
+      return { raffleId, status: 'completed', winnersCreated: winnersToInsert.length };
+    });
+  }
+
+  async processExpiredRaffles(limit = 20): Promise<{ processed: number; winnersCreated: number }> {
+    const raffleRows = await this.rewardsRepository.db
+      .select({ id: schema.raffles.id })
+      .from(schema.raffles)
+      .where(
+        and(
+          isNull(schema.raffles.deletedAt),
+          lte(schema.raffles.endsAt, new Date()),
+          inArray(schema.raffles.status, ['active', 'drawing']),
+        ),
+      )
+      .orderBy(asc(schema.raffles.endsAt), asc(schema.raffles.id))
+      .limit(limit);
+
+    let processed = 0;
+    let winnersCreated = 0;
+    for (const raffle of raffleRows) {
+      const result = await this.finalizeRaffleDraw(raffle.id);
+      processed += 1;
+      winnersCreated += result.winnersCreated;
+    }
+    return { processed, winnersCreated };
   }
 }

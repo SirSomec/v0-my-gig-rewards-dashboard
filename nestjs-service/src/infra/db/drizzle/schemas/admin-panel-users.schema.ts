@@ -8,6 +8,7 @@ export const ADMIN_PERMISSION_KEYS = [
   'redemptions',
   'store',
   'quests',
+  'raffles',
   'user_groups',
   'quest_moderation',
   'levels',

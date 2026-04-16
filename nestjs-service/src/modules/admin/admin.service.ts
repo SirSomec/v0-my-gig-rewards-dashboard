@@ -2,7 +2,15 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { ConfigService } from '@nestjs/config';
 import type { Envs } from '../../shared/env.validation-schema';
 import * as schema from '../../infra/db/drizzle/schemas';
-import type { CreateQuestDto, CreateStoreItemDto, UpdateLevelDto, UpdateQuestDto, UpdateStoreItemDto } from './dto/admin.dto';
+import type {
+  CreateQuestDto,
+  CreateRaffleDto,
+  CreateStoreItemDto,
+  UpdateLevelDto,
+  UpdateQuestDto,
+  UpdateRaffleDto,
+  UpdateStoreItemDto,
+} from './dto/admin.dto';
 import { RewardsService } from '../rewards/rewards.service';
 import { AdminContextService } from './admin-context.service';
 import { AdminDbRepository } from './admin-db.repository';
@@ -186,6 +194,64 @@ export class AdminService {
 
   async listStoreItems() {
     return this.adminDbRepository.listStoreItems();
+  }
+
+  async listRaffles() {
+    return this.rewards.listAdminRaffles();
+  }
+
+  async getRaffleDetail(raffleId: number) {
+    return this.rewards.getAdminRaffleDetail(raffleId);
+  }
+
+  async createRaffle(dto: CreateRaffleDto) {
+    const result = await this.rewards.createAdminRaffle(dto, this.adminContext.getAdminId() ?? null);
+    await this.logAudit('raffle_create', 'raffle', String(result.id), undefined, {
+      title: dto.title,
+      ticketPrice: dto.ticketPrice,
+      winnersCount: dto.winnersCount,
+      startsAt: dto.startsAt,
+      endsAt: dto.endsAt,
+      isVisible: dto.isVisible ?? 1,
+    });
+    return result;
+  }
+
+  async updateRaffle(id: number, dto: UpdateRaffleDto) {
+    const before = await this.rewards.getAdminRaffleDetail(id);
+    const result = await this.rewards.updateAdminRaffle(id, dto);
+    await this.logAudit(
+      'raffle_update',
+      'raffle',
+      String(id),
+      {
+        title: before.title,
+        status: before.status,
+        ticketPrice: before.ticketPrice,
+        winnersCount: before.winnersCount,
+        startsAt: before.startsAt,
+        endsAt: before.endsAt,
+        isVisible: before.isVisible,
+      },
+      dto as Record<string, unknown>,
+    );
+    return result;
+  }
+
+  async deleteRaffle(id: number) {
+    const before = await this.rewards.getAdminRaffleDetail(id);
+    const result = await this.rewards.deleteAdminRaffle(id);
+    await this.logAudit('raffle_delete', 'raffle', String(id), {
+      title: before.title,
+      status: before.status,
+    });
+    return result;
+  }
+
+  async drawRaffle(id: number) {
+    const result = await this.rewards.finalizeRaffleDraw(id);
+    await this.logAudit('raffle_draw', 'raffle', String(id), undefined, result as Record<string, unknown>);
+    return result;
   }
 
   /** Обзор посещаемости: просмотры вкладок по дням и по путям (последние N дней). */

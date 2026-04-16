@@ -185,6 +185,67 @@ export interface LevelResponse {
   sortOrder: number;
 }
 
+export interface RafflePrizeResponse {
+  id: number;
+  title: string;
+  description: string | null;
+  imageUrl: string | null;
+  quantity: number;
+  sortOrder: number;
+}
+
+export interface RaffleWinnerResponse {
+  id: number;
+  prizeId: number;
+  prizeTitle: string;
+  userId: number;
+  userName: string | null;
+  ticketId: number;
+  ticketNumber: number;
+  selectedAt: string;
+}
+
+export interface RaffleResponse {
+  id: number;
+  title: string;
+  description: string | null;
+  status: "draft" | "active" | "drawing" | "completed" | "completed_without_entries" | "cancelled";
+  ticketPrice: number;
+  maxTicketsPerUser: number | null;
+  winnersCount: number;
+  coverImageUrl: string | null;
+  isVisible: boolean;
+  startsAt: string;
+  endsAt: string;
+  completedAt: string | null;
+  totalTickets: number;
+  myTicketsCount: number;
+  prizes: RafflePrizeResponse[];
+  winners: RaffleWinnerResponse[];
+}
+
+export interface MyRaffleEntryResponse {
+  raffleId: number;
+  raffleTitle: string;
+  status: RaffleResponse["status"];
+  ticketPrice: number;
+  startsAt: string;
+  endsAt: string;
+  completedAt: string | null;
+  ticketsCount: number;
+  ticketNumbers: number[];
+  prizes: RafflePrizeResponse[];
+  winners: RaffleWinnerResponse[];
+  isWinner: boolean;
+}
+
+export interface PurchaseRaffleTicketsResponse {
+  raffleId: number;
+  ticketsPurchased: number;
+  ticketIds: number[];
+  ticketNumbers: number[];
+}
+
 export interface CreateRedemptionResponse {
   redemptionId: number;
 }
@@ -269,6 +330,27 @@ export async function fetchRedemptions(): Promise<RedemptionResponse[]> {
 export async function fetchLevels(): Promise<LevelResponse[]> {
   const url = buildUrl("/v1/rewards/levels");
   return fetchApi<LevelResponse[]>(url);
+}
+
+export async function fetchRaffles(): Promise<RaffleResponse[]> {
+  const url = buildUrl("/v1/rewards/raffles");
+  return fetchApi<RaffleResponse[]>(url);
+}
+
+export async function fetchMyRaffles(): Promise<MyRaffleEntryResponse[]> {
+  const url = buildUrl("/v1/rewards/my-raffles");
+  return fetchApi<MyRaffleEntryResponse[]>(url);
+}
+
+export async function purchaseRaffleTickets(
+  raffleId: number,
+  quantity = 1,
+): Promise<PurchaseRaffleTicketsResponse> {
+  const url = buildUrl(`/v1/rewards/raffles/${raffleId}/tickets`);
+  return fetchApi<PurchaseRaffleTicketsResponse>(url, {
+    method: "POST",
+    body: JSON.stringify({ quantity }),
+  });
 }
 
 export async function createRedemption(storeItemId: number): Promise<CreateRedemptionResponse> {

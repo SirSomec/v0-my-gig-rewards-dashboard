@@ -9,6 +9,7 @@ import { LevelProgress } from "@/components/mygig/level-progress"
 import { EarningHistory } from "@/components/mygig/earning-history"
 import { Quests } from "@/components/mygig/quests"
 import { RedemptionStore } from "@/components/mygig/redemption-store"
+import { RafflesView } from "@/components/mygig/raffles-view"
 import { BottomNav, type NavTab } from "@/components/mygig/bottom-nav"
 import { LevelsView } from "@/components/mygig/levels-view"
 import { DashboardSkeleton } from "@/components/mygig/dashboard-skeleton"
@@ -28,7 +29,7 @@ export default function MyGigRewards() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<NavTab>("home")
   const [loyaltySubmitting, setLoyaltySubmitting] = useState(false)
-  const { user, transactions, reliabilityRatingLog, quests, storeItems, redemptions, levels, currentLevelPerks, loading, error, refetch, purchaseItem, submitLoyaltyRequest, logout, isLoggedIn } = useRewardsDashboard()
+  const { user, transactions, reliabilityRatingLog, quests, storeItems, redemptions, levels, raffles, myRaffles, currentLevelPerks, loading, error, refetch, purchaseItem, purchaseRaffle, submitLoyaltyRequest, logout, isLoggedIn } = useRewardsDashboard()
   const myGigEnabled = isMyGigAuthEnabled()
 
   useEffect(() => {
@@ -248,6 +249,25 @@ export default function MyGigRewards() {
                 redemptions={redemptions}
                 userBalance={user.balance}
                 onPurchase={purchaseItem}
+              />
+            </motion.div>
+          )}
+
+          {activeTab === "raffles" && (
+            <motion.div
+              key="raffles"
+              variants={pageVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={{ duration: 0.25 }}
+              className="flex flex-col gap-3 sm:gap-4"
+            >
+              <RafflesView
+                raffles={raffles}
+                myRaffles={myRaffles}
+                userBalance={user.balance}
+                onPurchase={purchaseRaffle}
               />
             </motion.div>
           )}

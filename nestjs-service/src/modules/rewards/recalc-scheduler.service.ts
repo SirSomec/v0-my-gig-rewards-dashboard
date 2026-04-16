@@ -16,9 +16,15 @@ export class RecalcSchedulerService {
     try {
       await this.rewards.processMonthlyRetentionIfNeeded();
       const result = await this.rewards.processPendingRecalcQueue();
+      const raffleResult = await this.rewards.processExpiredRaffles();
       if (result.failedUsers > 0) {
         this.logger.warn(
           `Pending recalc finished with failures: claimed=${result.claimed}, processedUsers=${result.processedUsers}, failedUsers=${result.failedUsers}`,
+        );
+      }
+      if (raffleResult.processed > 0) {
+        this.logger.log(
+          `Raffles finalized: processed=${raffleResult.processed}, winnersCreated=${raffleResult.winnersCreated}`,
         );
       }
     } catch (error) {

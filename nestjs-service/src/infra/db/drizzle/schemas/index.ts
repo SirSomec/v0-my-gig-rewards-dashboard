@@ -16,3 +16,4 @@ export { userGroups } from './user-groups.schema';
 export { userGroupMembers } from './user-group-members.schema';
 export { pageViews } from './page-views.schema';
 export { pendingRecalcUsers } from './pending-recalc-users.schema';
+export { raffles, rafflePrizes, raffleTickets, raffleWinners } from './raffles.schema';

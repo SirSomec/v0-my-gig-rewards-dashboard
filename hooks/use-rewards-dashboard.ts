@@ -10,7 +10,10 @@ import {
   fetchStore,
   fetchRedemptions,
   fetchLevels,
+  fetchRaffles,
+  fetchMyRaffles,
   createRedemption as apiCreateRedemption,
+  purchaseRaffleTickets as apiPurchaseRaffleTickets,
   submitLoyaltyRequest as apiSubmitLoyaltyRequest,
   devLogin,
   getDevUserId,
@@ -25,6 +28,8 @@ import {
   type StoreItemResponse,
   type RedemptionResponse,
   type LevelResponse,
+  type RaffleResponse,
+  type MyRaffleEntryResponse,
 } from "@/lib/rewards-api"
 import {
   isMyGigAuthEnabled,
@@ -100,6 +105,7 @@ function mapMe(m: MeResponse): DashboardUser {
 
 function mapType(t: string): "shift" | "bonus" | "quest" | "redemption" {
   if (t === "shift" || t === "bonus" || t === "quest" || t === "redemption") return t
+  if (t === "raffle_ticket") return "redemption"
   return "bonus"
 }
 
@@ -275,6 +281,76 @@ export interface ReliabilityRatingLogItem {
   createdAt: string
 }
 
+export interface DashboardRaffle {
+  id: number
+  title: string
+  description: string
+  status: RaffleResponse["status"]
+  ticketPrice: number
+  maxTicketsPerUser: number | null
+  winnersCount: number
+  coverImageUrl?: string
+  startsAt: string
+  endsAt: string
+  completedAt: string | null
+  totalTickets: number
+  myTicketsCount: number
+  prizes: RaffleResponse["prizes"]
+  winners: RaffleResponse["winners"]
+}
+
+export interface DashboardMyRaffleEntry {
+  raffleId: number
+  raffleTitle: string
+  status: MyRaffleEntryResponse["status"]
+  ticketPrice: number
+  startsAt: string
+  endsAt: string
+  completedAt: string | null
+  ticketsCount: number
+  ticketNumbers: number[]
+  prizes: MyRaffleEntryResponse["prizes"]
+  winners: MyRaffleEntryResponse["winners"]
+  isWinner: boolean
+}
+
+function mapRaffle(r: RaffleResponse): DashboardRaffle {
+  return {
+    id: r.id,
+    title: r.title,
+    description: r.description ?? "",
+    status: r.status,
+    ticketPrice: r.ticketPrice,
+    maxTicketsPerUser: r.maxTicketsPerUser,
+    winnersCount: r.winnersCount,
+    coverImageUrl: r.coverImageUrl ?? undefined,
+    startsAt: r.startsAt,
+    endsAt: r.endsAt,
+    completedAt: r.completedAt,
+    totalTickets: r.totalTickets,
+    myTicketsCount: r.myTicketsCount,
+    prizes: r.prizes,
+    winners: r.winners,
+  }
+}
+
+function mapMyRaffleEntry(r: MyRaffleEntryResponse): DashboardMyRaffleEntry {
+  return {
+    raffleId: r.raffleId,
+    raffleTitle: r.raffleTitle,
+    status: r.status,
+    ticketPrice: r.ticketPrice,
+    startsAt: r.startsAt,
+    endsAt: r.endsAt,
+    completedAt: r.completedAt,
+    ticketsCount: r.ticketsCount,
+    ticketNumbers: r.ticketNumbers,
+    prizes: r.prizes,
+    winners: r.winners,
+    isWinner: r.isWinner,
+  }
+}
+
 function mapReliabilityRatingLog(r: ReliabilityRatingLogResponse): ReliabilityRatingLogItem {
   return {
     id: String(r.id),
@@ -311,12 +387,15 @@ export interface UseRewardsDashboardResult {
   redemptions: RedemptionItem[]
   reliabilityRatingLog: ReliabilityRatingLogItem[]
   levels: LevelResponse[]
+  raffles: DashboardRaffle[]
+  myRaffles: DashboardMyRaffleEntry[]
   /** Перки текущего уровня пользователя (из API уровней), синхронно с админкой */
   currentLevelPerks: Array<{ title: string; description?: string; icon?: string }>
   loading: boolean
   error: string | null
   refetch: () => Promise<void>
   purchaseItem: (storeItemId: number) => Promise<void>
+  purchaseRaffle: (raffleId: number, quantity?: number) => Promise<void>
   /** Отправить заявку на участие (принять условия). Только для pending без loyaltyRequestedAt. */
   submitLoyaltyRequest: () => Promise<boolean>
   /** Выход: сброс токена и всех учётных данных на устройстве, сброс состояния дашборда. */
@@ -332,6 +411,8 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
   const [redemptions, setRedemptions] = useState<RedemptionItem[]>([])
   const [reliabilityRatingLog, setReliabilityRatingLog] = useState<ReliabilityRatingLogItem[]>([])
   const [levels, setLevels] = useState<LevelResponse[]>([])
+  const [raffles, setRaffles] = useState<DashboardRaffle[]>([])
+  const [myRaffles, setMyRaffles] = useState<DashboardMyRaffleEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -342,7 +423,7 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
     }
     try {
       const meRes: MeResponse = await fetchMe()
-      const [transactionsRes, strikesRes, reliabilityLogRes, questsRes, storeRes, redemptionsRes, levelsRes] = await Promise.all([
+      const [transactionsRes, strikesRes, reliabilityLogRes, questsRes, storeRes, redemptionsRes, levelsRes, rafflesRes, myRafflesRes] = await Promise.all([
         fetchTransactions(),
         fetchStrikes(),
         fetchReliabilityRatingLog(),
@@ -350,6 +431,8 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
         fetchStore(),
         fetchRedemptions(),
         fetchLevels(),
+        fetchRaffles(),
+        fetchMyRaffles(),
       ])
       setUser(mapMe(meRes))
       setLevels(levelsRes)
@@ -363,6 +446,8 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
       setQuests(questsRes.map(mapQuest))
       setStoreItems(storeRes.map(mapStoreItem))
       setRedemptions(redemptionsRes.map(mapRedemption))
+      setRaffles(rafflesRes.map(mapRaffle))
+      setMyRaffles(myRafflesRes.map(mapMyRaffleEntry))
     } catch (e) {
       if (!silent) {
         setError(e instanceof Error ? e.message : "Ошибка загрузки данных")
@@ -373,6 +458,8 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
         setStoreItems([])
         setRedemptions([])
         setLevels([])
+        setRaffles([])
+        setMyRaffles([])
       }
     } finally {
       if (!silent) {
@@ -471,6 +558,14 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
     return res.accepted
   }, [load])
 
+  const purchaseRaffle = useCallback(
+    async (raffleId: number, quantity = 1) => {
+      await apiPurchaseRaffleTickets(raffleId, quantity)
+      await load()
+    },
+    [load]
+  )
+
   const logout = useCallback(() => {
     clearAllAuth()
     setUser(null)
@@ -480,6 +575,8 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
     setStoreItems([])
     setRedemptions([])
     setLevels([])
+    setRaffles([])
+    setMyRaffles([])
     setError(null)
     setLoading(false)
   }, [])
@@ -497,11 +594,14 @@ export function useRewardsDashboard(): UseRewardsDashboardResult {
     storeItems,
     redemptions,
     levels,
+    raffles,
+    myRaffles,
     currentLevelPerks,
     loading,
     error,
     refetch: load,
     purchaseItem,
+    purchaseRaffle,
     submitLoyaltyRequest,
     logout,
     isLoggedIn: isLoggedIn(),

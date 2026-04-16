@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Post,
   Query,
   Req,
@@ -20,6 +21,13 @@ import { QuestResponseDto } from './dto/quest.dto';
 import { ReliabilityRatingLogResponseDto } from './dto/reliability-rating-log.dto';
 import { StoreItemResponseDto, UserRedemptionResponseDto } from './dto/store.dto';
 import { LevelResponseDto } from './dto/level.dto';
+import {
+  MyRaffleEntryResponseDto,
+  PurchaseRaffleTicketsRequestDto,
+  PurchaseRaffleTicketsResponseDto,
+  RaffleDetailResponseDto,
+  RaffleListItemResponseDto,
+} from './dto/raffle.dto';
 
 interface RequestWithUser extends Request {
   user?: { userId: number };
@@ -121,6 +129,56 @@ export class RewardsController {
   @ApiOperation({ summary: 'Список уровней лояльности (название, порог смен, перки)' })
   async getLevels(): Promise<LevelResponseDto[]> {
     return this.rewards.getLevels();
+  }
+
+  @Get('raffles')
+  @ApiOperation({ summary: 'Список розыгрышей с моими билетами и победителями' })
+  async getRaffles(
+    @Req() req: RequestWithUser,
+    @Query('userId') userId?: string,
+  ): Promise<RaffleListItemResponseDto[]> {
+    const id = this.getUserId(req, userId);
+    return this.rewards.getRaffles(id);
+  }
+
+  @Get('raffles/:id')
+  @ApiOperation({ summary: 'Детали розыгрыша' })
+  async getRaffleById(
+    @Req() req: RequestWithUser,
+    @Query('userId') userId: string | undefined,
+    @Param('id') raffleIdParam: string,
+  ): Promise<RaffleDetailResponseDto> {
+    const id = this.getUserId(req, userId);
+    const raffleId = parseInt(raffleIdParam, 10);
+    if (Number.isNaN(raffleId)) throw new Error('Invalid raffle id');
+    return this.rewards.getRaffleById(id, raffleId);
+  }
+
+  @Get('my-raffles')
+  @ApiOperation({ summary: 'Мои участия в розыгрышах' })
+  async getMyRaffles(
+    @Req() req: RequestWithUser,
+    @Query('userId') userId?: string,
+  ): Promise<MyRaffleEntryResponseDto[]> {
+    const id = this.getUserId(req, userId);
+    return this.rewards.getMyRaffleEntries(id);
+  }
+
+  @Post('raffles/:id/tickets')
+  @ApiOperation({ summary: 'Купить билеты в розыгрыш за монеты' })
+  async purchaseRaffleTickets(
+    @Req() req: RequestWithUser,
+    @Query('userId') userId: string | undefined,
+    @Param('id') raffleIdParam: string,
+    @Body() body: PurchaseRaffleTicketsRequestDto,
+  ): Promise<PurchaseRaffleTicketsResponseDto> {
+    const id = this.getUserId(req, userId);
+    const raffleId = parseInt(raffleIdParam, 10);
+    if (Number.isNaN(raffleId)) throw new Error('Invalid raffle id');
+    if (body?.quantity == null || typeof body.quantity !== 'number') {
+      throw new Error('quantity is required');
+    }
+    return this.rewards.purchaseRaffleTickets(id, raffleId, body.quantity);
   }
 
   @Post('redemptions')

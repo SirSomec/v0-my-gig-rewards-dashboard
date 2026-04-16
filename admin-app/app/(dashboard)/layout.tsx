@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Users, ShoppingBag, Gift, Layers, Zap, Target, Wallet, FileText, LayoutDashboard, Settings, Briefcase, ShieldCheck, UsersRound, UserCog } from "lucide-react"
+import { Users, ShoppingBag, Gift, Layers, Zap, Target, Wallet, FileText, LayoutDashboard, Settings, Briefcase, ShieldCheck, UsersRound, UserCog, Ticket } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { adminAuthMe, type AdminPermissionKey, type AdminSessionUser } from "@/lib/admin-api"
 
@@ -13,6 +13,7 @@ const nav: { href: string; label: string; icon: typeof LayoutDashboard; permissi
   { href: "/redemptions", label: "Заявки на обмен", icon: Gift, permission: "redemptions" },
   { href: "/store", label: "Магазин", icon: ShoppingBag, permission: "store" },
   { href: "/quests", label: "Квесты", icon: Target, permission: "quests" },
+  { href: "/raffles", label: "Розыгрыши", icon: Ticket, permission: "raffles" },
   { href: "/user-groups", label: "Группы пользователей", icon: UsersRound, permission: "user_groups" },
   { href: "/quest-moderation", label: "Модерация квестов", icon: ShieldCheck, permission: "quest_moderation" },
   { href: "/levels", label: "Уровни", icon: Layers, permission: "levels" },
@@ -36,6 +37,7 @@ const pathToPermission: Record<string, AdminPermissionKey> = {
   "/redemptions": "redemptions",
   "/store": "store",
   "/quests": "quests",
+  "/raffles": "raffles",
   "/user-groups": "user_groups",
   "/quest-moderation": "quest_moderation",
   "/levels": "levels",

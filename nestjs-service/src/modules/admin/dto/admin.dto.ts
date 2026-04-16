@@ -78,3 +78,39 @@ export class UpdateQuestDto {
   targetType?: 'all' | 'group';
   targetGroupId?: number | null;
 }
+
+export class AdminRafflePrizeInputDto {
+  id?: number;
+  title!: string;
+  description?: string | null;
+  imageUrl?: string | null;
+  quantity!: number;
+  sortOrder?: number;
+}
+
+export class CreateRaffleDto {
+  title!: string;
+  description?: string | null;
+  ticketPrice!: number;
+  maxTicketsPerUser?: number | null;
+  winnersCount!: number;
+  coverImageUrl?: string | null;
+  isVisible?: number;
+  startsAt!: string;
+  endsAt!: string;
+  prizes!: AdminRafflePrizeInputDto[];
+}
+
+export class UpdateRaffleDto {
+  title?: string;
+  description?: string | null;
+  status?: 'draft' | 'active' | 'drawing' | 'completed' | 'completed_without_entries' | 'cancelled';
+  ticketPrice?: number;
+  maxTicketsPerUser?: number | null;
+  winnersCount?: number;
+  coverImageUrl?: string | null;
+  isVisible?: number;
+  startsAt?: string;
+  endsAt?: string;
+  prizes?: AdminRafflePrizeInputDto[];
+}

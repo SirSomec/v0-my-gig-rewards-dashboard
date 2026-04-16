@@ -15,7 +15,15 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AdminGuard } from './admin.guard';
 import { AdminContextInterceptor } from './admin-context.interceptor';
 import { AdminService } from './admin.service';
-import { CreateQuestDto, CreateStoreItemDto, UpdateLevelDto, UpdateQuestDto, UpdateStoreItemDto } from './dto/admin.dto';
+import {
+  CreateQuestDto,
+  CreateRaffleDto,
+  CreateStoreItemDto,
+  UpdateLevelDto,
+  UpdateQuestDto,
+  UpdateRaffleDto,
+  UpdateStoreItemDto,
+} from './dto/admin.dto';
 import { RewardsService } from '../rewards/rewards.service';
 import { TojSyncService } from '../toj/toj-sync.service';
 
@@ -176,6 +184,50 @@ export class AdminController {
   @ApiOperation({ summary: 'Список товаров магазина' })
   async listStoreItems() {
     return this.admin.listStoreItems();
+  }
+
+  @Get('raffles')
+  @ApiOperation({ summary: 'Список розыгрышей' })
+  async listRaffles() {
+    return this.admin.listRaffles();
+  }
+
+  @Get('raffles/:id')
+  @ApiOperation({ summary: 'Детали розыгрыша' })
+  async getRaffle(@Param('id') id: string) {
+    const raffleId = parseInt(id, 10);
+    if (Number.isNaN(raffleId)) throw new BadRequestException('Invalid raffle id');
+    return this.admin.getRaffleDetail(raffleId);
+  }
+
+  @Post('raffles')
+  @ApiOperation({ summary: 'Создать розыгрыш' })
+  async createRaffle(@Body() body: CreateRaffleDto) {
+    return this.admin.createRaffle(body);
+  }
+
+  @Patch('raffles/:id')
+  @ApiOperation({ summary: 'Обновить розыгрыш' })
+  async updateRaffle(@Param('id') id: string, @Body() body: UpdateRaffleDto) {
+    const raffleId = parseInt(id, 10);
+    if (Number.isNaN(raffleId)) throw new BadRequestException('Invalid raffle id');
+    return this.admin.updateRaffle(raffleId, body);
+  }
+
+  @Delete('raffles/:id')
+  @ApiOperation({ summary: 'Удалить розыгрыш (мягкое удаление)' })
+  async deleteRaffle(@Param('id') id: string) {
+    const raffleId = parseInt(id, 10);
+    if (Number.isNaN(raffleId)) throw new BadRequestException('Invalid raffle id');
+    return this.admin.deleteRaffle(raffleId);
+  }
+
+  @Post('raffles/:id/draw')
+  @ApiOperation({ summary: 'Завершить розыгрыш и выбрать победителей' })
+  async drawRaffle(@Param('id') id: string) {
+    const raffleId = parseInt(id, 10);
+    if (Number.isNaN(raffleId)) throw new BadRequestException('Invalid raffle id');
+    return this.admin.drawRaffle(raffleId);
   }
 
   @Get('stats/coins-overview')

@@ -1,8 +1,8 @@
 "use client"
 
-import { Home, Clock, ShoppingBag, Award } from "lucide-react"
+import { Home, Clock, ShoppingBag, Award, Ticket } from "lucide-react"
 
-export type NavTab = "home" | "history" | "store" | "levels"
+export type NavTab = "home" | "history" | "raffles" | "store" | "levels"
 
 interface BottomNavProps {
   activeTab: NavTab
@@ -12,6 +12,7 @@ interface BottomNavProps {
 const tabs: { id: NavTab; label: string; icon: typeof Home }[] = [
   { id: "home", label: "Главная", icon: Home },
   { id: "history", label: "История", icon: Clock },
+  { id: "raffles", label: "Розыгрыши", icon: Ticket },
   { id: "store", label: "Магазин", icon: ShoppingBag },
   { id: "levels", label: "Уровни", icon: Award },
 ]

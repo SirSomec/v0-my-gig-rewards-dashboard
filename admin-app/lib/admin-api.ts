@@ -42,6 +42,7 @@ export const ADMIN_PERMISSION_KEYS = [
   "redemptions",
   "store",
   "quests",
+  "raffles",
   "user_groups",
   "quest_moderation",
   "levels",
@@ -171,6 +172,76 @@ export interface AdminStoreItem {
   /** Сколько уже выкуплено (pending + fulfilled) по этому товару. Может не приходить из API. */
   redeemedCount?: number;
 }
+
+export interface AdminRafflePrizeInput {
+  id?: number;
+  title: string;
+  description?: string | null;
+  imageUrl?: string | null;
+  quantity: number;
+  sortOrder?: number;
+}
+
+export interface AdminRaffle {
+  id: number;
+  title: string;
+  status: "draft" | "active" | "drawing" | "completed" | "completed_without_entries" | "cancelled";
+  ticketPrice: number;
+  totalTickets: number;
+  uniqueParticipants: number;
+  winnersCount: number;
+  startsAt: string;
+  endsAt: string;
+  completedAt: string | null;
+  isVisible: boolean;
+}
+
+export interface AdminRaffleDetail extends AdminRaffle {
+  description: string | null;
+  maxTicketsPerUser: number | null;
+  coverImageUrl: string | null;
+  prizes: Array<{
+    id: number;
+    title: string;
+    description: string | null;
+    imageUrl: string | null;
+    quantity: number;
+    sortOrder: number;
+  }>;
+  winners: Array<{
+    id: number;
+    prizeId: number;
+    prizeTitle: string;
+    userId: number;
+    userName: string | null;
+    ticketId: number;
+    ticketNumber: number;
+    selectedAt: string;
+  }>;
+  participants: Array<{
+    userId: number;
+    userName: string | null;
+    ticketsCount: number;
+    ticketNumbers: number[];
+  }>;
+}
+
+export type CreateRaffleBody = {
+  title: string;
+  description?: string | null;
+  ticketPrice: number;
+  maxTicketsPerUser?: number | null;
+  winnersCount: number;
+  coverImageUrl?: string | null;
+  isVisible?: number;
+  startsAt: string;
+  endsAt: string;
+  prizes: AdminRafflePrizeInput[];
+};
+
+export type UpdateRaffleBody = Partial<CreateRaffleBody> & {
+  status?: AdminRaffle["status"];
+};
 
 export type CreateStoreItemBody = {
   name: string;
@@ -386,6 +457,44 @@ export async function adminGetPageViewsOverview(days?: number): Promise<PageView
 
 export async function adminListStoreItems(): Promise<AdminStoreItem[]> {
   return fetchAdmin<AdminStoreItem[]>("/v1/admin/store-items");
+}
+
+export async function adminListRaffles(): Promise<AdminRaffle[]> {
+  return fetchAdmin<AdminRaffle[]>("/v1/admin/raffles");
+}
+
+export async function adminGetRaffle(id: number): Promise<AdminRaffleDetail> {
+  return fetchAdmin<AdminRaffleDetail>(`/v1/admin/raffles/${id}`);
+}
+
+export async function adminCreateRaffle(body: CreateRaffleBody): Promise<{ id: number }> {
+  return fetchAdmin("/v1/admin/raffles", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function adminUpdateRaffle(id: number, body: UpdateRaffleBody): Promise<{ id: number }> {
+  return fetchAdmin(`/v1/admin/raffles/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function adminDeleteRaffle(id: number): Promise<{ id: number }> {
+  return fetchAdmin(`/v1/admin/raffles/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function adminDrawRaffle(id: number): Promise<{
+  raffleId: number;
+  status: AdminRaffle["status"];
+  winnersCreated: number;
+}> {
+  return fetchAdmin(`/v1/admin/raffles/${id}/draw`, {
+    method: "POST",
+  });
 }
 
 export async function adminCreateStoreItem(
