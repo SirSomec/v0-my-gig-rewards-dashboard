@@ -97,6 +97,9 @@ export function RafflesView({ raffles, myRaffles, userBalance, onPurchase }: Raf
                         <span className="inline-flex items-center gap-1"><Clock3 size={12} /> До {formatDateTime(raffle.endsAt)}</span>
                         <span className="inline-flex items-center gap-1"><Users size={12} /> Билетов: {raffle.totalTickets}</span>
                         <span className="inline-flex items-center gap-1"><Ticket size={12} /> Моих: {raffle.myTicketsCount}</span>
+                        {raffle.maxTicketsPerUser != null ? (
+                          <span className="inline-flex items-center gap-1">Лимит: до {raffle.maxTicketsPerUser} на пользователя</span>
+                        ) : null}
                       </div>
                     </div>
 

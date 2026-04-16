@@ -187,6 +187,8 @@ export interface AdminRaffle {
   title: string;
   status: "draft" | "active" | "drawing" | "completed" | "completed_without_entries" | "cancelled";
   ticketPrice: number;
+  /** null — без лимита билетов на пользователя */
+  maxTicketsPerUser: number | null;
   totalTickets: number;
   uniqueParticipants: number;
   winnersCount: number;

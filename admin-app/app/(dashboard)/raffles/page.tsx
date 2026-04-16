@@ -70,7 +70,7 @@ function createEmptyForm(): RaffleForm {
     description: "",
     status: "active",
     ticketPrice: 10,
-    maxTicketsPerUser: 1,
+    maxTicketsPerUser: null,
     winnersCount: 1,
     coverImageUrl: "",
     isVisible: 1,
@@ -241,7 +241,11 @@ export default function AdminRafflesPage() {
                     {item.title}
                   </Link>
                   <p className="text-xs text-muted-foreground">
-                    {item.status} · билет {item.ticketPrice} · участников {item.uniqueParticipants} · билетов {item.totalTickets}
+                    {item.status} · билет {item.ticketPrice}
+                    {item.maxTicketsPerUser != null
+                      ? ` · макс. билетов на пользователя: ${item.maxTicketsPerUser}`
+                      : " · лимит билетов на пользователя: нет"}
+                    {" "}· участников {item.uniqueParticipants} · билетов {item.totalTickets}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {item.startsAt} - {item.endsAt}
@@ -311,6 +315,45 @@ export default function AdminRafflesPage() {
                 <Label htmlFor="winnersCount">Кол-во победителей</Label>
                 <Input id="winnersCount" type="number" min={1} value={form.winnersCount} onChange={(e) => setForm((f) => ({ ...f, winnersCount: Number(e.target.value) || 1 }))} />
               </div>
+            </div>
+            <div className="grid gap-2 rounded-lg border border-border p-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="maxTicketsPerUserEnabled"
+                  checked={form.maxTicketsPerUser != null}
+                  onCheckedChange={(checked) =>
+                    setForm((f) => ({
+                      ...f,
+                      maxTicketsPerUser: checked ? (f.maxTicketsPerUser ?? 1) : null,
+                    }))
+                  }
+                />
+                <Label htmlFor="maxTicketsPerUserEnabled" className="font-normal cursor-pointer">
+                  Ограничить число билетов на одного пользователя
+                </Label>
+              </div>
+              {form.maxTicketsPerUser != null ? (
+                <div className="grid gap-2 pl-6">
+                  <Label htmlFor="maxTicketsPerUser">Максимум билетов с одного аккаунта</Label>
+                  <Input
+                    id="maxTicketsPerUser"
+                    type="number"
+                    min={1}
+                    value={form.maxTicketsPerUser}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10)
+                      setForm((f) => ({
+                        ...f,
+                        maxTicketsPerUser: Number.isFinite(v) && v >= 1 ? v : 1,
+                      }))
+                    }}
+                  />
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground pl-6">
+                  Без ограничения: один пользователь может купить любое число билетов (пока хватает монет и открыта покупка).
+                </p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">

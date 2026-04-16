@@ -107,6 +107,8 @@ export class AdminRaffleListItemResponseDto {
   title!: string;
   status!: 'draft' | 'active' | 'drawing' | 'completed' | 'completed_without_entries' | 'cancelled';
   ticketPrice!: number;
+  /** null — без ограничения на число билетов с одного аккаунта */
+  maxTicketsPerUser!: number | null;
   totalTickets!: number;
   uniqueParticipants!: number;
   winnersCount!: number;
@@ -125,7 +127,6 @@ export class AdminRaffleParticipantResponseDto {
 
 export class AdminRaffleDetailResponseDto extends AdminRaffleListItemResponseDto {
   description!: string | null;
-  maxTicketsPerUser!: number | null;
   coverImageUrl!: string | null;
   prizes!: RafflePrizeResponseDto[];
   winners!: RaffleWinnerResponseDto[];

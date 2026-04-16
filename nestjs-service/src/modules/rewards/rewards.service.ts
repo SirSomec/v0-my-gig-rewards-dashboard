@@ -1759,6 +1759,7 @@ export class RewardsService {
       dto.title = row.raffle.title;
       dto.status = row.raffle.status as RaffleStatus;
       dto.ticketPrice = row.raffle.ticketPrice;
+      dto.maxTicketsPerUser = row.raffle.maxTicketsPerUser ?? null;
       dto.totalTickets = row.totalTickets;
       dto.uniqueParticipants = row.participantCount;
       dto.winnersCount = row.raffle.winnersCount;

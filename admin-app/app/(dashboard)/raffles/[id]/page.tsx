@@ -69,6 +69,10 @@ export default function AdminRaffleDetailPage() {
           <p className="text-sm"><span className="font-medium">Описание:</span> {raffle.description || "—"}</p>
           <p className="text-sm"><span className="font-medium">Период:</span> {raffle.startsAt} - {raffle.endsAt}</p>
           <p className="text-sm"><span className="font-medium">Цена билета:</span> {raffle.ticketPrice}</p>
+          <p className="text-sm">
+            <span className="font-medium">Лимит билетов на пользователя:</span>{" "}
+            {raffle.maxTicketsPerUser != null ? raffle.maxTicketsPerUser : "нет (без ограничения)"}
+          </p>
         </CardContent>
       </Card>
 
