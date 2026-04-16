@@ -101,11 +101,20 @@ export function RafflesView({ raffles, myRaffles, userBalance, onPurchase }: Raf
 
                     <div className="space-y-1">
                       <p className="text-xs font-medium text-foreground">Призы</p>
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         {raffle.prizes.map((prize) => (
-                          <div key={prize.id} className="flex items-center justify-between rounded-lg bg-background px-3 py-2 text-xs">
-                            <span>{prize.title}</span>
-                            <span className="text-muted-foreground">x{prize.quantity}</span>
+                          <div key={prize.id} className="flex items-center justify-between gap-3 rounded-lg bg-background px-3 py-2 text-xs">
+                            <div className="flex items-center gap-3 min-w-0">
+                              {prize.imageUrl ? (
+                                <img
+                                  src={prize.imageUrl}
+                                  alt={prize.title}
+                                  className="h-12 w-12 rounded-md object-cover border border-border shrink-0"
+                                />
+                              ) : null}
+                              <span className="truncate">{prize.title}</span>
+                            </div>
+                            <span className="text-muted-foreground shrink-0">x{prize.quantity}</span>
                           </div>
                         ))}
                       </div>

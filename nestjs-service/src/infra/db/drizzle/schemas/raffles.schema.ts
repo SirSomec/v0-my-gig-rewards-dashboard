@@ -1,4 +1,4 @@
-import { integer, pgTable, timestamp, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
+import { integer, pgTable, text, timestamp, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
 import { timestamps } from './base.schema';
 import { adminPanelUsers } from './admin-panel-users.schema';
 import { users } from './users.schema';
@@ -25,7 +25,7 @@ export const rafflePrizes = pgTable('raffle_prizes', {
   raffleId: integer('raffle_id').references(() => raffles.id, { onDelete: 'cascade' }).notNull(),
   title: varchar('title', { length: 256 }).notNull(),
   description: varchar('description', { length: 2048 }),
-  imageUrl: varchar('image_url', { length: 512 }),
+  imageUrl: text('image_url'),
   quantity: integer('quantity').notNull().default(1),
   sortOrder: integer('sort_order').notNull().default(0),
   ...timestamps,

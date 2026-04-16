@@ -22,6 +22,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 type RaffleForm = CreateRaffleBody & { status?: AdminRaffle["status"] }
 
+const MAX_PRIZE_IMAGE_SIZE_BYTES = 1_500_000
+
+async function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === "string") resolve(reader.result)
+      else reject(new Error("Не удалось прочитать файл"))
+    }
+    reader.onerror = () => reject(new Error("Не удалось прочитать файл"))
+    reader.readAsDataURL(file)
+  })
+}
+
 const emptyForm: RaffleForm = {
   title: "",
   description: "",
@@ -110,6 +124,29 @@ export default function AdminRafflesPage() {
       setError(e instanceof Error ? e.message : "Ошибка")
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handlePrizeImageChange = async (index: number, file: File | null) => {
+    if (!file) return
+    if (!file.type.startsWith("image/")) {
+      setError("Можно загружать только изображения")
+      return
+    }
+    if (file.size > MAX_PRIZE_IMAGE_SIZE_BYTES) {
+      setError("Изображение слишком большое. Используйте файл до 1.5 МБ")
+      return
+    }
+    try {
+      const imageUrl = await readFileAsDataUrl(file)
+      setForm((f) => ({
+        ...f,
+        prizes: f.prizes.map((prize, prizeIndex) =>
+          prizeIndex === index ? { ...prize, imageUrl } : prize
+        ),
+      }))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось загрузить изображение")
     }
   }
 
@@ -218,35 +255,71 @@ export default function AdminRafflesPage() {
             <div className="grid gap-2">
               <Label>Призы</Label>
               {form.prizes.map((prize, index) => (
-                <div key={index} className="grid grid-cols-[1fr_120px_40px] gap-2">
-                  <Input
-                    placeholder="Название приза"
-                    value={prize.title}
-                    onChange={(e) => setForm((f) => ({
-                      ...f,
-                      prizes: f.prizes.map((p, i) => i === index ? { ...p, title: e.target.value } : p),
-                    }))}
-                  />
-                  <Input
-                    type="number"
-                    min={1}
-                    value={prize.quantity}
-                    onChange={(e) => setForm((f) => {
-                      const prizes = f.prizes.map((p, i) => i === index ? { ...p, quantity: Number(e.target.value) || 1 } : p)
-                      return { ...f, prizes, winnersCount: syncWinnersCount(prizes) }
-                    })}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setForm((f) => {
-                      const prizes = f.prizes.filter((_, i) => i !== index)
-                      return { ...f, prizes, winnersCount: syncWinnersCount(prizes) }
-                    })}
-                    disabled={form.prizes.length === 1}
-                  >
-                    -
-                  </Button>
+                <div key={index} className="rounded-lg border border-border p-3 space-y-3">
+                  <div className="grid grid-cols-[1fr_120px_40px] gap-2">
+                    <Input
+                      placeholder="Название приза"
+                      value={prize.title}
+                      onChange={(e) => setForm((f) => ({
+                        ...f,
+                        prizes: f.prizes.map((p, i) => i === index ? { ...p, title: e.target.value } : p),
+                      }))}
+                    />
+                    <Input
+                      type="number"
+                      min={1}
+                      value={prize.quantity}
+                      onChange={(e) => setForm((f) => {
+                        const prizes = f.prizes.map((p, i) => i === index ? { ...p, quantity: Number(e.target.value) || 1 } : p)
+                        return { ...f, prizes, winnersCount: syncWinnersCount(prizes) }
+                      })}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setForm((f) => {
+                        const prizes = f.prizes.filter((_, i) => i !== index)
+                        return { ...f, prizes, winnersCount: syncWinnersCount(prizes) }
+                      })}
+                      disabled={form.prizes.length === 1}
+                    >
+                      -
+                    </Button>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor={`prize-image-${index}`}>Картинка приза</Label>
+                    <Input
+                      id={`prize-image-${index}`}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => void handlePrizeImageChange(index, e.target.files?.[0] ?? null)}
+                    />
+                    {prize.imageUrl ? (
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={prize.imageUrl}
+                          alt={prize.title || `Приз ${index + 1}`}
+                          className="h-16 w-16 rounded-md border border-border object-cover"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            setForm((f) => ({
+                              ...f,
+                              prizes: f.prizes.map((p, i) => i === index ? { ...p, imageUrl: "" } : p),
+                            }))
+                          }
+                        >
+                          Удалить картинку
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Поддерживаются изображения до 1.5 МБ.
+                      </p>
+                    )}
+                  </div>
                 </div>
               ))}
               <Button
