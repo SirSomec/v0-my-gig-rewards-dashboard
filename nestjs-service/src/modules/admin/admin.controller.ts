@@ -23,6 +23,7 @@ import { RafflePrizeUploadService } from './raffle-prize-upload.service';
 import {
   CreateQuestDto,
   CreateRaffleDto,
+  ManualRaffleWinnersDto,
   CreateStoreItemDto,
   UpdateLevelDto,
   UpdateQuestDto,
@@ -243,11 +244,33 @@ export class AdminController {
   }
 
   @Post('raffles/:id/draw')
-  @ApiOperation({ summary: 'Завершить розыгрыш и выбрать победителей' })
+  @ApiOperation({
+    summary:
+      'Завершить розыгрыш: для random — автожеребьёвка; для manual после окончания — перевод в статус drawing (ожидание ручного выбора билетов)',
+  })
   async drawRaffle(@Param('id') id: string) {
     const raffleId = parseInt(id, 10);
     if (Number.isNaN(raffleId)) throw new BadRequestException('Invalid raffle id');
     return this.admin.drawRaffle(raffleId);
+  }
+
+  @Get('raffles/:id/tickets-for-draw')
+  @ApiOperation({ summary: 'Список билетов розыгрыша (для ручного выбора победителей)' })
+  async listRaffleTicketsForDraw(@Param('id') id: string) {
+    const raffleId = parseInt(id, 10);
+    if (Number.isNaN(raffleId)) throw new BadRequestException('Invalid raffle id');
+    return this.admin.listRaffleTicketsForDraw(raffleId);
+  }
+
+  @Post('raffles/:id/manual-winners')
+  @ApiOperation({
+    summary:
+      'Зафиксировать победителей вручную (порядок assignments = слоты призов: по sort_order и quantity каждого приза)',
+  })
+  async submitManualRaffleWinners(@Param('id') id: string, @Body() body: ManualRaffleWinnersDto) {
+    const raffleId = parseInt(id, 10);
+    if (Number.isNaN(raffleId)) throw new BadRequestException('Invalid raffle id');
+    return this.admin.submitManualRaffleWinners(raffleId, body);
   }
 
   @Get('stats/coins-overview')

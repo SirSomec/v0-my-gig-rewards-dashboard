@@ -155,6 +155,13 @@
       "when": 1773878400000,
       "tag": "0023_raffle_prize_image_text",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1773964800000,
+      "tag": "0024_raffle_winner_selection_mode",
+      "breakpoints": true
     }
   ]
 }

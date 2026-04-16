@@ -23,6 +23,8 @@ export class RaffleListItemResponseDto {
   title!: string;
   description!: string | null;
   status!: 'draft' | 'active' | 'drawing' | 'completed' | 'completed_without_entries' | 'cancelled';
+  /** random — автоматический выбор; manual — админ выбирает билеты-победители */
+  winnerSelectionMode!: 'random' | 'manual';
   ticketPrice!: number;
   maxTicketsPerUser!: number | null;
   winnersCount!: number;
@@ -78,6 +80,7 @@ export class AdminCreateRaffleDto {
   title!: string;
   description?: string | null;
   status?: 'draft' | 'active' | 'drawing' | 'completed' | 'completed_without_entries' | 'cancelled';
+  winnerSelectionMode?: 'random' | 'manual';
   ticketPrice!: number;
   maxTicketsPerUser?: number | null;
   winnersCount!: number;
@@ -92,6 +95,7 @@ export class AdminUpdateRaffleDto {
   title?: string;
   description?: string | null;
   status?: 'draft' | 'active' | 'drawing' | 'completed' | 'completed_without_entries' | 'cancelled';
+  winnerSelectionMode?: 'random' | 'manual';
   ticketPrice?: number;
   maxTicketsPerUser?: number | null;
   winnersCount?: number;
@@ -106,6 +110,7 @@ export class AdminRaffleListItemResponseDto {
   id!: number;
   title!: string;
   status!: 'draft' | 'active' | 'drawing' | 'completed' | 'completed_without_entries' | 'cancelled';
+  winnerSelectionMode!: 'random' | 'manual';
   ticketPrice!: number;
   /** null — без ограничения на число билетов с одного аккаунта */
   maxTicketsPerUser!: number | null;

@@ -186,6 +186,7 @@ export interface AdminRaffle {
   id: number;
   title: string;
   status: "draft" | "active" | "drawing" | "completed" | "completed_without_entries" | "cancelled";
+  winnerSelectionMode: "random" | "manual";
   ticketPrice: number;
   /** null — без лимита билетов на пользователя */
   maxTicketsPerUser: number | null;
@@ -232,6 +233,7 @@ export type CreateRaffleBody = {
   title: string;
   description?: string | null;
   status?: AdminRaffle["status"];
+  winnerSelectionMode?: "random" | "manual";
   ticketPrice: number;
   maxTicketsPerUser?: number | null;
   winnersCount: number;
@@ -494,9 +496,33 @@ export async function adminDrawRaffle(id: number): Promise<{
   raffleId: number;
   status: AdminRaffle["status"];
   winnersCreated: number;
+  manualSelectionRequired?: boolean;
 }> {
   return fetchAdmin(`/v1/admin/raffles/${id}/draw`, {
     method: "POST",
+  });
+}
+
+export interface AdminRaffleTicketForDraw {
+  ticketId: number;
+  ticketNumber: number;
+  userId: number;
+  userName: string | null;
+}
+
+export async function adminListRaffleTicketsForDraw(
+  raffleId: number
+): Promise<{ tickets: AdminRaffleTicketForDraw[] }> {
+  return fetchAdmin(`/v1/admin/raffles/${raffleId}/tickets-for-draw`);
+}
+
+export async function adminSubmitManualRaffleWinners(
+  raffleId: number,
+  assignments: Array<{ prizeId: number; ticketId: number }>
+): Promise<{ raffleId: number; status: AdminRaffle["status"]; winnersCreated: number }> {
+  return fetchAdmin(`/v1/admin/raffles/${raffleId}/manual-winners`, {
+    method: "POST",
+    body: JSON.stringify({ assignments }),
   });
 }
 

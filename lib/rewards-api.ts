@@ -219,6 +219,8 @@ export interface RaffleResponse {
   title: string;
   description: string | null;
   status: "draft" | "active" | "drawing" | "completed" | "completed_without_entries" | "cancelled";
+  /** random — автожеребьёвка; manual — победители выбирает админ (статус drawing до публикации) */
+  winnerSelectionMode?: "random" | "manual";
   ticketPrice: number;
   maxTicketsPerUser: number | null;
   winnersCount: number;

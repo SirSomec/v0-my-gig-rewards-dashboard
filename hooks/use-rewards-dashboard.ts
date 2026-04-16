@@ -286,6 +286,7 @@ export interface DashboardRaffle {
   title: string
   description: string
   status: RaffleResponse["status"]
+  winnerSelectionMode: "random" | "manual"
   ticketPrice: number
   maxTicketsPerUser: number | null
   winnersCount: number
@@ -320,6 +321,7 @@ function mapRaffle(r: RaffleResponse): DashboardRaffle {
     title: r.title,
     description: r.description ?? "",
     status: r.status,
+    winnerSelectionMode: r.winnerSelectionMode === "manual" ? "manual" : "random",
     ticketPrice: r.ticketPrice,
     maxTicketsPerUser: r.maxTicketsPerUser,
     winnersCount: r.winnersCount,

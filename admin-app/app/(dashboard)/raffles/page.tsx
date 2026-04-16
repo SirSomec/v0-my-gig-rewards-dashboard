@@ -69,6 +69,7 @@ function createEmptyForm(): RaffleForm {
     title: "",
     description: "",
     status: "active",
+    winnerSelectionMode: "random",
     ticketPrice: 10,
     maxTicketsPerUser: null,
     winnersCount: 1,
@@ -120,6 +121,7 @@ export default function AdminRafflesPage() {
         title: detail.title,
         description: detail.description ?? "",
         status: detail.status,
+        winnerSelectionMode: detail.winnerSelectionMode ?? "random",
         ticketPrice: detail.ticketPrice,
         maxTicketsPerUser: detail.maxTicketsPerUser,
         winnersCount: detail.winnersCount,
@@ -146,6 +148,7 @@ export default function AdminRafflesPage() {
         title: item.title,
         ticketPrice: item.ticketPrice,
         winnersCount: item.winnersCount,
+        winnerSelectionMode: item.winnerSelectionMode ?? "random",
         isVisible: item.isVisible ? 1 : 0,
         startsAt: isoToDatetimeLocalValue(item.startsAt),
         endsAt: isoToDatetimeLocalValue(item.endsAt),
@@ -241,7 +244,7 @@ export default function AdminRafflesPage() {
                     {item.title}
                   </Link>
                   <p className="text-xs text-muted-foreground">
-                    {item.status} · билет {item.ticketPrice}
+                    {item.status} · {item.winnerSelectionMode === "manual" ? "ручной итог" : "автожеребьёвка"} · билет {item.ticketPrice}
                     {item.maxTicketsPerUser != null
                       ? ` · макс. билетов на пользователя: ${item.maxTicketsPerUser}`
                       : " · лимит билетов на пользователя: нет"}
@@ -259,7 +262,11 @@ export default function AdminRafflesPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    disabled={item.status === "completed" || item.status === "completed_without_entries"}
+                    disabled={
+                      item.status === "completed" ||
+                      item.status === "completed_without_entries" ||
+                      (item.winnerSelectionMode === "manual" && item.status === "drawing")
+                    }
                     onClick={async () => {
                       try {
                         await adminDrawRaffle(item.id)
@@ -269,7 +276,9 @@ export default function AdminRafflesPage() {
                       }
                     }}
                   >
-                    Завершить
+                    {item.winnerSelectionMode === "manual" && item.status === "drawing"
+                      ? "Итог в карточке"
+                      : "Завершить"}
                   </Button>
                   <Button
                     size="sm"
@@ -449,6 +458,24 @@ export default function AdminRafflesPage() {
             <div className="flex items-center gap-2">
               <Checkbox checked={!!form.isVisible} onCheckedChange={(checked) => setForm((f) => ({ ...f, isVisible: checked ? 1 : 0 }))} />
               <Label className="font-normal">Показывать пользователям</Label>
+            </div>
+            <div className="grid gap-2">
+              <Label>Победители</Label>
+              <Select
+                value={form.winnerSelectionMode ?? "random"}
+                onValueChange={(value) =>
+                  setForm((f) => ({ ...f, winnerSelectionMode: value as "random" | "manual" }))
+                }
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="random">Случайная жеребьёвка после окончания</SelectItem>
+                  <SelectItem value="manual">Вручную: выбор билетов-победителей в админке</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                В ручном режиме после окончания приёма билетов откройте карточку розыгрыша и назначьте победителей по одному билету на каждый выигрышный слот (по количеству призов).
+              </p>
             </div>
             <div className="grid gap-2">
               <Label>Статус</Label>

@@ -8,6 +8,8 @@ export const raffles = pgTable('raffles', {
   title: varchar('title', { length: 256 }).notNull(),
   description: varchar('description', { length: 2048 }),
   status: varchar('status', { length: 32 }).notNull().default('draft'), // draft | active | drawing | completed | completed_without_entries | cancelled
+  /** random — автожеребьёвка; manual — победители задаёт админ после окончания приёма билетов */
+  winnerSelectionMode: varchar('winner_selection_mode', { length: 16 }).notNull().default('random'),
   ticketPrice: integer('ticket_price').notNull(),
   maxTicketsPerUser: integer('max_tickets_per_user'),
   winnersCount: integer('winners_count').notNull().default(1),

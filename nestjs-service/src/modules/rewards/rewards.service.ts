@@ -88,6 +88,12 @@ type RaffleStatus =
   | 'completed_without_entries'
   | 'cancelled';
 
+type WinnerSelectionMode = 'random' | 'manual';
+
+function normalizeWinnerSelectionMode(raw: string | null | undefined): WinnerSelectionMode {
+  return raw === 'manual' ? 'manual' : 'random';
+}
+
 interface RaffleAggregateRow {
   raffle: typeof schema.raffles.$inferSelect;
   prizes: (typeof schema.rafflePrizes.$inferSelect)[];
@@ -1572,6 +1578,7 @@ export class RewardsService {
     dto.title = row.raffle.title;
     dto.description = row.raffle.description;
     dto.status = row.raffle.status as RaffleStatus;
+    dto.winnerSelectionMode = normalizeWinnerSelectionMode(row.raffle.winnerSelectionMode);
     dto.ticketPrice = row.raffle.ticketPrice;
     dto.maxTicketsPerUser = row.raffle.maxTicketsPerUser ?? null;
     dto.winnersCount = row.raffle.winnersCount;
@@ -1759,6 +1766,7 @@ export class RewardsService {
       dto.title = row.raffle.title;
       dto.status = row.raffle.status as RaffleStatus;
       dto.ticketPrice = row.raffle.ticketPrice;
+      dto.winnerSelectionMode = normalizeWinnerSelectionMode(row.raffle.winnerSelectionMode);
       dto.maxTicketsPerUser = row.raffle.maxTicketsPerUser ?? null;
       dto.totalTickets = row.totalTickets;
       dto.uniqueParticipants = row.participantCount;
@@ -1802,6 +1810,7 @@ export class RewardsService {
     dto.endsAt = (row.raffle.endsAt as Date).toISOString();
     dto.completedAt = toIso(row.raffle.completedAt as Date | null);
     dto.isVisible = row.raffle.isVisible === 1;
+    dto.winnerSelectionMode = normalizeWinnerSelectionMode(row.raffle.winnerSelectionMode);
     dto.maxTicketsPerUser = row.raffle.maxTicketsPerUser ?? null;
     dto.coverImageUrl = row.raffle.coverImageUrl;
     dto.prizes = row.prizes.map((prize) => this.mapRafflePrize(prize));
@@ -1829,6 +1838,14 @@ export class RewardsService {
     }
     if ('maxTicketsPerUser' in dto && dto.maxTicketsPerUser !== undefined && dto.maxTicketsPerUser !== null && dto.maxTicketsPerUser < 1) {
       throw new BadRequestException('maxTicketsPerUser must be >= 1');
+    }
+    if (
+      'winnerSelectionMode' in dto &&
+      dto.winnerSelectionMode !== undefined &&
+      dto.winnerSelectionMode !== 'random' &&
+      dto.winnerSelectionMode !== 'manual'
+    ) {
+      throw new BadRequestException('winnerSelectionMode must be random or manual');
     }
     if ('prizes' in dto && dto.prizes !== undefined) {
       if (!Array.isArray(dto.prizes) || dto.prizes.length === 0) {
@@ -1858,12 +1875,14 @@ export class RewardsService {
       dto.status ??
       ((dto.isVisible ?? 1) === 1 ? 'active' : 'draft');
     const { raffles, rafflePrizes } = schema;
+    const mode: WinnerSelectionMode = dto.winnerSelectionMode === 'manual' ? 'manual' : 'random';
     const [raffle] = await this.rewardsRepository.db
       .insert(raffles)
       .values({
         title: dto.title.trim(),
         description: dto.description?.trim() || null,
         status,
+        winnerSelectionMode: mode,
         ticketPrice: dto.ticketPrice,
         maxTicketsPerUser: dto.maxTicketsPerUser ?? null,
         winnersCount: dto.winnersCount,
@@ -1901,6 +1920,10 @@ export class RewardsService {
     if (dto.status !== undefined) updates.status = dto.status;
     if (dto.ticketPrice !== undefined) updates.ticketPrice = dto.ticketPrice;
     if (dto.maxTicketsPerUser !== undefined) updates.maxTicketsPerUser = dto.maxTicketsPerUser;
+    if (dto.winnerSelectionMode !== undefined) {
+      updates.winnerSelectionMode =
+        dto.winnerSelectionMode === 'manual' ? 'manual' : 'random';
+    }
     if (dto.winnersCount !== undefined) updates.winnersCount = dto.winnersCount;
     if (dto.coverImageUrl !== undefined) updates.coverImageUrl = dto.coverImageUrl?.trim() || null;
     if (dto.isVisible !== undefined) updates.isVisible = dto.isVisible;
@@ -1950,7 +1973,12 @@ export class RewardsService {
     return { id: raffleId };
   }
 
-  async finalizeRaffleDraw(raffleId: number): Promise<{ raffleId: number; status: RaffleStatus; winnersCreated: number }> {
+  async finalizeRaffleDraw(raffleId: number): Promise<{
+    raffleId: number;
+    status: RaffleStatus;
+    winnersCreated: number;
+    manualSelectionRequired?: boolean;
+  }> {
     const { raffles, rafflePrizes, raffleTickets, raffleWinners } = schema;
     return this.rewardsRepository.db.transaction(async (tx) => {
       const [raffle] = await tx
@@ -1971,6 +1999,8 @@ export class RewardsService {
         return { raffleId, status: raffle.status as RaffleStatus, winnersCreated: 0 };
       }
 
+      const mode = normalizeWinnerSelectionMode(raffle.winnerSelectionMode);
+
       const existingWinners = await tx
         .select({ id: raffleWinners.id })
         .from(raffleWinners)
@@ -1982,6 +2012,40 @@ export class RewardsService {
           .set({ status: 'completed', completedAt: now, updatedAt: now })
           .where(eq(raffles.id, raffleId));
         return { raffleId, status: 'completed', winnersCreated: 0 };
+      }
+
+      const [ticketCountRow] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(raffleTickets)
+        .where(eq(raffleTickets.raffleId, raffleId));
+      const ticketCount = Number(ticketCountRow?.count ?? 0);
+      if (ticketCount === 0) {
+        await tx
+          .update(raffles)
+          .set({ status: 'completed_without_entries', completedAt: now, updatedAt: now })
+          .where(eq(raffles.id, raffleId));
+        return { raffleId, status: 'completed_without_entries', winnersCreated: 0 };
+      }
+
+      if (mode === 'manual') {
+        if (raffle.status === 'active') {
+          await tx
+            .update(raffles)
+            .set({ status: 'drawing', updatedAt: now })
+            .where(eq(raffles.id, raffleId));
+          return {
+            raffleId,
+            status: 'drawing',
+            winnersCreated: 0,
+            manualSelectionRequired: true,
+          };
+        }
+        if (raffle.status === 'drawing') {
+          throw new BadRequestException(
+            'Для этого розыгрыша нужно вручную выбрать победившие билеты в админке',
+          );
+        }
+        throw new BadRequestException('Invalid raffle state for manual winner selection');
       }
 
       await tx
@@ -2003,13 +2067,6 @@ export class RewardsService {
         .from(raffleTickets)
         .where(eq(raffleTickets.raffleId, raffleId))
         .orderBy(sql`random()`);
-      if (tickets.length === 0) {
-        await tx
-          .update(raffles)
-          .set({ status: 'completed_without_entries', completedAt: now, updatedAt: now })
-          .where(eq(raffles.id, raffleId));
-        return { raffleId, status: 'completed_without_entries', winnersCreated: 0 };
-      }
 
       const prizeSlots = prizes.flatMap((prize) =>
         Array.from({ length: prize.quantity }, () => ({ prizeId: prize.id })),
@@ -2034,24 +2091,159 @@ export class RewardsService {
     });
   }
 
+  async getAdminRaffleTicketsForDraw(raffleId: number): Promise<
+    Array<{ ticketId: number; ticketNumber: number; userId: number; userName: string | null }>
+  > {
+    await this.getAdminRaffleDetail(raffleId);
+    const { raffleTickets, users } = schema;
+    const rows = await this.rewardsRepository.db
+      .select({
+        ticketId: raffleTickets.id,
+        ticketNumber: raffleTickets.ticketNumber,
+        userId: raffleTickets.userId,
+        userName: users.name,
+      })
+      .from(raffleTickets)
+      .innerJoin(users, eq(raffleTickets.userId, users.id))
+      .where(eq(raffleTickets.raffleId, raffleId))
+      .orderBy(raffleTickets.ticketNumber);
+    return rows.map((r) => ({
+      ticketId: r.ticketId,
+      ticketNumber: r.ticketNumber,
+      userId: r.userId,
+      userName: r.userName,
+    }));
+  }
+
+  async submitManualRaffleWinners(
+    raffleId: number,
+    assignments: Array<{ prizeId: number; ticketId: number }>,
+  ): Promise<{ raffleId: number; status: RaffleStatus; winnersCreated: number }> {
+    const { raffles, rafflePrizes, raffleTickets, raffleWinners } = schema;
+    if (!Array.isArray(assignments) || assignments.length === 0) {
+      throw new BadRequestException('assignments required');
+    }
+    return this.rewardsRepository.db.transaction(async (tx) => {
+      const [raffle] = await tx
+        .select()
+        .from(raffles)
+        .where(and(eq(raffles.id, raffleId), isNull(raffles.deletedAt)))
+        .limit(1)
+        .for('update');
+      if (!raffle) {
+        throw new NotFoundException('Raffle not found');
+      }
+      if (normalizeWinnerSelectionMode(raffle.winnerSelectionMode) !== 'manual') {
+        throw new BadRequestException('Raffle is not in manual winner selection mode');
+      }
+      const now = new Date();
+      if ((raffle.endsAt as Date) > now) {
+        throw new BadRequestException('Raffle has not ended yet');
+      }
+      if (raffle.status !== 'drawing') {
+        throw new BadRequestException('Raffle must be in drawing status (waiting for manual winner selection)');
+      }
+
+      const existingWinners = await tx
+        .select({ id: raffleWinners.id })
+        .from(raffleWinners)
+        .where(eq(raffleWinners.raffleId, raffleId))
+        .limit(1);
+      if (existingWinners.length > 0) {
+        throw new BadRequestException('Winners already recorded for this raffle');
+      }
+
+      const prizes = await tx
+        .select()
+        .from(rafflePrizes)
+        .where(and(eq(rafflePrizes.raffleId, raffleId), isNull(rafflePrizes.deletedAt)))
+        .orderBy(rafflePrizes.sortOrder, rafflePrizes.id);
+      if (prizes.length === 0) {
+        throw new BadRequestException('Raffle must have at least one prize');
+      }
+      const prizeSlots = prizes.flatMap((prize) =>
+        Array.from({ length: prize.quantity }, () => ({ prizeId: prize.id })),
+      );
+      if (assignments.length !== prizeSlots.length) {
+        throw new BadRequestException(
+          `Expected ${prizeSlots.length} assignments (one per winning slot), got ${assignments.length}`,
+        );
+      }
+
+      const usedTicketIds = new Set<number>();
+      const winnersToInsert: Array<{
+        raffleId: number;
+        prizeId: number;
+        userId: number;
+        ticketId: number;
+        selectedAt: Date;
+      }> = [];
+
+      for (let i = 0; i < prizeSlots.length; i++) {
+        const slot = prizeSlots[i]!;
+        const row = assignments[i]!;
+        if (row.prizeId !== slot.prizeId) {
+          throw new BadRequestException(
+            `Assignment #${i + 1}: expected prizeId ${slot.prizeId}, got ${row.prizeId}`,
+          );
+        }
+        if (usedTicketIds.has(row.ticketId)) {
+          throw new BadRequestException('Each winning ticket must be unique');
+        }
+        usedTicketIds.add(row.ticketId);
+        const [ticket] = await tx
+          .select()
+          .from(raffleTickets)
+          .where(and(eq(raffleTickets.id, row.ticketId), eq(raffleTickets.raffleId, raffleId)))
+          .limit(1);
+        if (!ticket) {
+          throw new BadRequestException(`Invalid ticketId ${row.ticketId} for this raffle`);
+        }
+        winnersToInsert.push({
+          raffleId,
+          prizeId: row.prizeId,
+          userId: ticket.userId,
+          ticketId: ticket.id,
+          selectedAt: now,
+        });
+      }
+
+      await tx.insert(raffleWinners).values(winnersToInsert);
+      await tx
+        .update(raffles)
+        .set({ status: 'completed', completedAt: now, updatedAt: now })
+        .where(eq(raffles.id, raffleId));
+      return { raffleId, status: 'completed', winnersCreated: winnersToInsert.length };
+    });
+  }
+
   async processExpiredRaffles(limit = 20): Promise<{ processed: number; winnersCreated: number }> {
+    const { raffles } = schema;
     const raffleRows = await this.rewardsRepository.db
-      .select({ id: schema.raffles.id })
-      .from(schema.raffles)
+      .select({
+        id: raffles.id,
+        status: raffles.status,
+        winnerSelectionMode: raffles.winnerSelectionMode,
+      })
+      .from(raffles)
       .where(
         and(
-          isNull(schema.raffles.deletedAt),
-          lte(schema.raffles.endsAt, new Date()),
-          inArray(schema.raffles.status, ['active', 'drawing']),
+          isNull(raffles.deletedAt),
+          lte(raffles.endsAt, new Date()),
+          inArray(raffles.status, ['active', 'drawing']),
         ),
       )
-      .orderBy(asc(schema.raffles.endsAt), asc(schema.raffles.id))
+      .orderBy(asc(raffles.endsAt), asc(raffles.id))
       .limit(limit);
 
     let processed = 0;
     let winnersCreated = 0;
-    for (const raffle of raffleRows) {
-      const result = await this.finalizeRaffleDraw(raffle.id);
+    for (const row of raffleRows) {
+      const mode = normalizeWinnerSelectionMode(row.winnerSelectionMode);
+      if (mode === 'manual' && row.status === 'drawing') {
+        continue;
+      }
+      const result = await this.finalizeRaffleDraw(row.id);
       processed += 1;
       winnersCreated += result.winnersCreated;
     }

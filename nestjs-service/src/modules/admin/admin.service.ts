@@ -5,6 +5,7 @@ import * as schema from '../../infra/db/drizzle/schemas';
 import type {
   CreateQuestDto,
   CreateRaffleDto,
+  ManualRaffleWinnersDto,
   CreateStoreItemDto,
   UpdateLevelDto,
   UpdateQuestDto,
@@ -251,6 +252,17 @@ export class AdminService {
   async drawRaffle(id: number) {
     const result = await this.rewards.finalizeRaffleDraw(id);
     await this.logAudit('raffle_draw', 'raffle', String(id), undefined, result as Record<string, unknown>);
+    return result;
+  }
+
+  async listRaffleTicketsForDraw(raffleId: number) {
+    const tickets = await this.rewards.getAdminRaffleTicketsForDraw(raffleId);
+    return { tickets };
+  }
+
+  async submitManualRaffleWinners(raffleId: number, body: ManualRaffleWinnersDto) {
+    const result = await this.rewards.submitManualRaffleWinners(raffleId, body.assignments ?? []);
+    await this.logAudit('raffle_manual_winners', 'raffle', String(raffleId), undefined, result as Record<string, unknown>);
     return result;
   }
 

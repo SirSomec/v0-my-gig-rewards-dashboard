@@ -17,13 +17,20 @@ function formatDateTime(iso: string): string {
   return format(date, "d MMM yyyy, HH:mm", { locale: ru })
 }
 
-const statusLabel: Record<DashboardRaffle["status"], string> = {
+const defaultRaffleStatusLabel: Record<DashboardRaffle["status"], string> = {
   draft: "Черновик",
   active: "Активен",
   drawing: "Идет выбор победителей",
   completed: "Завершен",
   completed_without_entries: "Завершен без участников",
   cancelled: "Отменен",
+}
+
+function statusLabelForRaffle(raffle: DashboardRaffle): string {
+  if (raffle.status === "drawing" && raffle.winnerSelectionMode === "manual") {
+    return "Итоги: выбор администратором"
+  }
+  return defaultRaffleStatusLabel[raffle.status]
 }
 
 interface RafflesViewProps {
@@ -90,7 +97,7 @@ export function RafflesView({ raffles, myRaffles, userBalance, onPurchase }: Raf
                           <p className="text-xs text-muted-foreground">{raffle.description}</p>
                         </div>
                         <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary">
-                          {statusLabel[raffle.status]}
+                          {statusLabelForRaffle(raffle)}
                         </span>
                       </div>
                       <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
@@ -162,6 +169,11 @@ export function RafflesView({ raffles, myRaffles, userBalance, onPurchase }: Raf
                     {limitReached && (
                       <p className="text-[11px] text-muted-foreground">Вы достигли лимита билетов на этот розыгрыш.</p>
                     )}
+                    {raffle.status === "drawing" && raffle.winnerSelectionMode === "manual" && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Победители будут объявлены после того, как администратор выберет выигравшие билеты.
+                      </p>
+                    )}
                   </div>
                 )
               })
@@ -183,7 +195,7 @@ export function RafflesView({ raffles, myRaffles, userBalance, onPurchase }: Raf
                     <div>
                       <p className="text-sm font-semibold text-foreground">{entry.raffleTitle}</p>
                       <p className="text-xs text-muted-foreground">
-                        {statusLabel[entry.status]} · до {formatDateTime(entry.endsAt)}
+                        {defaultRaffleStatusLabel[entry.status]} · до {formatDateTime(entry.endsAt)}
                       </p>
                     </div>
                     {entry.isWinner && (
@@ -222,7 +234,7 @@ export function RafflesView({ raffles, myRaffles, userBalance, onPurchase }: Raf
                     <div>
                       <p className="text-sm font-semibold text-foreground">{raffle.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        {statusLabel[raffle.status]} · завершен {formatDateTime(raffle.completedAt ?? raffle.endsAt)}
+                        {defaultRaffleStatusLabel[raffle.status]} · завершен {formatDateTime(raffle.completedAt ?? raffle.endsAt)}
                       </p>
                     </div>
                     <span className="text-xs text-muted-foreground">Билетов: {raffle.totalTickets}</span>

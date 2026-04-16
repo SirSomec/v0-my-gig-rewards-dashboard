@@ -92,6 +92,8 @@ export class CreateRaffleDto {
   title!: string;
   description?: string | null;
   status?: 'draft' | 'active' | 'drawing' | 'completed' | 'completed_without_entries' | 'cancelled';
+  /** random — автожеребьёвка после окончания; manual — админ выбирает билеты-победители */
+  winnerSelectionMode?: 'random' | 'manual';
   ticketPrice!: number;
   maxTicketsPerUser?: number | null;
   winnersCount!: number;
@@ -106,6 +108,7 @@ export class UpdateRaffleDto {
   title?: string;
   description?: string | null;
   status?: 'draft' | 'active' | 'drawing' | 'completed' | 'completed_without_entries' | 'cancelled';
+  winnerSelectionMode?: 'random' | 'manual';
   ticketPrice?: number;
   maxTicketsPerUser?: number | null;
   winnersCount?: number;
@@ -114,4 +117,8 @@ export class UpdateRaffleDto {
   startsAt?: string;
   endsAt?: string;
   prizes?: AdminRafflePrizeInputDto[];
+}
+
+export class ManualRaffleWinnersDto {
+  assignments!: Array<{ prizeId: number; ticketId: number }>;
 }
