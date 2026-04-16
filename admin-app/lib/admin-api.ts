@@ -516,6 +516,41 @@ export async function adminListRaffleTicketsForDraw(
   return fetchAdmin(`/v1/admin/raffles/${raffleId}/tickets-for-draw`);
 }
 
+function adminAuthHeadersOnly(): HeadersInit {
+  const h: Record<string, string> = {};
+  const key = getAdminKey();
+  if (key) h["X-Admin-Key"] = key;
+  return h;
+}
+
+/** Скачивание .xlsx со списком билетов (только в браузере; cookie сессии). */
+export async function adminDownloadRaffleTicketsExcel(raffleId: number): Promise<void> {
+  if (typeof window === "undefined") {
+    throw new Error("adminDownloadRaffleTicketsExcel доступен только в браузере");
+  }
+  const url = `${getBaseUrl().replace(/\/$/, "")}/v1/admin/raffles/${raffleId}/tickets-export`;
+  const res = await fetch(url, {
+    method: "GET",
+    credentials: "include",
+    headers: adminAuthHeadersOnly(),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Admin API ${res.status}: ${text || res.statusText}`);
+  }
+  const blob = await res.blob();
+  let filename = `raffle-${raffleId}-tickets.xlsx`;
+  const cd = res.headers.get("Content-Disposition");
+  const m = cd?.match(/filename="([^"]+)"/) ?? cd?.match(/filename=([^;\s]+)/);
+  if (m?.[1]) filename = m[1].replace(/"/g, "");
+  const u = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = u;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(u);
+}
+
 export async function adminSubmitManualRaffleWinners(
   raffleId: number,
   assignments: Array<{ prizeId: number; ticketId: number }>

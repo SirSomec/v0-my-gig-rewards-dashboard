@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { format } from "date-fns"
 import { ru } from "date-fns/locale"
-import { Ticket, Trophy, Users, Clock3 } from "lucide-react"
+import { Ticket, Trophy, Clock3 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -102,8 +102,7 @@ export function RafflesView({ raffles, myRaffles, userBalance, onPurchase }: Raf
                       </div>
                       <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
                         <span className="inline-flex items-center gap-1"><Clock3 size={12} /> До {formatDateTime(raffle.endsAt)}</span>
-                        <span className="inline-flex items-center gap-1"><Users size={12} /> Билетов: {raffle.totalTickets}</span>
-                        <span className="inline-flex items-center gap-1"><Ticket size={12} /> Моих: {raffle.myTicketsCount}</span>
+                        <span className="inline-flex items-center gap-1"><Ticket size={12} /> Моих билетов: {raffle.myTicketsCount}</span>
                         {raffle.maxTicketsPerUser != null ? (
                           <span className="inline-flex items-center gap-1">Лимит: до {raffle.maxTicketsPerUser} на пользователя</span>
                         ) : null}
@@ -206,7 +205,10 @@ export function RafflesView({ raffles, myRaffles, userBalance, onPurchase }: Raf
                     )}
                   </div>
                   <p className="text-xs text-foreground">
-                    Билетов: {entry.ticketsCount} · Номера: {entry.ticketNumbers.join(", ")}
+                    Ваших билетов: {entry.ticketsCount}
+                    {entry.ticketNumbers.length > 0
+                      ? ` · номера: ${entry.ticketNumbers.join(", ")}`
+                      : null}
                   </p>
                   {entry.winners.length > 0 && (
                     <div className="space-y-1">
@@ -237,7 +239,6 @@ export function RafflesView({ raffles, myRaffles, userBalance, onPurchase }: Raf
                         {defaultRaffleStatusLabel[raffle.status]} · завершен {formatDateTime(raffle.completedAt ?? raffle.endsAt)}
                       </p>
                     </div>
-                    <span className="text-xs text-muted-foreground">Билетов: {raffle.totalTickets}</span>
                   </div>
                   {raffle.winners.length > 0 ? (
                     <div className="space-y-1">

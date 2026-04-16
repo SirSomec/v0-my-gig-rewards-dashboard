@@ -229,7 +229,8 @@ export interface RaffleResponse {
   startsAt: string;
   endsAt: string;
   completedAt: string | null;
-  totalTickets: number;
+  /** Общее число билетов в API не приходит — не показывать пользователям. */
+  totalTickets?: number;
   myTicketsCount: number;
   prizes: RafflePrizeResponse[];
   winners: RaffleWinnerResponse[];

@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { and, asc, desc, eq, gt, gte, inArray, isNull, lt, lte, sql } from 'drizzle-orm';
@@ -92,6 +93,27 @@ type WinnerSelectionMode = 'random' | 'manual';
 
 function normalizeWinnerSelectionMode(raw: string | null | undefined): WinnerSelectionMode {
   return raw === 'manual' ? 'manual' : 'random';
+}
+
+/** Уникальные в рамках розыгрыша «непредсказуемые» номера (не по порядку 1..N). */
+function allocateOpaqueTicketNumbers(existing: ReadonlySet<number>, quantity: number): number[] {
+  const MIN = 100_000_000;
+  const MAX = 2_147_000_000;
+  const used = new Set(existing);
+  const out: number[] = [];
+  for (let i = 0; i < quantity; i++) {
+    let n: number;
+    let attempts = 0;
+    do {
+      n = randomInt(MIN, MAX + 1);
+      if (++attempts > 500) {
+        throw new BadRequestException('Could not allocate unique ticket numbers');
+      }
+    } while (used.has(n));
+    used.add(n);
+    out.push(n);
+  }
+  return out;
 }
 
 interface RaffleAggregateRow {
@@ -1587,7 +1609,6 @@ export class RewardsService {
     dto.startsAt = (row.raffle.startsAt as Date).toISOString();
     dto.endsAt = (row.raffle.endsAt as Date).toISOString();
     dto.completedAt = toIso(row.raffle.completedAt as Date | null);
-    dto.totalTickets = row.totalTickets;
     dto.myTicketsCount = row.myTicketsCount;
     dto.prizes = row.prizes.map((prize) => this.mapRafflePrize(prize));
     dto.winners = row.winners.map((winner) => this.mapRaffleWinner(winner));
@@ -1708,20 +1729,21 @@ export class RewardsService {
           throw new Error('INSUFFICIENT_BALANCE');
         }
 
-        const [maxTicketRow] = await tx
-          .select({ maxTicket: sql<number>`coalesce(max(${raffleTickets.ticketNumber}), 0)` })
+        const existingNumRows = await tx
+          .select({ n: raffleTickets.ticketNumber })
           .from(raffleTickets)
           .where(eq(raffleTickets.raffleId, raffleId));
-        const startNumber = Number(maxTicketRow?.maxTicket ?? 0);
+        const existingNums = new Set(existingNumRows.map((r) => r.n));
+        const ticketNumbers = allocateOpaqueTicketNumbers(existingNums, quantity);
 
         const insertedTickets = await tx
           .insert(raffleTickets)
           .values(
-            Array.from({ length: quantity }, (_, index) => ({
+            ticketNumbers.map((ticketNumber, index) => ({
               raffleId,
               userId,
-              ticketNumber: startNumber + index + 1,
-              sourceRef: `${raffleId}:${userId}:${now.getTime()}:${index + 1}`,
+              ticketNumber,
+              sourceRef: `${raffleId}:${userId}:${now.getTime()}:${index}`,
             })),
           )
           .returning({ id: raffleTickets.id, ticketNumber: raffleTickets.ticketNumber });
@@ -2113,6 +2135,49 @@ export class RewardsService {
       userId: r.userId,
       userName: r.userName,
     }));
+  }
+
+  /** Список купленных билетов розыгрыша в виде .xlsx (админка). */
+  async exportAdminRaffleTicketsExcel(raffleId: number): Promise<Buffer> {
+    await this.getAdminRaffleDetail(raffleId);
+    const { raffleTickets, users } = schema;
+    const rows = await this.rewardsRepository.db
+      .select({
+        ticketId: raffleTickets.id,
+        ticketNumber: raffleTickets.ticketNumber,
+        userId: raffleTickets.userId,
+        userName: users.name,
+        createdAt: raffleTickets.createdAt,
+        sourceRef: raffleTickets.sourceRef,
+      })
+      .from(raffleTickets)
+      .innerJoin(users, eq(raffleTickets.userId, users.id))
+      .where(eq(raffleTickets.raffleId, raffleId))
+      .orderBy(raffleTickets.ticketNumber);
+
+    const ExcelJS = (await import('exceljs')).default;
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Билеты');
+    sheet.columns = [
+      { header: 'ID билета', key: 'ticketId', width: 12 },
+      { header: 'Номер билета', key: 'ticketNumber', width: 14 },
+      { header: 'ID пользователя', key: 'userId', width: 14 },
+      { header: 'Имя', key: 'userName', width: 28 },
+      { header: 'Дата покупки (UTC)', key: 'createdAt', width: 24 },
+      { header: 'source_ref', key: 'sourceRef', width: 28 },
+    ];
+    for (const r of rows) {
+      sheet.addRow({
+        ticketId: r.ticketId,
+        ticketNumber: r.ticketNumber,
+        userId: r.userId,
+        userName: r.userName ?? '',
+        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+        sourceRef: r.sourceRef ?? '',
+      });
+    }
+    const buf = await workbook.xlsx.writeBuffer();
+    return Buffer.isBuffer(buf) ? buf : Buffer.from(buf);
   }
 
   async submitManualRaffleWinners(

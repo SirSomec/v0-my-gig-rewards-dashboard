@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import {
+  adminDownloadRaffleTicketsExcel,
   adminDrawRaffle,
   adminGetRaffle,
   adminListRaffleTicketsForDraw,
@@ -40,6 +41,7 @@ export default function AdminRaffleDetailPage() {
   const [ticketsLoading, setTicketsLoading] = useState(false)
   const [manualTicketIds, setManualTicketIds] = useState<number[]>([])
   const [manualSaving, setManualSaving] = useState(false)
+  const [exportingTickets, setExportingTickets] = useState(false)
 
   const reload = useCallback(async () => {
     const updated = await adminGetRaffle(raffleId)
@@ -167,6 +169,21 @@ export default function AdminRaffleDetailPage() {
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
             <Link href="/raffles">Назад</Link>
+          </Button>
+          <Button
+            variant="outline"
+            disabled={exportingTickets}
+            onClick={() => {
+              setExportingTickets(true)
+              setError(null)
+              adminDownloadRaffleTicketsExcel(raffle.id)
+                .catch((e) =>
+                  setError(e instanceof Error ? e.message : "Не удалось скачать Excel"),
+                )
+                .finally(() => setExportingTickets(false))
+            }}
+          >
+            {exportingTickets ? "Скачивание…" : "Скачать билеты (Excel)"}
           </Button>
           {showAutoDrawButton && (
             <Button

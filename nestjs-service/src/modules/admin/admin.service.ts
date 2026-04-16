@@ -260,6 +260,12 @@ export class AdminService {
     return { tickets };
   }
 
+  async exportRaffleTicketsExcel(raffleId: number): Promise<Buffer> {
+    const buffer = await this.rewards.exportAdminRaffleTicketsExcel(raffleId);
+    await this.logAudit('raffle_tickets_export', 'raffle', String(raffleId), undefined, { format: 'xlsx' });
+    return buffer;
+  }
+
   async submitManualRaffleWinners(raffleId: number, body: ManualRaffleWinnersDto) {
     const result = await this.rewards.submitManualRaffleWinners(raffleId, body.assignments ?? []);
     await this.logAudit('raffle_manual_winners', 'raffle', String(raffleId), undefined, result as Record<string, unknown>);

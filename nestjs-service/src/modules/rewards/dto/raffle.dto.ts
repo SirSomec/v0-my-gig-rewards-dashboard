@@ -33,7 +33,8 @@ export class RaffleListItemResponseDto {
   startsAt!: string;
   endsAt!: string;
   completedAt!: string | null;
-  totalTickets!: number;
+  /** В пользовательском API не отдаётся (не раскрывать число участников). */
+  totalTickets?: number;
   myTicketsCount!: number;
   prizes!: RafflePrizeResponseDto[];
   winners!: RaffleWinnerResponseDto[];

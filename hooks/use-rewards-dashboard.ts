@@ -294,7 +294,6 @@ export interface DashboardRaffle {
   startsAt: string
   endsAt: string
   completedAt: string | null
-  totalTickets: number
   myTicketsCount: number
   prizes: RaffleResponse["prizes"]
   winners: RaffleResponse["winners"]
@@ -329,7 +328,6 @@ function mapRaffle(r: RaffleResponse): DashboardRaffle {
     startsAt: r.startsAt,
     endsAt: r.endsAt,
     completedAt: r.completedAt,
-    totalTickets: r.totalTickets,
     myTicketsCount: r.myTicketsCount,
     prizes: r.prizes,
     winners: r.winners,

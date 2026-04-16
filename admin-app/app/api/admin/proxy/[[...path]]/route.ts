@@ -66,11 +66,23 @@ async function proxy(
     body: body ?? undefined,
   })
 
-  const text = await res.text()
-  try {
-    const data = text ? JSON.parse(text) : null
-    return NextResponse.json(data, { status: res.status })
-  } catch {
-    return new NextResponse(text, { status: res.status })
+  const contentType = res.headers.get("content-type") ?? ""
+
+  if (contentType.includes("application/json")) {
+    const text = await res.text()
+    try {
+      const data = text ? JSON.parse(text) : null
+      return NextResponse.json(data, { status: res.status })
+    } catch {
+      return new NextResponse(text, { status: res.status })
+    }
   }
+
+  const outBody = await res.arrayBuffer()
+  const outHeaders = new Headers()
+  const ct = res.headers.get("content-type")
+  const cd = res.headers.get("content-disposition")
+  if (ct) outHeaders.set("Content-Type", ct)
+  if (cd) outHeaders.set("Content-Disposition", cd)
+  return new NextResponse(outBody, { status: res.status, headers: outHeaders })
 }

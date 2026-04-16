@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Query,
+  StreamableFile,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -260,6 +261,18 @@ export class AdminController {
     const raffleId = parseInt(id, 10);
     if (Number.isNaN(raffleId)) throw new BadRequestException('Invalid raffle id');
     return this.admin.listRaffleTicketsForDraw(raffleId);
+  }
+
+  @Get('raffles/:id/tickets-export')
+  @ApiOperation({ summary: 'Скачать список купленных билетов розыгрыша в Excel (.xlsx)' })
+  async exportRaffleTicketsExcel(@Param('id') id: string): Promise<StreamableFile> {
+    const raffleId = parseInt(id, 10);
+    if (Number.isNaN(raffleId)) throw new BadRequestException('Invalid raffle id');
+    const buffer = await this.admin.exportRaffleTicketsExcel(raffleId);
+    return new StreamableFile(buffer, {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      disposition: `attachment; filename="raffle-${raffleId}-tickets.xlsx"`,
+    });
   }
 
   @Post('raffles/:id/manual-winners')
